@@ -1,0 +1,27 @@
+{
+  "name": "@serenity-star/sdk",
+  "version": "1.0.0",
+  "description": "The Serenity Star JavaScript SDK provides a convenient way to interact with the Serenity Star API, enabling you to build custom applications.",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "keywords": [
+    "serenity-star",
+    "ai",
+    "sdk",
+    "realtime",
+    "agents"
+  ],
+  "author": "Mauro Garcia",
+  "license": "ISC",
+  "devDependencies": {
+    "tsup": "^8.3.6"
+  },
+  "dependencies": {
+    "undici": "5.28.5"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "vanilla-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@serenity-star/sdk": "*"
+  },
+  "devDependencies": {
+    "vite": "^6.1.0"
+  }
+}

@@ -1,0 +1,148 @@
+:root {
+  --accent-color: #4862ff;
+  --text-light: #ffffff;
+  --text-dark: #333333;
+  --bg-light: #ffffff;
+  --bg-gray: #f5f5f5;
+  --spacing: 20px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background-color: var(--accent-color);
+  padding: var(--spacing);
+  overflow-y: auto;
+  color: var(--text-light);
+}
+
+.sidebar h2 {
+  margin-bottom: var(--spacing);
+  font-size: 1.5rem;
+}
+
+.demo-list {
+  list-style: none;
+}
+
+.demo-group {
+  margin-bottom: 24px;
+}
+
+.group-header {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+}
+
+.group-list {
+  list-style: none;
+}
+
+.group-list li {
+  padding: 12px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+  font-size: 0.95rem;
+}
+
+.demo-list li {
+  padding: 12px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.demo-list li:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.demo-list li.active {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.main-content {
+  padding: var(--spacing);
+  background-color: var(--bg-light);
+}
+
+.demo-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.demo-container h1 {
+  margin-bottom: 10px;
+  color: var(--text-dark);
+}
+
+.demo-container p {
+  margin-bottom: var(--spacing);
+  color: var(--text-dark);
+  line-height: 1.5;
+}
+
+.run-button {
+  background-color: var(--accent-color);
+  color: var(--text-light);
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: opacity 0.2s;
+}
+
+.run-button:hover {
+  opacity: 0.9;
+}
+
+.result-box {
+  margin-top: var(--spacing);
+  padding: var(--spacing);
+  background-color: var(--bg-gray);
+  border-radius: 8px;
+  min-height: 200px;
+  white-space: pre-wrap;
+}
+
+.loading-indicator {
+  margin-top: 10px;
+  color: var(--accent-color);
+  font-size: 0.9rem;
+  display: none;
+}
+
+.loading-indicator.visible {
+  display: block;
+}
+
+.code-block {
+  background: #1e1e1e;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  overflow-x: auto;
+  font-family: 'Fira Code', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.code-block code {
+  color: #d4d4d4;
+}

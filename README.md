@@ -1,84 +1,38 @@
-# Turborepo starter
+<p align="center">
+  <a href="https://serenitystar.ai/">
+    <img alt="serenity star" src="./.github/resources/serenity-star-banner.png">
+    <h1 align="center">Serenity Star</h1>
+  </a>
+</p>
 
-This Turborepo starter is maintained by the Turborepo core team.
+<p align="center">
+  <a aria-label="try Serenity Star" href="https://hub.serenitystar.ai/Identity/Account/Register"><b>Try Serenity Star</b></a>
+&ensp;•&ensp;
+  <a aria-label="Serenity documentation" href="https://docs.serenitystar.ai">Read the Documentation</a>
+&ensp;•&ensp;
+  <a aria-label="Serenity blog" href="https://docs.serenitystar.ai/blog">Learn more on our blog</a>
+&ensp;•&ensp;
+  <a aria-label="Serenity Discord channel" href="https://discord.gg/SrT3xP7tS8">Chat with us on Discord</a>
+</p>
 
-## Using this example
+## Introduction
 
-Run the following command:
+Serenity Star is a comprehensive generative AI ecosystem designed to enhance business productivity through seamless integration of AI solutions. 
 
-```sh
-npx create-turbo@latest
-```
+It offers various models and tools for automating tasks, optimizing processes, and creating personalized customer experiences, all while ensuring data security and compliance.
 
-## What's inside?
+This repository includes the Serenity SDK and various other supporting tools
 
-This Turborepo includes the following packages/apps:
+## 📚 Documentation
 
-### Apps and Packages
+<p>Learn about Serenity Star <a aria-label="serenity star documentation" href="https://docs.serenitystar.ai">in our official docs!</a></p>
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+- [Introduction](https://docs.serenitystar.ai/docs/getting-started/introduction)
+- [API Reference](https://docs.serenitystar.ai/docs/api/aihub/serenity-star-api-docs)
+- [Agents](https://docs.serenitystar.ai/docs/serenity-aihub/agents)
+- [Serenity Chat (JavaScript)](https://docs.serenitystar.ai/docs/client-library-reference/javascript-serenity-chat)
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+## 🗺 Project Layout
 
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-pnpm build
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-```
-cd my-turborepo
-pnpm dev
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-```
-cd my-turborepo
-npx turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-npx turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turbo.build/repo/docs/core-concepts/monorepos/running-tasks)
-- [Caching](https://turbo.build/repo/docs/core-concepts/caching)
-- [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching)
-- [Filtering](https://turbo.build/repo/docs/core-concepts/monorepos/filtering)
-- [Configuration Options](https://turbo.build/repo/docs/reference/configuration)
-- [CLI Usage](https://turbo.build/repo/docs/reference/command-line-reference)
+- [`packages`](/packages) All the source code for Serenity Star packages, such as the SDK.
+- [`apps`](/apps) This is where you can find different boilerplates to test the different packages.

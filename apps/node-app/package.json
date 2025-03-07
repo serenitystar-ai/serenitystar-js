@@ -1,0 +1,17 @@
+{
+  "name": "node-app",
+  "version": "1.0.0",
+  "description": "Serenity SDK Node.js demo",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@serenity-star/sdk": "*",
+    "dotenv": "^16.0.3"
+  },
+  "keywords": [],
+  "author": "Mauro Garcia",
+  "license": "ISC"
+}
