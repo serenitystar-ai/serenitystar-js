@@ -1,6 +1,6 @@
 {
   "name": "@serenity-star/sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "The Serenity Star JavaScript SDK provides a convenient way to interact with the Serenity Star API, enabling you to build custom applications.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
