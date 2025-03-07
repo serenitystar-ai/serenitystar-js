@@ -1,4 +1,4 @@
-![Serenity JS/TS SDK](../../.github/resources/sdk-banner.png)
+![Serenity JS/TS SDK](https://github.com/serenitystar-ai/serenitystar-js/blob/main/.github/resources/sdk-banner.png?raw=true)
 
 # Serenity Star JS/TS SDK
 
