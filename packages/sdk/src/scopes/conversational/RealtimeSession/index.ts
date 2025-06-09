@@ -107,13 +107,29 @@ export class RealtimeSession extends EventEmitter<RealtimeSessionEvents> {
    * @param details Additional details about the stop event.
    */
   #stop(reason?: string, details?: any): void {
+    // Send a closure message to the server if socket is connected
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      try {
+        // Close the WebSocket connection properly
+        this.socket.close(1000, "Client closed the session");
+      } catch (error) {
+        console.error("Error closing WebSocket connection:", error);
+      }
+    }
+    
     // Stop the local audio tracks.
     if (this.localStream) {
       this.localStream.getTracks().forEach((track) => track.stop());
       this.localStream = undefined;
     }
+    
     // Close the WebRTC connection if it is open.
     this.peerConnection && this.peerConnection.close();
+    
+    // Reset variables
+    this.socket = undefined;
+    this.dataChannel = undefined;
+    this.peerConnection = undefined;
 
     this.emit("session.stopped", reason, details);
     clearTimeout(this.inactivityTimeout);
