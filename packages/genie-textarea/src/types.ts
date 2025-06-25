@@ -1,0 +1,68 @@
+import type { AgentResult } from "@serenity-star/sdk";
+
+export type GenieTextareaProps = {
+  id?: string;
+  value?: string;
+  label?: string;
+  mode?: "direct" | "assisted";
+  agentCode?: string;
+  apiKey?: string;
+  baseURL?: string;
+  quickActions?: QuickAction[];
+  inputParameters?: Record<string, any>;
+  placeholder?: string;
+  aiButton?: AiButtonOptions;
+  contentParameterName?: string;
+  instructionParameterName?: string;
+  handleRequestCompletion?: RequestCompletionProps;
+  handleAgentResult?: (result: AgentResult) => Promise<void>;
+  handleValueChange?: (value: string) => void;
+  handleBeforeSubmit?: BeforeSumitProps;
+  locale?: {
+    contentMissingErrorMessage?: string;
+    thinkingMessage?: string;
+    completionErrorMessage?: string;
+  };
+};
+
+export type GenieTextareaOptions = Omit<GenieTextareaProps, "id">;
+
+type QuickAction = {
+  label: string;
+  instruction: string;
+  icon?: IconOptions;
+};
+
+type AiButtonOptions = {
+  icon?: IconOptions;
+  bgColor?: string;
+  text?: string;
+  tintColor?: string;
+};
+
+type IconOptions =
+  | {
+      type: "img";
+      src: string;
+      alt?: string;
+      tintColor?: string;
+    }
+  | {
+      type: "svg";
+      content: string;
+      tintColor?: string;
+    };
+
+type BeforeSumitProps = (args: {
+  content: string;
+  instruction?: string;
+  setContent: (content: string) => void;
+  setInstruction?: (instruction: string) => void;
+}) => Promise<boolean>;
+
+type RequestCompletionProps = (args: {
+  content: string;
+  instruction?: string;
+  addChunk?: (chunk: string) => void;
+  setContent: (content: string) => void;
+}) => Promise<void>;
