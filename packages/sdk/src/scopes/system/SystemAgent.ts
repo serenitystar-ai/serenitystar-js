@@ -4,7 +4,9 @@ import { AgentMapper } from "../../utils/AgentMapper";
 import { SseConnection } from "../conversational/Conversation/SseConnection";
 import { SystemAgentExecutionOptionsMap } from "./../../types";
 
-export abstract class SystemAgent<T extends keyof SystemAgentExecutionOptionsMap> extends EventEmitter<SSEStreamEvents> {
+export abstract class SystemAgent<
+  T extends keyof SystemAgentExecutionOptionsMap,
+> extends EventEmitter<SSEStreamEvents> {
   protected constructor(
     protected readonly agentCode: string,
     protected readonly apiKey: string,
@@ -15,7 +17,9 @@ export abstract class SystemAgent<T extends keyof SystemAgentExecutionOptionsMap
   }
 
   async stream(): Promise<AgentResult> {
-    const version = this.options?.agentVersion ? `/${this.options.agentVersion}` : "";
+    const version = this.options?.agentVersion
+      ? `/${this.options.agentVersion}`
+      : "";
     const url = `${this.baseUrl}/v2/agent/${this.agentCode}/execute${version}`;
 
     let body = this.createExecuteBody(true);
@@ -23,7 +27,7 @@ export abstract class SystemAgent<T extends keyof SystemAgentExecutionOptionsMap
     const connection = new SseConnection();
     let responsePromise: Promise<AgentResult>;
 
-    responsePromise = new Promise((resolve, reject) => {
+    responsePromise = new Promise(async (resolve, reject) => {
       connection.on("start", () => {
         this.emit("start");
       });
@@ -44,27 +48,30 @@ export abstract class SystemAgent<T extends keyof SystemAgentExecutionOptionsMap
         this.emit("stop", finalMessage.result);
         resolve(finalMessage.result);
       });
-    });
 
-    const fetchOptions: RequestInit = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-KEY": this.apiKey,
-      },
-      body: JSON.stringify(body),
-    };
+      const fetchOptions: RequestInit = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-KEY": this.apiKey,
+        },
+        body: JSON.stringify(body),
+      };
 
-    connection.start(url, fetchOptions).catch((error) => {
-      this.emit("error", { message: error.message });
-      throw error;
+      try {
+        await connection.start(url, fetchOptions);
+      } catch (error) {
+        reject(error);
+      }
     });
 
     return responsePromise;
   }
 
   protected async execute(): Promise<AgentResult> {
-    const version = this.options?.agentVersion ? `/${this.options.agentVersion}` : "";
+    const version = this.options?.agentVersion
+      ? `/${this.options.agentVersion}`
+      : "";
     const url = `${this.baseUrl}/v2/agent/${this.agentCode}/execute${version}`;
 
     let body = this.createExecuteBody(false);
@@ -91,19 +98,21 @@ export abstract class SystemAgent<T extends keyof SystemAgentExecutionOptionsMap
     return AgentMapper.mapAgentResultToSnakeCase(data);
   }
 
-  protected createExecuteBody(stream: boolean): ExecuteBodyParams | {[key: string]: any} {
+  protected createExecuteBody(
+    stream: boolean
+  ): ExecuteBodyParams | { [key: string]: any } {
     let body: ExecuteBodyParams = [
-        {
-          Key: "stream",
-          Value: stream.toString(),
-        },
-      ];
-  
-      this.appendVolatileKnowledgeIdsIfNeeded(body);
-      this.appendUserIdentifierIfNeeded(body);
-      this.appendChannelIfNeeded(body);
-  
-      return body;
+      {
+        Key: "stream",
+        Value: stream.toString(),
+      },
+    ];
+
+    this.appendVolatileKnowledgeIdsIfNeeded(body);
+    this.appendUserIdentifierIfNeeded(body);
+    this.appendChannelIfNeeded(body);
+
+    return body;
   }
 
   protected appendUserIdentifierIfNeeded(body: ExecuteBodyParams) {
@@ -116,7 +125,11 @@ export abstract class SystemAgent<T extends keyof SystemAgentExecutionOptionsMap
   }
 
   protected appendVolatileKnowledgeIdsIfNeeded(body: ExecuteBodyParams) {
-    if (!this.options?.volatileKnowledgeIds || this.options.volatileKnowledgeIds.length === 0) return;
+    if (
+      !this.options?.volatileKnowledgeIds ||
+      this.options.volatileKnowledgeIds.length === 0
+    )
+      return;
 
     body.push({
       Key: "volatileKnowledgeIds",

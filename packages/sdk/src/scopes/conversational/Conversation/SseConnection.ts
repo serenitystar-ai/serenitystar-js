@@ -66,6 +66,11 @@ export class SseConnection {
     this.active = true;
     try {
       const response = await fetch(url, fetchOptions);
+
+      if(!response.ok) {
+        throw response;
+      }
+
       const contentType = response.headers.get("Content-Type");
 
       if (contentType !== "text/event-stream") {
@@ -86,7 +91,6 @@ export class SseConnection {
 
       return response;
     } catch (error) {
-      console.error("Error in SSE connection:", error);
       this.active = false;
       throw error;
     }
