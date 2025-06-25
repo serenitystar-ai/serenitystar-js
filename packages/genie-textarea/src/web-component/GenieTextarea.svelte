@@ -65,29 +65,29 @@
   import { ErrorHelper } from "../utils/ErrorHelper";
 
   let {
-    agentCode, // Required if onRequestCompletion is not provided and used to execute a Serenity* Star agent
-    apiKey, // Required if onRequestCompletion is not provided and used to execute a Serenity* Star agenthandleValueChange: onValueChange
-    handleBeforeSubmit, // Optional. Callback function to handle actions before the request is sent. It can be used to validate the content or perform other actions.
-    aiButton, // Optional. Allows you to customize the AI button. If not provided, a default button will be used.
-    id, // Optional. It will be assigned to the web component outher element
-    handleRequestCompletion, // Optional. You can use this to handle the request completion in a custom way. Allows you to add chunks to the textarea as they come in or set the content directly.
-    placeholder, // Optional. If not provided, a default placeholder will be used based on the mode.
-    quickActions, // Optional. If not provided, no quick actions will be shown. This only applies to assisted mode.
-    value = "", // Initial value for the textarea
-    handleValueChange, // Optional. Callback function to handle value changes
-    handleAgentResult, // Optional. Callback function that includes the result of the agent execution
-    label, // Optional. If not provided, no label will be shown.
+    agentCode,
+    apiKey,
+    handleBeforeSubmit,
+    aiButton,
+    id,
+    handleRequestCompletion,
+    placeholder,
+    quickActions,
+    value = "",
+    handleValueChange,
+    handleAgentResult,
+    label,
     locale = {
       contentMissingErrorMessage: "Content is required.",
       thinkingMessage: "Thinking...",
       completionErrorMessage:
         "An error occurred while processing your request.",
-    }, // Optional. Allows you to provide custom translations for the component
-    inputParameters = {}, // Optional. Additional parameters to pass to the agent.
-    mode = "direct", // "direct" or "assisted". Default is "direct".
+    },
+    inputParameters = {},
+    mode = "direct",
     baseURL = "https://api.serenitystar.ai/api/v2",
-    contentParameterName = "content", // Optional.
-    instructionParameterName = "instruction", // Optional. Used for assisted mode
+    contentParameterName = "content",
+    instructionParameterName = "instruction",
   }: GenieTextareaProps = $props();
 
   let {
