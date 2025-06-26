@@ -14,7 +14,7 @@
         type: "Object",
         attribute: "handle-agent-result",
       },
-      aiButton: { reflect: false, type: "Object", attribute: "ai-button" },
+      aiButtonProps: { reflect: false, type: "Object", attribute: "ai-button-props" },
       id: { reflect: false, type: "String", attribute: "id" },
       handleRequestCompletion: {
         reflect: false,
@@ -52,6 +52,16 @@
         type: "String",
         attribute: "instruction-parameter-name",
       },
+      textareaProps: {
+        reflect: false,
+        type: "Object",
+        attribute: "textarea-props",
+      },
+      labelProps: {
+        reflect: false,
+        type: "Object",
+        attribute: "label-props",
+      },
     },
   }}
 />
@@ -64,11 +74,16 @@
   import { tick } from "svelte";
   import { ErrorHelper } from "../utils/ErrorHelper";
 
+  // Generate a unique ID for the component
+  function generateId(): string {
+    return `genie-textarea-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
   let {
     agentCode,
     apiKey,
     handleBeforeSubmit,
-    aiButton,
+    aiButtonProps,
     id,
     handleRequestCompletion,
     placeholder,
@@ -88,7 +103,13 @@
     baseURL = "https://api.serenitystar.ai/api/v2",
     contentParameterName = "content",
     instructionParameterName = "instruction",
+    textareaProps = {},
+    labelProps = {},
   }: GenieTextareaProps = $props();
+
+  // Generate a unique ID for the textarea (separate from container id)
+  // Use textareaProps.id if provided, otherwise generate one
+  const textareaId = textareaProps?.id || generateId();
 
   let {
     errorMessage,
@@ -229,7 +250,7 @@
 </script>
 
 {#snippet buttonRenderer(
-  aiButtonConfig: GenieTextareaProps["aiButton"] | undefined
+  aiButtonConfig: GenieTextareaProps["aiButtonProps"] | undefined
 )}
   {#if aiButtonConfig?.icon?.type === "img"}
     <img
@@ -269,7 +290,9 @@
 {/snippet}
 
 <div class="genie-textarea-root flex flex-col" {id}>
-  <label for="genie-textarea">{label}</label>
+  {#if label}
+    <label for={textareaId} {...labelProps} class="text-sm text-black/80 {labelProps?.class || ""}">{label}</label>
+  {/if}
 
   <div class="flex gap-2">
     <textarea
@@ -277,7 +300,10 @@
       use:autosize
       bind:value={internalValue}
       {placeholder}
-      class="border flex-1 border-gray-300 px-2 py-1 rounded"
+      id={textareaId}
+      {...textareaProps}
+      class="border flex-1 border-gray-300 px-2 py-1 rounded {textareaProps?.class ||
+        ''}"
     ></textarea>
 
     {#if mode == "direct"}
@@ -287,9 +313,9 @@
         class="rounded text-white shadow inline-flex h-10 select-none items-center justify-center whitespace-nowrap px-4 text-md font-medium transition-all active:scale-[0.98] gap-2 {buttonIsDisabled
           ? 'cursor-not-allowed opacity-50'
           : 'hover:opacity-90 cursor-pointer'}"
-        style="background-color: {aiButton?.bgColor || '#4862ff'}"
+        style="background-color: {aiButtonProps?.bgColor || '#4862ff'}"
       >
-        {@render buttonRenderer(aiButton)}
+        {@render buttonRenderer(aiButtonProps)}
       </button>
     {:else if mode === "assisted"}
       <Popover.Root bind:open={isOpen}>
@@ -299,9 +325,9 @@
           class="rounded text-white shadow inline-flex h-10 select-none items-center justify-center whitespace-nowrap px-4 text-md font-medium transition-all active:scale-[0.98] gap-2 {buttonIsDisabled
             ? 'cursor-not-allowed opacity-50'
             : 'hover:opacity-90 cursor-pointer'}"
-          style="background-color: {aiButton?.bgColor || '#4862ff'}"
+          style="background-color: {aiButtonProps?.bgColor || '#4862ff'}"
         >
-          {@render buttonRenderer(aiButton)}
+          {@render buttonRenderer(aiButtonProps)}
         </Popover.Trigger>
         <Popover.Content>
           <p>Content for assisted mode goes here</p>

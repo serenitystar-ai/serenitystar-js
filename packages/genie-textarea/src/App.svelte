@@ -15,7 +15,7 @@
         {apiKey}
         {agentCode}
         contentParameterName="userMessage"
-        aiButton={{
+        aiButtonProps={{
           text: "Run",
         }}
         value="¡Bienvenido a la documentación de Serenity AI Hub! Aquí encontrarás información detallada sobre nuestros productos, funciones y más."

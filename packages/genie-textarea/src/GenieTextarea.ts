@@ -1,7 +1,5 @@
 import type { GenieTextareaOptions, GenieTextareaProps } from "./types";
-// Custom interface for the genie-textarea web component
 interface GenieTextareaElement extends HTMLElement {
-  // String properties (also available as attributes)
   value?: GenieTextareaProps["value"];
   label?: GenieTextareaProps["label"];
   mode?: GenieTextareaProps["mode"];
@@ -11,16 +9,16 @@ interface GenieTextareaElement extends HTMLElement {
   placeholder?: GenieTextareaProps["placeholder"];
   contentParameterName?: GenieTextareaProps["contentParameterName"];
   instructionParameterName?: GenieTextareaProps["instructionParameterName"];
-
-  // Object/Function properties (not available as attributes)
   quickActions?: GenieTextareaProps["quickActions"];
   handleRequestCompletion?: GenieTextareaProps["handleRequestCompletion"];
   handleValueChange?: GenieTextareaProps["handleValueChange"];
   inputParameters?: GenieTextareaProps["inputParameters"];
-  aiButton?: GenieTextareaProps["aiButton"];
   handleBeforeSubmit?: GenieTextareaProps["handleBeforeSubmit"];
   handleAgentResult?: GenieTextareaProps["handleAgentResult"];
   locale?: GenieTextareaProps["locale"];
+  aiButtonProps?: GenieTextareaProps["aiButtonProps"];
+  textareaProps?: GenieTextareaProps["textareaProps"];
+  labelProps?: GenieTextareaProps["labelProps"];
 }
 
 declare global {
@@ -136,8 +134,8 @@ export class GenieTextarea {
     if (options.inputParameters !== undefined) {
       this.webComponent.inputParameters = options.inputParameters;
     }
-    if (options.aiButton !== undefined) {
-      this.webComponent.aiButton = options.aiButton;
+    if (options.aiButtonProps !== undefined) {
+      this.webComponent.aiButtonProps = options.aiButtonProps;
     }
     if (options.handleBeforeSubmit !== undefined) {
       this.webComponent.handleBeforeSubmit = options.handleBeforeSubmit;
@@ -147,6 +145,12 @@ export class GenieTextarea {
     }
     if (options.locale !== undefined) {
       this.webComponent.locale = options.locale;
+    }
+    if (options.textareaProps !== undefined) {
+      this.webComponent.textareaProps = options.textareaProps;
+    }
+    if (options.labelProps !== undefined) {
+      this.webComponent.labelProps = options.labelProps;
     }
   }
 
@@ -186,14 +190,18 @@ export class GenieTextarea {
         return this.webComponent.handleValueChange as GenieTextareaOptions[K];
       case "inputParameters":
         return this.webComponent.inputParameters as GenieTextareaOptions[K];
-      case "aiButton":
-        return this.webComponent.aiButton as GenieTextareaOptions[K];
+      case "aiButtonProps":
+        return this.webComponent.aiButtonProps as GenieTextareaOptions[K];
       case "handleBeforeSubmit":
         return this.webComponent.handleBeforeSubmit as GenieTextareaOptions[K];
       case "handleAgentResult":
         return this.webComponent.handleAgentResult as GenieTextareaOptions[K];
       case "locale":
         return this.webComponent.locale as GenieTextareaOptions[K];
+      case "textareaProps":
+        return this.webComponent.textareaProps as GenieTextareaOptions[K];
+      case "labelProps":
+        return this.webComponent.labelProps as GenieTextareaOptions[K];
       default:
         return undefined;
     }

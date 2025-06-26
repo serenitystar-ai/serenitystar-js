@@ -1,8 +1,16 @@
 import type { AgentResult } from "@serenity-star/sdk";
+import type { HTMLLabelAttributes, HTMLTextareaAttributes } from "svelte/elements";
 
 export type GenieTextareaProps = {
-  id?: string;
+  // These are the only properties that are passed to the textarea element outside of textareaProps
   value?: string;
+  placeholder?: string;
+
+  labelProps?: Omit<HTMLLabelAttributes, "children">
+  aiButtonProps?: AiButtonOptions;
+  textareaProps?: Omit<HTMLTextareaAttributes, "value" | "placeholder">;
+  
+  id?: string;
   label?: string;
   mode?: "direct" | "assisted";
   agentCode?: string;
@@ -10,8 +18,6 @@ export type GenieTextareaProps = {
   baseURL?: string;
   quickActions?: QuickAction[];
   inputParameters?: Record<string, any>;
-  placeholder?: string;
-  aiButton?: AiButtonOptions;
   contentParameterName?: string;
   instructionParameterName?: string;
   handleRequestCompletion?: RequestCompletionProps;

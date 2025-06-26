@@ -14,6 +14,7 @@ export function defineElement(tagName = 'genie-textarea') {
       document.head.appendChild(style);
     }
     
+    //@ts-ignore
     customElements.define(tagName, WebComponent.element!);
   }
 }
