@@ -21,12 +21,18 @@ interface GenieTextareaElement extends HTMLElement {
   labelProps?: GenieTextareaProps["labelProps"];
 }
 
+// Global registry to track web component instances
+interface GenieTextareaRegistry {
+  [id: string]: GenieTextarea;
+}
+
 declare global {
   interface Window {
     genieTextarea: (
       id: string,
       options?: GenieTextareaOptions
     ) => GenieTextarea;
+    __genieTextareaRegistry: GenieTextareaRegistry;
   }
 }
 
@@ -38,7 +44,7 @@ interface AIButton {
 }
 
 export class GenieTextarea {
-  private container: HTMLElement;
+  private container?: HTMLElement;
   private webComponent: GenieTextareaElement;
   private id: string;
   public readonly aiButton: AIButton;
@@ -46,7 +52,6 @@ export class GenieTextarea {
   constructor(id: string, options: GenieTextareaOptions = {}) {
     this.id = id;
     const element = document.getElementById(id);
-
     if (!element) {
       throw new Error(`Element with id "${id}" not found`);
     }
@@ -232,11 +237,16 @@ export class GenieTextarea {
   }
 
   /**
-   * Destroys the component without restoring the original element
+   * Destroys the component by removing it from the DOM and clearing the registry reference.
    */
   public destroy(): void {
     if (this.webComponent.parentNode) {
       this.webComponent.parentNode.removeChild(this.webComponent);
+    }
+    
+    // Clear from registry if it exists
+    if (typeof window !== 'undefined' && window.__genieTextareaRegistry) {
+      delete window.__genieTextareaRegistry[this.id];
     }
   }
 }
@@ -246,5 +256,27 @@ export function genieTextarea(
   id: string,
   options?: GenieTextareaOptions
 ): GenieTextarea {
-  return new GenieTextarea(id, options);
+  // Initialize registry if it doesn't exist
+  if (typeof window !== 'undefined' && !window.__genieTextareaRegistry) {
+    window.__genieTextareaRegistry = {};
+  }
+
+  // Check if an instance already exists for the given id
+  if(window.__genieTextareaRegistry[id]) {
+    const instance = window.__genieTextareaRegistry[id];
+    if (options) {
+      // If options are provided, update the existing instance
+      instance.setProperties(options);
+    }
+    return instance;
+  }
+
+  const instance = new GenieTextarea(id, options);
+  window.__genieTextareaRegistry[id] = instance;
+  return instance;
+}
+
+// Make the factory function available globally
+if (typeof window !== 'undefined') {
+  window.genieTextarea = genieTextarea;
 }

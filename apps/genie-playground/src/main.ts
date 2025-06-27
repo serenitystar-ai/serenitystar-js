@@ -313,6 +313,33 @@ const examples: Example[] = [
     setup: () => {
       // This will be handled differently since it's direct HTML
     }
+  },
+
+  {
+    id: 'hybrid-config',
+    setup: () => {
+      // This demonstrates the hybrid approach: web component declared in HTML, enhanced with JS
+      const instance = genieTextarea('hybrid-example', {
+        contentParameterName: 'userMessage',
+        value: 'This value was set via JavaScript!',
+        handleValueChange: (value) => {
+          console.log('Hybrid example - Value changed:', value);
+        },
+        handleBeforeSubmit: async ({ content }) => {
+          console.log('Hybrid example - About to submit:', content);
+          return true; // Proceed with submission
+        }
+      });
+
+      // Demo: Update some properties programmatically
+      setTimeout(() => {
+        instance.set('placeholder', 'Updated via JavaScript after 2 seconds!');
+        console.log('Hybrid example - Current value:', instance.get('value'));
+      }, 2000);
+
+      // Store instance for potential external access
+      (window as any).hybridInstance = instance;
+    }
   }
 ]
 

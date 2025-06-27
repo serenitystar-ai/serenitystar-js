@@ -44,6 +44,7 @@
             <li><a href="#localization">Localization</a></li>
             <li><a href="#programmatic-control">Programmatic Control</a></li>
             <li><a href="#web-component-usage">Direct Web Component</a></li>
+            <li><a href="#hybrid-config">Hybrid HTML + JavaScript Configuration</a></li>
           </ul>
         </div>
 
@@ -551,6 +552,54 @@ document.getElementById('execute-ai-btn').addEventListener('click', () =&gt; {
     label="Web Component Example"&gt;
 &lt;/genie-textarea&gt;
 </code></pre>
+            </div>
+          </div>
+
+          <!-- Hybrid HTML + JS Configuration -->
+          <div class="example" id="hybrid-config">
+            <div class="example-header">
+              <h3>Hybrid HTML + JavaScript Configuration</h3>
+              <p>
+                This example demonstrates how to declare a web component directly in HTML 
+                with basic setup, then enhance it with additional JavaScript configuration.
+                This approach is perfect for gradual enhancement and frameworks integration.
+              </p>
+            </div>
+            <div class="example-demo">
+              <!-- Web component declared directly in HTML with basic setup -->
+              <genie-textarea 
+                id="hybrid-example"
+                api-key="your-api-key"
+                agent-code="inline-translator-for-genie"
+                placeholder="I was created in HTML and enhanced with JS!"
+                label="Hybrid Configuration Example">
+              </genie-textarea>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-html">&lt;!-- HTML: Basic setup --&gt;
+&lt;genie-textarea 
+    id="hybrid-example"
+    api-key="your-api-key"
+    agent-code="inline-translator-for-genie"
+    placeholder="I was created in HTML and enhanced with JS!"
+    label="Hybrid Configuration Example"&gt;
+&lt;/genie-textarea&gt;</code></pre>
+              <pre><code class="language-javascript">// JavaScript: Enhancement
+const instance = genieTextarea('hybrid-example', {
+    contentParameterName: 'userMessage',
+    value: 'This value was set via JavaScript!',
+    handleValueChange: (value) => {
+        console.log('Value changed:', value);
+    },
+    handleBeforeSubmit: async ({ content, setContent }) => {
+        console.log('About to submit:', content);
+        return true; // Proceed with submission
+    }
+});
+
+// You can also use the instance to control the component
+instance.set('placeholder', 'Updated via JavaScript!');
+console.log('Current value:', instance.get('value'));</code></pre>
             </div>
           </div>
         </div>

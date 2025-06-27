@@ -217,6 +217,47 @@ $('#my-textarea').genieTextarea({
 </genie-textarea>
 ```
 
+### Hybrid HTML + JavaScript Configuration
+
+This approach allows you to declare a web component directly in HTML with basic setup, then enhance it with additional JavaScript configuration. This is perfect for gradual enhancement and framework integration.
+
+```html
+<!-- HTML: Basic setup -->
+<genie-textarea 
+    id="hybrid-example"
+    api-key="your-api-key"
+    agent-code="your-agent-code"
+    placeholder="I was created in HTML and enhanced with JS!"
+    label="Hybrid Configuration Example">
+</genie-textarea>
+```
+
+```javascript
+// JavaScript: Enhancement
+const instance = genieTextarea('hybrid-example', {
+    contentParameterName: 'userMessage',
+    value: 'This value was set via JavaScript!',
+    handleValueChange: (value) => {
+        console.log('Value changed:', value);
+    },
+    handleBeforeSubmit: async ({ content }) => {
+        console.log('About to submit:', content);
+        return true; // Proceed with submission
+    }
+});
+
+// You can also use the instance to control the component
+instance.set('placeholder', 'Updated via JavaScript!');
+console.log('Current value:', instance.get('value'));
+```
+
+**Key benefits of this approach:**
+- ✅ **Framework-friendly**: Works seamlessly with React, Vue, Angular, or any framework
+- ✅ **Progressive enhancement**: Start with basic HTML, enhance with JavaScript as needed
+- ✅ **No DOM replacement**: Existing components are preserved and enhanced in place
+- ✅ **DevExpress-like pattern**: Get instances of already-initialized components
+- ✅ **Full control**: Access all instance methods and properties for dynamic updates
+
 ### Basic Usage Examples
 
 #### Simple Textarea Replacement

@@ -149,6 +149,22 @@
     handleValueChange?.(internalValue);
   });
 
+  // Register this component instance when it mounts using $effect
+  $effect(() => {
+    if (typeof window !== 'undefined' && id) {
+      // Initialize registry if it doesn't exist
+      if (!(window as any).__genieTextareaRegistry) {
+        (window as any).__genieTextareaRegistry = {};
+      }
+      
+      // Register this component instance using the current element
+      const currentElement = document.getElementById(id);
+      if (currentElement && currentElement.tagName.toLowerCase() === 'genie-textarea') {
+        (window as any).__genieTextareaRegistry[id] = currentElement;
+      }
+    }
+  });
+
   async function handleBtnClicked() {
     if (mode === "assisted") {
       // TODO: Implement assisted mode
