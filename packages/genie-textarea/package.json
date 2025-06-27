@@ -11,7 +11,8 @@
   "scripts": {
     "dev": "vite",
     "build:css": "npx @tailwindcss/cli -i ./src/app.css -o ./src/styles.css",
-    "build": "npm run build:css && npm run postprocess:css && vite build --config vite.config.esm.ts && vite build --config vite.config.iife.ts",
+    "build": "npm run build:css && npm run postprocess:css && vite build --config vite.config.esm.ts && vite build --config vite.config.iife.ts && npm run postbuild",
+    "postbuild": "node scripts/postbuild.js",
     "postprocess:css": "postcss ./src/styles.css -o ./src/styles.css",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json"
