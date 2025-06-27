@@ -2,7 +2,7 @@
 // This uses the IIFE version and vanilla JavaScript
 
 // Configuration
-const apiKey = '3ffe410d-99f1-4130-a8fd-a4ef4374db85'; // Replace with your actual API key
+const apiKey = '<use-your-api-key>'; // Replace with your actual API key
 const agentCode = 'inline-translator-for-genie'; // Using your specific agent
 
 // Sleep utility for custom completion example
