@@ -1,4 +1,4 @@
-# 🧞 Genie Textarea
+![Serenity Genie Textarea](https://github.com/serenitystar-ai/serenitystar-js/blob/main/.github/resources/genie-textarea-banner.png?raw=true)
 
 [![npm version](https://img.shields.io/npm/v/@serenity-star/genie-textarea.svg)](https://www.npmjs.com/package/@serenity-star/genie-textarea)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
