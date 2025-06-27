@@ -4,11 +4,557 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + TS</title>
+    <title>🧞 Genie Textarea Playground</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tokyo-night-dark.min.css"
+    />
+    <link rel="stylesheet" href="styles.css" />
     <script type="module" src="/src/main.ts"></script>
   </head>
-  <body>    
-    <div id="my-genie-textarea"></div>
-    <button type="button" id="update-btn">Update & Execute</button>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Genie Textarea Playground</h1>
+        <p>Interactive examples showcasing all features and capabilities</p>
+      </div>
+
+      <div class="content">
+        <!-- Table of Contents -->
+        <div class="toc">
+          <h3>📖 Examples</h3>
+          <ul>
+            <li><a href="#basic-usage">Basic Usage</a></li>
+            <li>
+              <a href="#with-label-placeholder">With Label & Placeholder</a>
+            </li>
+            <li><a href="#custom-parameters">Custom Input Parameters</a></li>
+            <li><a href="#value-change-tracking">Value Change Tracking</a></li>
+            <li><a href="#custom-button-styling">Custom Button Styling</a></li>
+            <li><a href="#custom-svg-icon">Custom SVG Icon</a></li>
+            <li><a href="#custom-image-icon">Custom Image Icon</a></li>
+            <li>
+              <a href="#textarea-customization">Textarea Customization</a>
+            </li>
+            <li><a href="#label-customization">Label Customization</a></li>
+            <li><a href="#event-handlers">Event Handlers</a></li>
+            <li>
+              <a href="#custom-completion-handler">Custom Completion Handler</a>
+            </li>
+            <li><a href="#localization">Localization</a></li>
+            <li><a href="#programmatic-control">Programmatic Control</a></li>
+            <li><a href="#web-component-usage">Direct Web Component</a></li>
+          </ul>
+        </div>
+
+        <!-- Examples will be populated by JavaScript -->
+        <div id="examples-container">
+          <!-- Basic Usage -->
+          <div class="example" id="basic-usage">
+            <div class="example-header">
+              <h2 class="example-title">Basic Usage</h2>
+              <p class="example-description">
+                Simple textarea replacement with AI translation capabilities.
+                Type text in any language and click the AI button to translate
+                it to English.
+              </p>
+            </div>
+            <div class="example-demo">
+              <div id="basic-example"></div>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-javascript">genieTextarea('basic-example', {
+    apiKey: 'your-api-key',
+    agentCode: 'inline-translator-for-genie',
+    contentParameterName: 'userMessage'
+})</code></pre>
+            </div>
+          </div>
+
+          <!-- With Label & Placeholder -->
+          <div class="example" id="with-label-placeholder">
+            <div class="example-header">
+              <h2 class="example-title">With Label & Placeholder</h2>
+              <p class="example-description">
+                Enhanced textarea with a descriptive label and helpful
+                placeholder text.
+              </p>
+            </div>
+            <div class="example-demo">
+              <div id="labeled-example"></div>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-javascript">genieTextarea('labeled-example', {
+    apiKey: 'your-api-key',
+    agentCode: 'inline-translator-for-genie',
+    contentParameterName: 'userMessage',
+    label: 'Text to Translate',
+    placeholder: 'Enter text in any language to translate to English...',
+    value: 'Hola mundo, ¿cómo estás hoy?'
+})</code></pre>
+            </div>
+          </div>
+
+          <!-- Custom Input Parameters -->
+          <div class="example" id="custom-parameters">
+            <div class="example-header">
+              <h2 class="example-title">Custom Input Parameters</h2>
+              <p class="example-description">
+                Use input parameters to control the translation behavior. This
+                example allows you to dynamically specify the target language.
+              </p>
+            </div>
+            <div class="example-demo">
+              <div class="control-group">
+                <label for="lang-selector">Target Language:</label>
+                <select
+                  id="lang-selector"
+                  style="
+                    margin-left: 8px;
+                    padding: 4px 8px;
+                    border: 1px solid #ccc;
+                    border-radius: 4px;
+                  "
+                >
+                  <option value="spanish">Spanish</option>
+                  <option value="french">French</option>
+                  <option value="german">German</option>
+                  <option value="italian">Italian</option>
+                  <option value="portuguese">Portuguese</option>
+                  <option value="japanese">Japanese</option>
+                  <option value="chinese">Chinese</option>
+                  <option value="russian">Russian</option>
+                </select>
+              </div>
+              <div id="params-example"></div>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-javascript">// Initialize the textarea instance once
+const instance = genieTextarea('params-example', {
+    apiKey: 'your-api-key',
+    agentCode: 'inline-translator-for-genie',
+    contentParameterName: 'userMessage',
+    label: 'Translate to Spanish',
+    placeholder: 'Enter text to translate to spanish...',
+    value: 'Hello world, how are you today?',
+    inputParameters: {
+        lang: 'spanish'
+    }
+});
+
+const langSelector = document.getElementById('lang-selector');
+langSelector.addEventListener('change', (e) =&gt; {
+    const selectedLang = e.target.value;
+    const capitalizedLang = selectedLang.charAt(0).toUpperCase() + selectedLang.slice(1);
+    
+    // Use the set method to update properties dynamically
+    instance.set('label', `Translate to ${capitalizedLang}`);
+    instance.set('placeholder', `Enter text to translate to ${selectedLang}...`);
+    instance.set('inputParameters', { lang: selectedLang });
+});</code></pre>
+            </div>
+          </div>
+
+          <!-- Value Change Tracking -->
+          <div class="example" id="value-change-tracking">
+            <div class="example-header">
+              <h2 class="example-title">Value Change Tracking</h2>
+              <p class="example-description">
+                Monitor content changes in real-time with a custom handler. The
+                character count updates as you type.
+              </p>
+            </div>
+            <div class="example-demo">
+              <div id="tracking-example"></div>
+              <div class="control-group">
+                <div id="char-count-tracking">Character count: 0</div>
+              </div>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-javascript">let charCount = 0;
+
+genieTextarea('tracking-example', {
+    apiKey: 'your-api-key',
+    agentCode: 'inline-translator-for-genie',
+    contentParameterName: 'userMessage',
+    label: 'Content with Change Tracking',
+    placeholder: 'Type here and watch the character count...',
+    handleValueChange: (newValue) =&gt; {
+        charCount = newValue.length;
+        document.getElementById('char-count-tracking').textContent = 
+            `Character count: $&#123;charCount&#125;`;
+        console.log('Content updated:', newValue);
+    }
+})</code></pre>
+            </div>
+          </div>
+
+          <!-- Custom Button Styling -->
+          <div class="example" id="custom-button-styling">
+            <div class="example-header">
+              <h2 class="example-title">Custom Button Styling</h2>
+              <p class="example-description">
+                Customize the AI button appearance with custom colors and text.
+              </p>
+            </div>
+            <div class="example-demo">
+              <div id="styled-button-example"></div>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-javascript">genieTextarea('styled-button-example', {
+    apiKey: 'your-api-key',
+    agentCode: 'inline-translator-for-genie',
+    contentParameterName: 'userMessage',
+    label: 'Custom Styled Button',
+    placeholder: 'Text with custom AI button styling...',
+    aiButtonProps: {
+        text: 'Translate Now',
+        bgColor: '#10b981', // Green background
+        tintColor: '#ffffff' // White text
+    }
+})</code></pre>
+            </div>
+          </div>
+
+          <!-- Custom SVG Icon -->
+          <div class="example" id="custom-svg-icon">
+            <div class="example-header">
+              <h2 class="example-title">Custom SVG Icon</h2>
+              <p class="example-description">
+                Replace the default icon with a custom SVG icon.
+              </p>
+            </div>
+            <div class="example-demo">
+              <div id="svg-icon-example"></div>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-javascript">genieTextarea('svg-icon-example', {
+    apiKey: 'your-api-key',
+    agentCode: 'inline-translator-for-genie',
+    contentParameterName: 'userMessage',
+    label: 'Custom SVG Icon',
+    placeholder: 'Text with custom SVG icon...',
+    aiButtonProps: {
+        bgColor: '#7c3aed',
+        icon: {
+            type: 'svg',
+            content: `&lt;svg viewBox="0 0 24 24" fill="currentColor"&gt;
+                &lt;path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/&gt;
+            &lt;/svg&gt;`,
+            tintColor: '#fbbf24' // Gold star
+        }
+    }
+})</code></pre>
+            </div>
+          </div>
+
+          <!-- Custom Image Icon -->
+          <div class="example" id="custom-image-icon">
+            <div class="example-header">
+              <h2 class="example-title">Custom Image Icon</h2>
+              <p class="example-description">
+                Use a custom image as the AI button icon.
+              </p>
+            </div>
+            <div class="example-demo">
+              <div id="image-icon-example"></div>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-javascript">genieTextarea('image-icon-example', {
+    apiKey: 'your-api-key',
+    agentCode: 'inline-translator-for-genie',
+    contentParameterName: 'userMessage',
+    label: 'Custom Image Icon',
+    placeholder: 'Text with custom image icon...',
+    aiButtonProps: {
+        bgColor: '#dc2626',
+        icon: {
+            type: 'img',
+            src: '/vite.svg',
+            alt: 'Custom AI Icon'
+        }
+    }
+})</code></pre>
+            </div>
+          </div>
+
+          <!-- Textarea Customization -->
+          <div class="example" id="textarea-customization">
+            <div class="example-header">
+              <h2 class="example-title">Textarea Customization</h2>
+              <p class="example-description">
+                Customize the textarea element with HTML attributes like rows,
+                maxlength, and CSS classes.
+              </p>
+            </div>
+            <div class="example-demo">
+              <div id="textarea-custom-example"></div>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-javascript">genieTextarea('textarea-custom-example', {
+    apiKey: 'your-api-key',
+    agentCode: 'inline-translator-for-genie',
+    contentParameterName: 'userMessage',
+    label: 'Customized Textarea',
+    placeholder: 'Limited to 200 characters...',
+    textareaProps: {
+        rows: 6,
+        maxlength: 200,
+        class: 'custom-textarea-class',
+        style: 'border-radius: 12px; font-size: 16px; border: 2px solid #4862ff;',
+        spellcheck: true,
+        'aria-label': 'Custom AI-enhanced text input'
+    }
+})</code></pre>
+            </div>
+          </div>
+
+          <!-- Label Customization -->
+          <div class="example" id="label-customization">
+            <div class="example-header">
+              <h2 class="example-title">Label Customization</h2>
+              <p class="example-description">
+                Customize the label element with CSS styling and attributes.
+              </p>
+            </div>
+            <div class="example-demo">
+              <div id="label-custom-example"></div>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-javascript">genieTextarea('label-custom-example', {
+    apiKey: 'your-api-key',
+    agentCode: 'inline-translator-for-genie',
+    contentParameterName: 'userMessage',
+    label: 'Styled Label',
+    placeholder: 'Text with custom label styling...',
+    labelProps: {
+        class: 'custom-label-class',
+        style: 'font-weight: bold; color: #7c3aed; font-size: 18px; text-transform: uppercase;',
+        'aria-label': 'Custom styled label'
+    }
+})</code></pre>
+            </div>
+          </div>
+
+          <!-- Event Handlers -->
+          <div class="example" id="event-handlers">
+            <div class="example-header">
+              <h2 class="example-title">Event Handlers</h2>
+              <p class="example-description">
+                Use event handlers to customize the AI processing workflow with
+                before and after hooks.
+              </p>
+            </div>
+            <div class="example-demo">
+              <div id="events-example"></div>
+              <div class="control-group">
+                <div
+                  id="status-events"
+                  style="font-weight: 500; color: #059669"
+                ></div>
+              </div>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-javascript">genieTextarea('events-example', {
+    apiKey: 'your-api-key',
+    agentCode: 'inline-translator-for-genie',
+    contentParameterName: 'userMessage',
+    label: 'Event Handlers Example',
+    placeholder: 'Text with event handling...',
+    
+    handleBeforeSubmit: async ({ content, instruction, setContent }) =&gt; {
+        console.log('About to process:', { content, instruction });
+        
+        if (content.length &lt; 5) {
+            alert('Please provide more content for better translation');
+            return false; // Cancel processing
+        }
+        
+        // Add context to improve translation
+        setContent(`Context: This is casual conversation.\n\n$&#123;content&#125;`);
+        return true; // Proceed with processing
+    },
+    
+    handleAgentResult: async (result) =&gt; {
+        console.log('Translation completed:', result);
+        document.getElementById('status-events').textContent = 
+            'Translation completed successfully!';
+        setTimeout(() =&gt; {
+            document.getElementById('status-events').textContent = '';
+        }, 3000);
+    }
+})</code></pre>
+            </div>
+          </div>
+
+          <!-- Custom Completion Handler -->
+          <div class="example" id="custom-completion-handler">
+            <div class="example-header">
+              <h2 class="example-title">Custom Completion Handler</h2>
+              <p class="example-description">
+                Implement your own AI completion logic with streaming support.
+                This example simulates an AI response with chunks.
+              </p>
+            </div>
+            <div class="example-demo">
+              <div id="custom-completion-example"></div>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-javascript">genieTextarea('custom-completion-example', {
+    label: 'Custom Completion Logic',
+    placeholder: 'Custom AI completion handler...',
+    
+    handleRequestCompletion: async ({ content, instruction, addChunk, setContent }) =&gt; {
+        console.log('Starting custom completion...', { content, instruction });
+        
+        // Clear the textarea before adding new content
+        setContent?.('');
+        
+        // Simulate AI processing delay
+        await sleep(500);
+        
+        // Simulate streaming response
+        const responses = [
+            'This is a simulated ',
+            'AI response that demonstrates ',
+            'how to implement custom ',
+            'completion logic with ',
+            'streaming chunks.'
+        ];
+        
+        for (const chunk of responses) {
+            await sleep(200); // Simulate network delay
+            addChunk?.(chunk);
+        }
+        
+        console.log('Custom completion finished');
+    }
+})</code></pre>
+            </div>
+          </div>
+
+          <!-- Localization -->
+          <div class="example" id="localization">
+            <div class="example-header">
+              <h2 class="example-title">Localization</h2>
+              <p class="example-description">
+                Customize error messages and UI text for different languages.
+              </p>
+            </div>
+            <div class="example-demo">
+              <div id="localization-example"></div>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-javascript">genieTextarea('localization-example', {
+    apiKey: 'your-api-key',
+    agentCode: 'inline-translator-for-genie',
+    contentParameterName: 'userMessage',
+    label: 'Ejemplo de Localización',
+    placeholder: 'Texto en español para traducir...',
+    locale: {
+        contentMissingErrorMessage: 'Por favor, proporciona contenido para procesar.',
+        thinkingMessage: 'Pensando...',
+        completionErrorMessage: 'Ocurrió un error al procesar tu solicitud.'
+    },
+    aiButtonProps: {
+        text: 'Traducir'
+    }
+})</code></pre>
+            </div>
+          </div>
+
+          <!-- Programmatic Control -->
+          <div class="example" id="programmatic-control">
+            <div class="example-header">
+              <h2 class="example-title">Programmatic Control</h2>
+              <p class="example-description">
+                Control the textarea programmatically through the returned
+                instance.
+              </p>
+            </div>
+            <div class="example-demo">
+              <div id="programmatic-example"></div>
+              <div class="control-group">
+                <button
+                  class="button"
+                  onclick="window.programmaticInstance?.set('value', 'Bonjour le monde!')"
+                >
+                  Set French Text
+                </button>
+                <button
+                  class="button secondary"
+                  onclick="alert('Current value: ' + window.programmaticInstance?.get('value'))"
+                >
+                  Get Value
+                </button>
+                <button
+                  class="button"
+                  onclick="window.programmaticInstance?.aiButton.execute()"
+                >
+                  Execute AI
+                </button>
+              </div>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-javascript">const instance = genieTextarea('programmatic-example', {
+    apiKey: 'your-api-key',
+    agentCode: 'inline-translator-for-genie',
+    contentParameterName: 'userMessage',
+    label: 'Programmatic Control',
+    placeholder: 'Use buttons below to control this textarea...'
+});
+
+// Control buttons
+document.getElementById('set-value-btn').addEventListener('click', () =&gt; {
+    instance.set('value', 'Bonjour le monde!');
+});
+
+document.getElementById('get-value-btn').addEventListener('click', () =&gt; {
+    const value = instance.get('value');
+    alert(`Current value: $&#123;value&#125;`);
+});
+
+document.getElementById('execute-ai-btn').addEventListener('click', () =&gt; {
+    instance.aiButton.execute();
+});</code></pre>
+            </div>
+          </div>
+
+          <!-- Direct Web Component Usage -->
+          <div class="example" id="web-component-usage">
+            <div class="example-header">
+              <h2 class="example-title">Direct Web Component Usage</h2>
+              <p class="example-description">
+                Use the web component directly in HTML after registering it.
+              </p>
+            </div>
+            <div class="example-demo">
+              <genie-textarea
+                id="web-component-example"
+                api-key=""
+                agent-code="inline-translator-for-genie"
+                content-parameter-name="userMessage"
+                placeholder="Direct web component usage"
+                label="Web Component Example"
+              >
+              </genie-textarea>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-js">// After calling defineElement('genie-textarea')
+
+&lt;genie-textarea 
+    id="web-component-example"
+    api-key="your-api-key"
+    agent-code="inline-translator-for-genie"
+    content-parameter-name="userMessage"
+    placeholder="Direct web component usage"
+    label="Web Component Example"&gt;
+&lt;/genie-textarea&gt;
+</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </body>
 </html>

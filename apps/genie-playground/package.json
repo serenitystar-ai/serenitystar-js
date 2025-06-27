@@ -13,6 +13,7 @@
     "vite": "^6.3.5"
   },
   "dependencies": {
-    "@serenity-star/genie-textarea": "^0.1.0"
+    "@serenity-star/genie-textarea": "^0.1.0",
+    "highlight.js": "^11.11.1"
   }
 }

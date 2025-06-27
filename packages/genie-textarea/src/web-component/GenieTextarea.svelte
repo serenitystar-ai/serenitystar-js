@@ -14,7 +14,11 @@
         type: "Object",
         attribute: "handle-agent-result",
       },
-      aiButtonProps: { reflect: false, type: "Object", attribute: "ai-button-props" },
+      aiButtonProps: {
+        reflect: false,
+        type: "Object",
+        attribute: "ai-button-props",
+      },
       id: { reflect: false, type: "String", attribute: "id" },
       handleRequestCompletion: {
         reflect: false,
@@ -142,6 +146,7 @@
       internalValue = value;
       previousExternalValue = value;
     }
+    handleValueChange?.(internalValue);
   });
 
   async function handleBtnClicked() {
@@ -159,7 +164,7 @@
     loading = true;
 
     if (handleBeforeSubmit) {
-      await handleBeforeSubmit({
+      const proceed = await handleBeforeSubmit({
         content: internalValue,
         setContent: (newContent: string) => {
           internalValue = newContent;
@@ -167,6 +172,10 @@
           autosize.update(textarea);
         },
       });
+      if(!proceed) {
+        loading = false;
+        return;
+      }
     }
 
     if (handleRequestCompletion) {
@@ -183,6 +192,8 @@
           autosize.update(textarea);
         },
       });
+      loading = false;
+
       return;
     }
 
@@ -291,7 +302,11 @@
 
 <div class="genie-textarea-root flex flex-col" {id}>
   {#if label}
-    <label for={textareaId} {...labelProps} class="text-sm text-black/80 {labelProps?.class || ""}">{label}</label>
+    <label
+      for={textareaId}
+      {...labelProps}
+      class="text-sm text-black/80 {labelProps?.class || ''}">{label}</label
+    >
   {/if}
 
   <div class="flex gap-2">

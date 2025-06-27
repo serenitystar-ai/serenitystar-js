@@ -1,22 +1,346 @@
 import { defineElement, genieTextarea } from '@serenity-star/genie-textarea'
+import hljs from 'highlight.js/lib/core'
+import javascript from 'highlight.js/lib/languages/javascript'
+
+// Register the language for syntax highlighting
+hljs.registerLanguage('javascript', javascript)
 
 const apiKey = import.meta.env.VITE_API_KEY;
-const agentCode = import.meta.env.VITE_AGENT_CODE;
+const agentCode = 'inline-translator-for-genie'; // Using your specific agent
 
+// Register the web component globally
 defineElement('genie-textarea')
 
-// Basic example for an agent that translates text to english
-const instance = genieTextarea("my-genie-textarea", {
-    agentCode,
-    apiKey,
-    placeholder: "Type the message you want to translate to english",
-    contentParameterName: "userMessage",
-    label: "Message",
-    value: "¡Bienvenido a la documentación de Serenity AI Hub! Aquí encontrarás información detallada sobre nuestros productos, funciones y más."
-})
+interface Example {
+  id: string
+  setup: () => void
+}
 
-// Programmatically interact with the genie-textarea component
-document.getElementById('update-btn')?.addEventListener('click', () => {
-    instance.set("value", "Bienvenido a Genie Textarea!")
-    instance.aiButton.execute();
-})
+// Sleep utility for custom completion example
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+const examples: Example[] = [
+  {
+    id: 'basic-usage',
+    setup: () => {
+      genieTextarea('basic-example', {
+        apiKey,
+        agentCode,
+        contentParameterName: "userMessage"
+      })
+    }
+  },
+
+  {
+    id: 'with-label-placeholder',
+    setup: () => {
+      genieTextarea('labeled-example', {
+        apiKey,
+        agentCode,
+        contentParameterName: "userMessage",
+        label: 'Text to Translate',
+        placeholder: 'Enter text in any language to translate to English...',
+        value: 'Hola mundo, ¿cómo estás hoy?'
+      })
+    }
+  },
+
+  {
+    id: 'custom-parameters',
+    setup: () => {
+      const langSelector = document.getElementById('lang-selector') as HTMLSelectElement;
+      
+      // Initialize the textarea instance once
+      const instance = genieTextarea('params-example', {
+        apiKey,
+        agentCode,
+        contentParameterName: "userMessage",
+        label: 'Translate to Spanish',
+        placeholder: 'Enter text to translate to spanish...',
+        value: 'Hello world, how are you today?',
+        inputParameters: {
+          lang: 'spanish'
+        }
+      });
+
+      if (langSelector) {
+        langSelector.addEventListener('change', (e) => {
+          const selectedLang = (e.target as HTMLSelectElement).value;
+          const capitalizedLang = selectedLang.charAt(0).toUpperCase() + selectedLang.slice(1);
+          
+          // Use the set method to update properties instead of recreating
+          instance.set('label', `Translate to ${capitalizedLang}`);
+          instance.set('placeholder', `Enter text to translate to ${selectedLang}...`);
+          instance.set('inputParameters', { lang: selectedLang });
+        });
+      }
+    }
+  },
+
+  {
+    id: 'value-change-tracking',
+    setup: () => {
+      let charCount = 0;
+      
+      genieTextarea('tracking-example', {
+        apiKey,
+        agentCode,
+        contentParameterName: "userMessage",
+        label: 'Content with Change Tracking',
+        placeholder: 'Type here and watch the character count...',
+        handleValueChange: (newValue) => {
+          charCount = newValue.length;
+          const countElement = document.getElementById('char-count-tracking');
+          if (countElement) {
+            countElement.textContent = `Character count: ${charCount}`;
+          }
+          console.log('Content updated:', newValue);
+        }
+      })
+    }
+  },
+
+  {
+    id: 'custom-button-styling',
+    setup: () => {
+      (genieTextarea as any)('styled-button-example', {
+        apiKey,
+        agentCode,
+        contentParameterName: "userMessage",
+        label: 'Custom Styled Button',
+        placeholder: 'Text with custom AI button styling...',
+        aiButtonProps: {
+          text: 'Translate Now',
+          bgColor: '#10b981',
+          tintColor: '#ffffff'
+        }
+      })
+    }
+  },
+
+  {
+    id: 'custom-svg-icon',
+    setup: () => {
+      (genieTextarea as any)('svg-icon-example', {
+        apiKey,
+        agentCode,
+        contentParameterName: "userMessage",
+        label: 'Custom SVG Icon',
+        placeholder: 'Text with custom SVG icon...',
+        aiButtonProps: {
+          bgColor: '#7c3aed',
+          icon: {
+            type: 'svg',
+            content: `<svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>`,
+            tintColor: '#fbbf24'
+          }
+        }
+      })
+    }
+  },
+
+  {
+    id: 'custom-image-icon',
+    setup: () => {
+      (genieTextarea as any)('image-icon-example', {
+        apiKey,
+        agentCode,
+        contentParameterName: "userMessage",
+        label: 'Custom Image Icon',
+        placeholder: 'Text with custom image icon...',
+        aiButtonProps: {
+          bgColor: '#dc2626',
+          icon: {
+            type: 'img',
+            src: '/vite.svg',
+            alt: 'Custom AI Icon'
+          }
+        }
+      })
+    }
+  },
+
+  {
+    id: 'textarea-customization',
+    setup: () => {
+      (genieTextarea as any)('textarea-custom-example', {
+        apiKey,
+        agentCode,
+        contentParameterName: "userMessage",
+        label: 'Customized Textarea',
+        placeholder: 'Limited to 200 characters...',
+        textareaProps: {
+          rows: 6,
+          maxlength: 200,
+          class: 'custom-textarea-class',
+          style: 'border-radius: 12px; font-size: 16px; border: 2px solid #4862ff;',
+          spellcheck: true,
+          'aria-label': 'Custom AI-enhanced text input'
+        }
+      })
+    }
+  },
+
+  {
+    id: 'label-customization',
+    setup: () => {
+      (genieTextarea as any)('label-custom-example', {
+        apiKey,
+        agentCode,
+        contentParameterName: "userMessage",
+        label: 'Styled Label',
+        placeholder: 'Text with custom label styling...',
+        labelProps: {
+          class: 'custom-label-class',
+          style: 'font-weight: bold; color: #7c3aed; font-size: 18px; text-transform: uppercase;',
+          'aria-label': 'Custom styled label'
+        }
+      })
+    }
+  },
+
+  {
+    id: 'event-handlers',
+    setup: () => {
+      genieTextarea('events-example', {
+        apiKey,
+        agentCode,
+        contentParameterName: "userMessage",
+        label: 'Event Handlers Example',
+        placeholder: 'Text with event handling...',
+        
+        handleBeforeSubmit: async ({ content, instruction, setContent }) => {
+          console.log('About to process:', { content, instruction });
+          
+          if (content.length < 5) {
+            alert('Please provide more content for better translation');
+            return false;
+          }
+          
+          setContent(`Context: This is casual conversation.\n\n${content}`);
+          return true;
+        },
+        
+        handleAgentResult: async (result) => {
+          console.log('Translation completed:', result);
+          const statusElement = document.getElementById('status-events');
+          if (statusElement) {
+            statusElement.textContent = 'Translation completed successfully!';
+            setTimeout(() => {
+              statusElement.textContent = '';
+            }, 3000);
+          }
+        }
+      })
+    }
+  },
+
+  {
+    id: 'custom-completion-handler',
+    setup: () => {
+      genieTextarea('custom-completion-example', {
+        label: 'Custom Completion Logic',
+        placeholder: 'Custom AI completion handler...',
+        
+        handleRequestCompletion: async ({ content, instruction, addChunk, setContent }) => {
+          console.log('Starting custom completion...', { content, instruction });
+          
+          // Clear the textarea before adding chunks
+          setContent?.('');
+          
+          await sleep(500);
+          
+          const responses = [
+            'This is a simulated ',
+            'AI response that demonstrates ',
+            'how to implement custom ',
+            'completion logic with ',
+            'streaming chunks.'
+          ];
+          
+          for (const chunk of responses) {
+            await sleep(200);
+            addChunk?.(chunk);
+          }
+          
+          console.log('Custom completion finished');
+        }
+      })
+    }
+  },
+
+  {
+    id: 'localization',
+    setup: () => {
+      (genieTextarea as any)('localization-example', {
+        apiKey,
+        agentCode,
+        contentParameterName: "userMessage",
+        label: 'Ejemplo de Localización',
+        placeholder: 'Texto en español para traducir...',
+        locale: {
+          contentMissingErrorMessage: 'Por favor, proporciona contenido para procesar.',
+          thinkingMessage: 'Pensando...',
+          completionErrorMessage: 'Ocurrió un error al procesar tu solicitud.'
+        },
+        aiButtonProps: {
+          text: 'Traducir'
+        }
+      })
+    }
+  },
+
+  {
+    id: 'programmatic-control',
+    setup: () => {
+      const instance = genieTextarea('programmatic-example', {
+        apiKey,
+        agentCode,
+        contentParameterName: "userMessage",
+        label: 'Programmatic Control',
+        placeholder: 'Use buttons below to control this textarea...'
+      });
+
+      // Store instance for button handlers
+      (window as any).programmaticInstance = instance;
+    }
+  },
+
+  {
+    id: 'web-component-usage',
+    setup: () => {
+      // This will be handled differently since it's direct HTML
+    }
+  }
+]
+
+function initializePlayground() {
+  // Set the API key for the web component example
+  const webComponentExample = document.getElementById('web-component-example') as any;
+  if (webComponentExample) {
+    webComponentExample.setAttribute('api-key', apiKey);
+  }
+
+  // Initialize all examples
+  examples.forEach(example => {
+    if (example.id !== 'web-component-usage') {
+      example.setup();
+    }
+  });
+
+  // Highlight all code blocks that are already in the HTML
+  document.querySelectorAll('pre code').forEach((block) => {
+    hljs.highlightElement(block as HTMLElement);
+  });
+
+  console.log('🧞 Genie Textarea Playground initialized with', examples.length, 'examples');
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializePlayground);
+} else {
+  initializePlayground();
+}
