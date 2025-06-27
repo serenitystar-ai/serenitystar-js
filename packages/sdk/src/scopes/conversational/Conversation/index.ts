@@ -82,6 +82,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     if (!this.conversationId) {
       throw new Error("Conversation not initialized");
     }
+
     const version = this.agentVersion ? `/${this.agentVersion}` : '';
     const url = `${this.baseUrl}/v2/agent/${this.agentCode}/execute${version}`;
     
@@ -90,7 +91,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     const connection = new SseConnection();
     let responsePromise: Promise<AgentResult>;
 
-    responsePromise = new Promise((resolve, reject) => {
+    responsePromise = new Promise(async (resolve, reject) => {
       connection.on("start", () => {
         this.emit("start");
       });
@@ -111,20 +112,21 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
         this.emit("stop", finalMessage.result);
         resolve(finalMessage.result);
       });
-    });
 
-    const fetchOptions: RequestInit = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-KEY": this.apiKey,
-      },
-      body: JSON.stringify(body),
-    };
-
-    connection.start(url, fetchOptions).catch((error) => {
-      this.emit("error", { message: error.message });
-      throw error;
+      const fetchOptions: RequestInit = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-KEY": this.apiKey,
+        },
+        body: JSON.stringify(body),
+      };
+  
+      try {
+        await connection.start(url, fetchOptions);
+      } catch (error) {
+        reject(error);
+      }
     });
 
     return responsePromise;
