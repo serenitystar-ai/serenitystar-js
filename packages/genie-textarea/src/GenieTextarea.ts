@@ -17,6 +17,7 @@ interface GenieTextareaElement extends HTMLElement {
   handleAgentResult?: GenieTextareaProps["handleAgentResult"];
   locale?: GenieTextareaProps["locale"];
   aiButtonProps?: GenieTextareaProps["aiButtonProps"];
+  undoButtonProps?: GenieTextareaProps["undoButtonProps"];
   textareaProps?: GenieTextareaProps["textareaProps"];
   labelProps?: GenieTextareaProps["labelProps"];
 }
@@ -43,11 +44,19 @@ interface AIButton {
   execute(): void;
 }
 
+// Button interface for the undo button
+interface UndoButton {
+  enable(): void;
+  disable(): void;
+  execute(): void;
+}
+
 export class GenieTextarea {
   private container?: HTMLElement;
   private webComponent: GenieTextareaElement;
   private id: string;
   public readonly aiButton: AIButton;
+  public readonly undoButton: UndoButton;
 
   constructor(id: string, options: GenieTextareaOptions = {}) {
     this.id = id;
@@ -82,6 +91,27 @@ export class GenieTextarea {
         const button = this.webComponent.querySelector("button");
         if (button) {
           button.click();
+        }
+      },
+    };
+
+    this.undoButton = {
+      enable: () => {
+        const undoButton = this.webComponent.querySelector("button[data-undo]");
+        if (undoButton) {
+          (undoButton as HTMLButtonElement).disabled = false;
+        }
+      },
+      disable: () => {
+        const undoButton = this.webComponent.querySelector("button[data-undo]");
+        if (undoButton) {
+          (undoButton as HTMLButtonElement).disabled = true;
+        }
+      },
+      execute: () => {
+        const undoButton = this.webComponent.querySelector("button[data-undo]");
+        if (undoButton) {
+          (undoButton as HTMLButtonElement).click();
         }
       },
     };
@@ -142,6 +172,9 @@ export class GenieTextarea {
     if (options.aiButtonProps !== undefined) {
       this.webComponent.aiButtonProps = options.aiButtonProps;
     }
+    if (options.undoButtonProps !== undefined) {
+      this.webComponent.undoButtonProps = options.undoButtonProps;
+    }
     if (options.handleBeforeSubmit !== undefined) {
       this.webComponent.handleBeforeSubmit = options.handleBeforeSubmit;
     }
@@ -197,6 +230,8 @@ export class GenieTextarea {
         return this.webComponent.inputParameters as GenieTextareaOptions[K];
       case "aiButtonProps":
         return this.webComponent.aiButtonProps as GenieTextareaOptions[K];
+      case "undoButtonProps":
+        return this.webComponent.undoButtonProps as GenieTextareaOptions[K];
       case "handleBeforeSubmit":
         return this.webComponent.handleBeforeSubmit as GenieTextareaOptions[K];
       case "handleAgentResult":

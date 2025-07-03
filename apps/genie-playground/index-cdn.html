@@ -34,6 +34,7 @@
             <li><a href="#custom-parameters">Custom Input Parameters</a></li>
             <li><a href="#value-change-tracking">Value Change Tracking</a></li>
             <li><a href="#custom-button-styling">Custom Button Styling</a></li>
+            <li><a href="#undo-button-customization">Undo Button Customization</a></li>
             <li><a href="#custom-svg-icon">Custom SVG Icon</a></li>
             <li><a href="#custom-image-icon">Custom Image Icon</a></li>
             <li><a href="#textarea-customization">Textarea Customization</a></li>
@@ -201,6 +202,38 @@ genieTextarea('tracking-example', {
         text: 'Translate Now',
         bgColor: '#10b981', // Green background
         tintColor: '#ffffff' // White text
+    }
+})</code></pre>
+            </div>
+          </div>
+
+          <!-- Undo Button Customization -->
+          <div class="example" id="undo-button-customization">
+            <div class="example-header">
+              <h2 class="example-title">Undo Button Customization</h2>
+              <p class="example-description">
+                Customize the undo button that appears after AI processing. The undo button automatically appears after AI changes the content and allows restoring the original text.
+              </p>
+            </div>
+            <div class="example-demo">
+              <div id="undo-button-example"></div>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-javascript">genieTextarea('undo-button-example', {
+    apiKey: 'your-api-key',
+    agentCode: 'inline-translator-for-genie',
+    contentParameterName: 'userMessage',
+    label: 'Undo Button Customization',
+    placeholder: 'Type some text and click the AI button to see the undo feature...',
+    value: 'This text will be processed by AI. After processing, an undo button will appear.',
+    aiButtonProps: {
+        text: 'Process Text',
+        bgColor: '#3b82f6', // Blue background
+        tintColor: '#ffffff' // White text
+    },
+    undoButtonProps: {
+        bgColor: '#f59e0b', // Orange background
+        tintColor: '#ffffff' // White icon
     }
 })</code></pre>
             </div>
@@ -441,7 +474,8 @@ genieTextarea('tracking-example', {
     locale: {
         contentMissingErrorMessage: 'Por favor, proporciona contenido para procesar.',
         thinkingMessage: 'Pensando...',
-        completionErrorMessage: 'Ocurrió un error al procesar tu solicitud.'
+        completionErrorMessage: 'Ocurrió un error al procesar tu solicitud.',
+        undoButtonTooltip: 'Deshacer'
     },
     aiButtonProps: {
         text: 'Traducir'

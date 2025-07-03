@@ -103,6 +103,29 @@ const examples = [
   },
 
   {
+    id: 'undo-button-customization',
+    setup: () => {
+      genieTextarea('undo-button-example', {
+        apiKey,
+        agentCode,
+        contentParameterName: "userMessage",
+        label: 'Undo Button Customization',
+        placeholder: 'Type some text and click the AI button to see the undo feature...',
+        value: 'This text will be processed by AI. After processing, an undo button will appear.',
+        aiButtonProps: {
+          text: 'Process Text',
+          bgColor: '#3b82f6', // Blue background
+          tintColor: '#ffffff' // White text
+        },
+        undoButtonProps: {
+          bgColor: '#f59e0b', // Orange background
+          tintColor: '#ffffff' // White icon
+        }
+      });
+    }
+  },
+
+  {
     id: 'custom-svg-icon',
     setup: () => {
       genieTextarea('svg-icon-example', {
@@ -268,7 +291,8 @@ const examples = [
         locale: {
           contentMissingErrorMessage: 'Por favor, proporciona contenido para procesar.',
           thinkingMessage: 'Pensando...',
-          completionErrorMessage: 'Ocurrió un error al procesar tu solicitud.'
+          completionErrorMessage: 'Ocurrió un error al procesar tu solicitud.',
+          undoButtonTooltip: 'Deshacer'
         },
         aiButtonProps: {
           text: 'Traducir'

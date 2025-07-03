@@ -19,6 +19,11 @@
         type: "Object",
         attribute: "ai-button-props",
       },
+      undoButtonProps: {
+        reflect: false,
+        type: "Object",
+        attribute: "undo-button-props",
+      },
       id: { reflect: false, type: "String", attribute: "id" },
       handleRequestCompletion: {
         reflect: false,
@@ -72,6 +77,7 @@
 
 <script lang="ts">
   import { Popover } from "bits-ui";
+  import { Undo } from "@lucide/svelte";
   import type { GenieTextareaProps } from "../types";
   import { SerenityClient } from "@serenity-star/sdk";
   import autosize from "svelte-autosize";
@@ -88,6 +94,7 @@
     apiKey,
     handleBeforeSubmit,
     aiButtonProps,
+    undoButtonProps = {},
     id,
     handleRequestCompletion,
     placeholder,
@@ -101,6 +108,7 @@
       thinkingMessage: "Thinking...",
       completionErrorMessage:
         "An error occurred while processing your request.",
+      undoButtonTooltip: "Undo",
     },
     inputParameters = {},
     mode = "direct",
@@ -119,11 +127,21 @@
     errorMessage,
     internalValue,
     loading,
+    previousValue,
+    canUndo,
   }: {
     errorMessage?: string;
     internalValue: string;
     loading?: boolean;
-  } = $state({ errorMessage: "", internalValue: value, loading: false });
+    previousValue?: string;
+    canUndo: boolean;
+  } = $state({ 
+    errorMessage: "", 
+    internalValue: value, 
+    loading: false,
+    previousValue: undefined,
+    canUndo: false
+  });
 
   let isOpen = $state(false);
 
@@ -165,6 +183,16 @@
     }
   });
 
+  function handleUndo() {
+    if (previousValue !== undefined) {
+      internalValue = previousValue;
+      handleValueChange?.(internalValue);
+      autosize.update(textarea);
+      canUndo = false;
+      previousValue = undefined;
+    }
+  }
+
   async function handleBtnClicked() {
     if (mode === "assisted") {
       // TODO: Implement assisted mode
@@ -177,6 +205,8 @@
       return;
     }
 
+    // Store the current value before processing
+    previousValue = internalValue;
     loading = true;
 
     if (handleBeforeSubmit) {
@@ -209,13 +239,16 @@
         },
       });
       loading = false;
-
+      // Enable undo if the content changed
+      canUndo = internalValue !== previousValue;
       return;
     }
 
     await handleDirectExecute();
 
     loading = false;
+    // Enable undo if the content changed
+    canUndo = internalValue !== previousValue;
   }
 
   async function handleAssistedExecute() {
@@ -271,6 +304,9 @@
         internalValue = savedValue; // Restore the original value
         handleValueChange?.(internalValue);
         autosize.update(textarea);
+        // Don't enable undo if there was an error
+        canUndo = false;
+        previousValue = undefined;
       }
     }
   }
@@ -336,6 +372,24 @@
       class="border flex-1 border-gray-300 px-2 py-1 rounded {textareaProps?.class ||
         ''}"
     ></textarea>
+
+    {#if canUndo}
+      <button
+        data-undo
+        disabled={!canUndo}
+        onclick={handleUndo}
+        title={locale?.undoButtonTooltip || "Undo"}
+        class="rounded text-white shadow inline-flex h-10 w-10 select-none items-center justify-center whitespace-nowrap text-md font-medium transition-all active:scale-[0.98] {!canUndo
+          ? 'cursor-not-allowed opacity-50'
+          : 'hover:opacity-90 cursor-pointer'}"
+        style="background-color: {undoButtonProps?.bgColor || '#6b7280'}"
+      >
+        <Undo 
+          size={16} 
+          color={undoButtonProps?.tintColor || 'white'} 
+        />
+      </button>
+    {/if}
 
     {#if mode == "direct"}
       <button

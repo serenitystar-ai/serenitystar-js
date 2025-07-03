@@ -330,6 +330,12 @@ interface GenieTextareaOptions {
         };
     };
     
+    // Undo Button Customization
+    undoButtonProps?: {
+        bgColor?: string;              // Background color
+        tintColor?: string;            // Icon color
+    };
+    
     // Textarea Customization
     textareaProps?: HTMLTextareaAttributes; // Pass any HTML textarea attributes (rows, cols, maxlength, class, style, etc.)
     
@@ -351,6 +357,7 @@ interface GenieTextareaOptions {
         contentMissingErrorMessage?: string;
         thinkingMessage?: string;
         completionErrorMessage?: string;
+        undoButtonTooltip?: string;
     };
 }
 ```
@@ -380,7 +387,8 @@ const defaults = {
     locale: {
         contentMissingErrorMessage: 'Content is required.',
         thinkingMessage: 'Thinking...',
-        completionErrorMessage: 'An error occurred while processing your request.'
+        completionErrorMessage: 'An error occurred while processing your request.',
+        undoButtonTooltip: 'Undo'
     },
     inputParameters: {}
 };
@@ -545,6 +553,24 @@ genieTextarea('my-textarea', {
 });
 ```
 
+#### Undo Button Customization
+
+The undo button automatically appears after AI processing completes, allowing users to restore the original content. You can customize its appearance and tooltip:
+
+```javascript
+genieTextarea('my-textarea', {
+    apiKey: 'your-api-key',
+    agentCode: 'your-agent-code',
+    undoButtonProps: {
+        bgColor: '#f59e0b',    // Orange background
+        tintColor: '#ffffff'   // White icon
+    },
+    locale: {
+        undoButtonTooltip: 'Restore original text'
+    }
+});
+```
+
 #### CSS Styling Options
 
 The component includes scoped styles, but you can customize the appearance:
@@ -642,7 +668,8 @@ genieTextarea('my-textarea', {
     locale: {
         contentMissingErrorMessage: 'Por favor, proporciona contenido para procesar.',
         thinkingMessage: 'Pensando...',
-        completionErrorMessage: 'Ocurrió un error al procesar tu solicitud.'
+        completionErrorMessage: 'Ocurrió un error al procesar tu solicitud.',
+        undoButtonTooltip: 'Deshacer'
     }
 });
 ```
