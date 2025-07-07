@@ -331,7 +331,7 @@ const examples: Example[] = [
         locale: {
           assistedMode: {
             inputPlaceholder: 'Escribe una instrucción personalizada...',
-            executeButtonText: 'Ejecutar'
+            quickActionsTitle: 'Acciones Rápidas'
           }
         } as any,
         quickActions: [
