@@ -14,6 +14,7 @@ A powerful AI-enhanced textarea web component built with Svelte 5 that seamlessl
 - 🔧 **TypeScript Support**: Complete type definitions included
 - 🌐 **Universal**: Works with any framework or vanilla JavaScript
 - ⚡ **Lightweight**: Minimal footprint with maximum functionality
+- 🎛️ **Dual Modes**: Direct processing or assisted mode with quick actions and custom instructions
 
 ## 📦 Installation
 
@@ -343,8 +344,8 @@ interface GenieTextareaOptions {
     labelProps?: HTMLLabelAttributes; // Pass any HTML label attributes (class, style, for, etc.)
 
     // Behavior
-    mode?: 'direct' | 'assisted';     // Processing mode (assisted not yet available)
-    quickActions?: QuickAction[];     // Quick actions (assisted mode only)
+    mode?: 'direct' | 'assisted';     // Processing mode
+    quickActions?: QuickAction[];     // Quick actions for assisted mode
     
     // Event Handlers
     handleValueChange?: (value: string) => void;
@@ -358,6 +359,10 @@ interface GenieTextareaOptions {
         thinkingMessage?: string;
         completionErrorMessage?: string;
         undoButtonTooltip?: string;
+        assistedMode?: {
+            inputPlaceholder?: string;       // Placeholder for custom instruction input
+            quickActionsTitle?: string;      // Title for quick actions section
+        };
     };
 }
 ```
@@ -388,7 +393,11 @@ const defaults = {
         contentMissingErrorMessage: 'Content is required.',
         thinkingMessage: 'Thinking...',
         completionErrorMessage: 'An error occurred while processing your request.',
-        undoButtonTooltip: 'Undo'
+        undoButtonTooltip: 'Undo',
+        assistedMode: {
+            inputPlaceholder: 'Enter an instruction...',
+            quickActionsTitle: 'Quick actions'
+        }
     },
     inputParameters: {}
 };
@@ -416,22 +425,51 @@ genieTextarea('my-textarea', {
 
 ### Assisted Mode
 
-⚠️ **DISCLAIMER: Assisted mode is not yet available and is coming in a future release.**
-
-Assisted mode will provide a more interactive experience with suggestions, quick actions, and guided AI assistance through a popover interface.
+Assisted mode provides an interactive experience through a popover interface. Users can type custom instructions or choose from predefined quick actions.
 
 ```javascript
-// Coming soon!
 genieTextarea('my-textarea', {
-    mode: 'assisted', // Not yet available
+    mode: 'assisted',
     apiKey: 'your-api-key',
     agentCode: 'your-agent-code',
     quickActions: [
-        { label: 'Improve', instruction: 'Make this text better' },
-        { label: 'Summarize', instruction: 'Create a brief summary' }
-    ]
+        {
+            label: 'Translate to English',
+            instruction: 'Translate this text to English',
+            icon: {
+                type: 'svg',
+                content: `<svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/>
+                </svg>`,
+                tintColor: '#3b82f6'
+            } // Example using SVG icon
+        },
+        {
+            label: 'Fix Grammar',
+            instruction: 'Fix any grammar and spelling errors in this text'
+        },
+        {
+            label: 'Make Professional',
+            instruction: 'Improve the tone of this text to make it more professional and friendly'
+        }
+    ],
+    locale: {
+        assistedMode: {
+            inputPlaceholder: 'Enter your custom instruction...',
+            quickActionsTitle: 'Quick Actions'
+        }
+    }
 });
 ```
+
+**How it works:**
+1. User types content in the textarea
+2. User clicks the AI button to open an interactive popover
+3. User can either:
+   - Type a custom instruction in the input field
+   - Choose from predefined quick actions
+4. AI processes the content with the chosen instruction
+5. AI response streams back and replaces/enhances the content
 
 ## 🎨 Customization
 
@@ -665,37 +703,48 @@ genieTextarea('my-textarea', {
 genieTextarea('my-textarea', {
     apiKey: 'your-api-key',
     agentCode: 'your-agent-code',
+    mode: 'assisted',
     locale: {
         contentMissingErrorMessage: 'Por favor, proporciona contenido para procesar.',
         thinkingMessage: 'Pensando...',
         completionErrorMessage: 'Ocurrió un error al procesar tu solicitud.',
-        undoButtonTooltip: 'Deshacer'
+        undoButtonTooltip: 'Deshacer',
+        assistedMode: {
+            inputPlaceholder: 'Ingresa una instrucción...',
+            quickActionsTitle: 'Acciones rápidas'
+        }
     }
 });
 ```
 
 #### Quick Actions
 
-⚠️ **DISCLAIMER: Quick actions are only available in assisted mode, which is coming in a future release.**
+Quick actions provide predefined instructions that users can quickly select from the assisted mode popover interface. Each quick action can include custom icons.
 
 ```javascript
-// Coming soon with assisted mode!
 genieTextarea('my-textarea', {
-    mode: 'assisted', // Not yet available
+    mode: 'assisted',
     apiKey: 'your-api-key',
     agentCode: 'writing-assistant',
     quickActions: [
         {
             label: 'Improve Writing',
-            instruction: 'Improve the grammar, clarity, and flow of this text'
+            instruction: 'Improve the grammar, clarity, and flow of this text',
+            icon: {
+                type: 'svg',
+                content: `<svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>`,
+                tintColor: '#10b981'
+            }
         },
         {
             label: 'Make Professional',
-            instruction: 'Rewrite this text in a professional tone'
+            instruction: 'Rewrite this text in a professional tone',
         },
         {
             label: 'Summarize',
-            instruction: 'Create a concise summary of this content'
+            instruction: 'Create a concise summary of this content',
         }
     ]
 });
@@ -706,18 +755,20 @@ genieTextarea('my-textarea', {
 ```
 packages/genie-textarea/
 ├── src/
-│   ├── GenieTextarea.ts       # Main class
-│   ├── index.ts               # ES module exports
-│   ├── script.ts              # IIFE entry point
-│   ├── types.ts               # TypeScript definitions
+│   ├── GenieTextarea.ts         # Main class
+│   ├── index.ts                 # ES module exports
+│   ├── script.ts                # IIFE entry point
+│   ├── types.ts                 # TypeScript definitions
 │   ├── web-component/
-│   │   └── GenieTextarea.svelte # Svelte web component
+│   │   ├── GenieTextarea.svelte # Main Svelte web component
+│   │   ├── Popover.svelte       # Assisted mode popover interface
+│   │   └── IconRenderer.svelte  # Reusable icon rendering component
 │   └── utils/
-│       └── ErrorHelper.ts     # Error handling utilities
-├── dist/                      # Built files
+│       └── ErrorHelper.ts       # Error handling utilities
+├── dist/                        # Built files
 ├── package.json
-├── vite.config.esm.ts         # ES module build config
-├── vite.config.iife.ts        # IIFE build config
+├── vite.config.esm.ts           # ES module build config
+├── vite.config.iife.ts          # IIFE build config
 └── README.md
 ```
 

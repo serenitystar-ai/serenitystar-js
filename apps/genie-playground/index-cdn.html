@@ -21,30 +21,46 @@
     <div class="container">
       <div class="header">
         <h1>Genie Textarea Playground</h1>
-        <p>Interactive examples showcasing all features and capabilities (CDN Version)</p>
+        <p>
+          Interactive examples showcasing all features and capabilities (CDN
+          Version)
+        </p>
       </div>
 
       <div class="content">
         <!-- Table of Contents -->
         <div class="toc">
-          <h3>Examples</h3>
+          <h3>📖 Examples</h3>
           <ul>
             <li><a href="#basic-usage">Basic Usage</a></li>
-            <li><a href="#with-label-placeholder">With Label & Placeholder</a></li>
+            <li>
+              <a href="#with-label-placeholder">With Label & Placeholder</a>
+            </li>
             <li><a href="#custom-parameters">Custom Input Parameters</a></li>
             <li><a href="#value-change-tracking">Value Change Tracking</a></li>
             <li><a href="#custom-button-styling">Custom Button Styling</a></li>
-            <li><a href="#undo-button-customization">Undo Button Customization</a></li>
+            <li>
+              <a href="#undo-button-customization">Undo Button Customization</a>
+            </li>
             <li><a href="#custom-svg-icon">Custom SVG Icon</a></li>
             <li><a href="#custom-image-icon">Custom Image Icon</a></li>
-            <li><a href="#textarea-customization">Textarea Customization</a></li>
+            <li>
+              <a href="#textarea-customization">Textarea Customization</a>
+            </li>
             <li><a href="#label-customization">Label Customization</a></li>
             <li><a href="#event-handlers">Event Handlers</a></li>
-            <li><a href="#custom-completion-handler">Custom Completion Handler</a></li>
+            <li>
+              <a href="#custom-completion-handler">Custom Completion Handler</a>
+            </li>
+            <li><a href="#assisted-mode-basic">Assisted Mode - Basic</a></li>
+            <li>
+              <a href="#assisted-mode-advanced">Assisted Mode - Advanced</a>
+            </li>
             <li><a href="#localization">Localization</a></li>
             <li><a href="#programmatic-control">Programmatic Control</a></li>
-            <li><a href="#web-component-usage">Direct Web Component Usage</a></li>
-            <li><a href="#hybrid-config">Hybrid HTML + JS Configuration</a></li>
+            <li>
+              <a href="#web-component-usage">Direct Web Component Usage</a>
+            </li>
           </ul>
         </div>
 
@@ -55,8 +71,9 @@
             <div class="example-header">
               <h2 class="example-title">Basic Usage</h2>
               <p class="example-description">
-                The simplest way to create an AI-enhanced textarea. Just provide
-                an API key and agent code.
+                Simple textarea replacement with AI translation capabilities.
+                Type text in any language and click the AI button to translate
+                it to English.
               </p>
             </div>
             <div class="example-demo">
@@ -173,7 +190,7 @@ genieTextarea('tracking-example', {
     handleValueChange: (newValue) => {
         charCount = newValue.length;
         document.getElementById('char-count-tracking').textContent = 
-            `Character count: ${charCount}`;
+            `Character count: $&#123;charCount&#125;`;
         console.log('Content updated:', newValue);
     }
 })</code></pre>
@@ -212,7 +229,9 @@ genieTextarea('tracking-example', {
             <div class="example-header">
               <h2 class="example-title">Undo Button Customization</h2>
               <p class="example-description">
-                Customize the undo button that appears after AI processing. The undo button automatically appears after AI changes the content and allows restoring the original text.
+                Customize the undo button that appears after AI processing. The
+                undo button automatically appears after AI changes the content
+                and allows restoring the original text.
               </p>
             </div>
             <div class="example-demo">
@@ -371,7 +390,10 @@ genieTextarea('tracking-example', {
             <div class="example-demo">
               <div id="events-example"></div>
               <div class="control-group">
-                <div id="status-events" style="font-weight: 500; color: #059669"></div>
+                <div
+                  id="status-events"
+                  style="font-weight: 500; color: #059669"
+                ></div>
               </div>
             </div>
             <div class="example-code">
@@ -391,7 +413,7 @@ genieTextarea('tracking-example', {
         }
         
         // Add context to improve translation
-        setContent(`Context: This is casual conversation.\n\n${content}`);
+        setContent(`Context: This is casual conversation.\n\n$&#123;content&#125;`);
         return true; // Proceed with processing
     },
     
@@ -453,6 +475,90 @@ genieTextarea('tracking-example', {
             </div>
           </div>
 
+          <!-- Assisted Mode - Basic -->
+          <div class="example" id="assisted-mode-basic">
+            <div class="example-header">
+              <h2 class="example-title">Assisted Mode - Basic</h2>
+              <p class="example-description">
+                Basic assisted mode with quick actions for common tasks. Click
+                the AI button to open the assistant popover.
+              </p>
+            </div>
+            <div class="example-demo">
+              <div id="assisted-basic-example"></div>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-javascript">genieTextarea('assisted-basic-example', {
+    apiKey: 'your-api-key',
+    agentCode: 'your-assisted-agent-code',
+    contentParameterName: 'userMessage',
+    instructionParameterName: 'instruction',
+    mode: 'assisted',
+    label: 'Content Editor',
+    placeholder: 'Enter your content here...',
+    value: 'Artificial Intelligence has revolutionized the way we approach technology and problem-solving across numerous industries. From healthcare to finance, AI systems are now capable of analyzing vast amounts of data, identifying patterns, and making predictions that were once thought impossible. Machine learning algorithms can process information at speeds far beyond human capability, enabling breakthroughs in medical diagnosis, autonomous vehicles, and natural language processing. However, with these advancements come important considerations about ethics, privacy, and the future of work. As AI continues to evolve, it is crucial that we develop responsible frameworks for its implementation while ensuring that the benefits are distributed equitably across society. The integration of AI into our daily lives presents both exciting opportunities and significant challenges that require careful navigation.',
+    quickActions: [
+        { label: 'Improve Grammar', instruction: 'Fix grammar and improve readability' },
+        { label: 'Make Professional', instruction: 'Rewrite in a professional tone' },
+        { label: 'Summarize', instruction: 'Create a concise summary' }
+    ]
+})</code></pre>
+            </div>
+          </div>
+
+          <!-- Assisted Mode - Advanced -->
+          <div class="example" id="assisted-mode-advanced">
+            <div class="example-header">
+              <h2 class="example-title">Assisted Mode - Advanced</h2>
+              <p class="example-description">
+                Assisted mode with custom icons and localization.
+              </p>
+            </div>
+            <div class="example-demo">
+              <div id="assisted-advanced-example"></div>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-javascript">genieTextarea('assisted-advanced-example', {
+    apiKey: 'your-api-key',
+    agentCode: 'your-assisted-agent-code',
+    contentParameterName: 'userMessage',
+    instructionParameterName: 'instruction',
+    mode: 'assisted',
+    label: 'Editor Avanzado',
+    placeholder: 'Ingresa tu contenido aquí...',
+    value: 'Este es un texto de ejemplo que puedes editar y mejorar con asistencia de IA.',
+    locale: {
+        assistedMode: {
+            inputPlaceholder: 'Escribe una instrucción personalizada...',
+            executeButtonText: 'Ejecutar'
+        }
+    },
+    quickActions: [
+        { 
+            label: 'Corregir Texto', 
+            instruction: 'Corrige la gramática y mejora la legibilidad del texto',
+            icon: {
+                type: 'svg',
+                content: `&lt;svg viewBox="0 0 24 24" fill="currentColor"&gt;
+                    &lt;path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/&gt;
+                &lt;/svg&gt;`
+            }
+        },
+        { 
+            label: 'Traducir', 
+            instruction: 'Traduce el texto al inglés manteniendo el tono y contexto',
+            icon: {
+                type: 'svg',
+                content: `&lt;svg viewBox="0 0 24 24" fill="currentColor"&gt;
+                    &lt;path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/&gt;
+                &lt;/svg&gt;`
+            }
+        }
+    ]
+})</code></pre>
+            </div>
+          </div>
+
           <!-- Localization -->
           <div class="example" id="localization">
             <div class="example-header">
@@ -496,9 +602,24 @@ genieTextarea('tracking-example', {
             <div class="example-demo">
               <div id="programmatic-example"></div>
               <div class="control-group">
-                <button class="button" id="set-value-btn">Set Value</button>
-                <button class="button secondary" id="get-value-btn">Get Value</button>
-                <button class="button" id="execute-ai-btn">Execute AI</button>
+                <button
+                  class="button"
+                  onclick="window.programmaticInstance?.set('value', 'Bonjour le monde!')"
+                >
+                  Set French Text
+                </button>
+                <button
+                  class="button secondary"
+                  onclick="alert('Current value: ' + window.programmaticInstance?.get('value'))"
+                >
+                  Get Value
+                </button>
+                <button
+                  class="button"
+                  onclick="window.programmaticInstance?.aiButton.execute()"
+                >
+                  Execute AI
+                </button>
               </div>
             </div>
             <div class="example-code">
@@ -511,16 +632,16 @@ genieTextarea('tracking-example', {
 });
 
 // Control buttons
-document.getElementById('set-value-btn').addEventListener('click', () => {
+document.getElementById('set-value-btn').addEventListener('click', () =&gt; {
     instance.set('value', 'Bonjour le monde!');
 });
 
-document.getElementById('get-value-btn').addEventListener('click', () => {
+document.getElementById('get-value-btn').addEventListener('click', () =&gt; {
     const value = instance.get('value');
-    alert(`Current value: ${value}`);
+    alert(`Current value: $&#123;value&#125;`);
 });
 
-document.getElementById('execute-ai-btn').addEventListener('click', () => {
+document.getElementById('execute-ai-btn').addEventListener('click', () =&gt; {
     instance.aiButton.execute();
 });</code></pre>
             </div>
@@ -531,7 +652,7 @@ document.getElementById('execute-ai-btn').addEventListener('click', () => {
             <div class="example-header">
               <h2 class="example-title">Direct Web Component Usage</h2>
               <p class="example-description">
-                Use the web component directly in HTML after defining it.
+                Use the web component directly in HTML after registering it.
               </p>
             </div>
             <div class="example-demo">
@@ -539,11 +660,12 @@ document.getElementById('execute-ai-btn').addEventListener('click', () => {
                 id="web-component-example"
                 placeholder="Direct web component usage"
                 label="Web Component Example"
-                content-parameter-name="userMessage">
+                content-parameter-name="userMessage"
+              >
               </genie-textarea>
             </div>
             <div class="example-code">
-              <pre><code class="language-html"><!-- The genie-textarea web component is automatically registered by the IIFE bundle -->
+              <pre><code class="language-js">// After calling defineElement('genie-textarea')
 
 &lt;genie-textarea 
     id="web-component-example"
@@ -552,54 +674,8 @@ document.getElementById('execute-ai-btn').addEventListener('click', () => {
     content-parameter-name="userMessage"
     placeholder="Direct web component usage"
     label="Web Component Example"&gt;
-&lt;/genie-textarea&gt;</code></pre>
-            </div>
-          </div>
-
-          <!-- Hybrid HTML + JS Configuration -->
-          <div class="example" id="hybrid-config">
-            <div class="example-header">
-              <h2 class="example-title">Hybrid HTML + JavaScript Configuration</h2>
-              <p class="example-description">
-                Declare a web component in HTML with basic setup, then enhance it with JavaScript.
-              </p>
-            </div>
-            <div class="example-demo">
-              <!-- Web component declared directly in HTML with basic setup -->
-              <genie-textarea 
-                id="hybrid-example"
-                placeholder="I was created in HTML and enhanced with JS!"
-                label="Hybrid Configuration Example"
-                content-parameter-name="userMessage">
-              </genie-textarea>
-            </div>
-            <div class="example-code">
-              <pre><code class="language-html">&lt;!-- HTML: Basic setup --&gt;
-&lt;genie-textarea 
-    id="hybrid-example"
-    api-key="your-api-key"
-    agent-code="inline-translator-for-genie"
-    placeholder="I was created in HTML and enhanced with JS!"
-    label="Hybrid Configuration Example"&gt;
-&lt;/genie-textarea&gt;</code></pre>
-</div>
-<div class="example-code" style="margin-top: 8px;">
-              <pre><code class="language-javascript">// JavaScript: Enhancement
-const instance = genieTextarea('hybrid-example', {
-    contentParameterName: 'userMessage',
-    value: 'This value was set via JavaScript!',
-    handleValueChange: (value) => {
-        console.log('Value changed:', value);
-    },
-    handleBeforeSubmit: async ({ content, setContent }) => {
-        console.log('About to submit:', content);
-        return true; // Proceed with submission
-    }
-});
-
-// You can also use the instance to control the component
-instance.set('placeholder', 'Updated via JavaScript!');
-console.log('Current value:', instance.get('value'));</code></pre>
+&lt;/genie-textarea&gt;
+</code></pre>
             </div>
           </div>
         </div>

@@ -4,6 +4,8 @@
 // Configuration
 const apiKey = '<use-your-api-key>'; // Replace with your actual API key
 const agentCode = 'inline-translator-for-genie'; // Using your specific agent
+const assistedModeApiKey = '<use-your-assisted-mode-api-key>'; // For assisted mode examples
+const assistedModeAgentCode = 'assisted-agent-for-genie'; // For assisted mode examples
 
 // Sleep utility for custom completion example
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -280,6 +282,71 @@ const examples = [
   },
 
   {
+    id: 'assisted-mode-basic',
+    setup: () => {
+      genieTextarea('assisted-basic-example', {
+        apiKey: assistedModeApiKey,
+        agentCode: assistedModeAgentCode,
+        contentParameterName: "userMessage",
+        instructionParameterName: "instruction",
+        mode: 'assisted',
+        label: 'Content Editor',
+        placeholder: 'Enter your content here...',
+        value: 'Artificial Intelligence has revolutionized the way we approach technology and problem-solving across numerous industries. From healthcare to finance, AI systems are now capable of analyzing vast amounts of data, identifying patterns, and making predictions that were once thought impossible. Machine learning algorithms can process information at speeds far beyond human capability, enabling breakthroughs in medical diagnosis, autonomous vehicles, and natural language processing. However, with these advancements come important considerations about ethics, privacy, and the future of work. As AI continues to evolve, it is crucial that we develop responsible frameworks for its implementation while ensuring that the benefits are distributed equitably across society. The integration of AI into our daily lives presents both exciting opportunities and significant challenges that require careful navigation.',
+        quickActions: [
+          { label: 'Improve Grammar', instruction: 'Fix grammar and improve readability' },
+          { label: 'Make Professional', instruction: 'Rewrite in a professional tone' },
+          { label: 'Summarize', instruction: 'Create a concise summary' }
+        ]
+      });
+    }
+  },
+
+  {
+    id: 'assisted-mode-advanced',
+    setup: () => {
+      genieTextarea('assisted-advanced-example', {
+        apiKey: assistedModeApiKey,
+        agentCode: assistedModeAgentCode,
+        contentParameterName: "userMessage",
+        instructionParameterName: "instruction",
+        mode: 'assisted',
+        label: 'Editor Avanzado',
+        placeholder: 'Ingresa tu contenido aquí...',
+        value: 'Este es un texto de ejemplo que puedes editar y mejorar con asistencia de IA.',
+        locale: {
+          assistedMode: {
+            inputPlaceholder: 'Escribe una instrucción personalizada...',
+            executeButtonText: 'Ejecutar'
+          }
+        },
+        quickActions: [
+          { 
+            label: 'Corregir Texto', 
+            instruction: 'Corrige la gramática y mejora la legibilidad del texto',
+            icon: {
+              type: 'svg',
+              content: `<svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>`
+            }
+          },
+          { 
+            label: 'Traducir', 
+            instruction: 'Traduce el texto al inglés manteniendo el tono y contexto',
+            icon: {
+              type: 'svg',
+              content: `<svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/>
+              </svg>`
+            }
+          }
+        ]
+      });
+    }
+  },
+
+  {
     id: 'localization',
     setup: () => {
       genieTextarea('localization-example', {
@@ -314,89 +381,44 @@ const examples = [
 
       // Store instance for button handlers
       window.programmaticInstance = instance;
-
-      // Set up button event listeners
-      document.getElementById('set-value-btn').addEventListener('click', () => {
-        instance.set('value', 'Bonjour le monde!');
-      });
-
-      document.getElementById('get-value-btn').addEventListener('click', () => {
-        const value = instance.get('value');
-        alert(`Current value: ${value}`);
-      });
-
-      document.getElementById('execute-ai-btn').addEventListener('click', () => {
-        instance.aiButton.execute();
-      });
     }
   },
 
   {
     id: 'web-component-usage',
     setup: () => {
-      // Set the API key for the web component example
-      const webComponentExample = document.getElementById('web-component-example');
-      if (webComponentExample) {
-        webComponentExample.setAttribute('api-key', apiKey);
-        webComponentExample.setAttribute('agent-code', agentCode);
-      }
-    }
-  },
-
-  {
-    id: 'hybrid-config',
-    setup: () => {
-      // This demonstrates the hybrid approach: web component declared in HTML, enhanced with JS
-      const instance = genieTextarea('hybrid-example', {
-        apiKey, // Set API key via JavaScript
-        agentCode, // Set agent code via JavaScript
-        contentParameterName: 'userMessage',
-        value: 'This value was set via JavaScript!',
-        handleValueChange: (value) => {
-          console.log('Hybrid example - Value changed:', value);
-        },
-        handleBeforeSubmit: async ({ content }) => {
-          console.log('Hybrid example - About to submit:', content);
-          return true; // Proceed with submission
-        }
-      });
-
-      // Demo: Update some properties programmatically
-      setTimeout(() => {
-        instance.set('placeholder', 'Updated via JavaScript after 2 seconds!');
-        console.log('Hybrid example - Current value:', instance.get('value'));
-      }, 2000);
-
-      // Store instance for potential external access
-      window.hybridInstance = instance;
+      // This will be handled differently since it's direct HTML
     }
   }
 ];
 
 function initializePlayground() {
-    // The genie-textarea web component is automatically registered by the IIFE bundle
-    // No manual registration needed - just use window.genieTextarea function
+  // Set the API key for the web component example
+  const webComponentExample = document.getElementById('web-component-example');
+  if (webComponentExample) {
+    webComponentExample.setAttribute('api-key', apiKey);
+  }
 
-    // Initialize all examples
-    examples.forEach(example => {
-        try {
-            example.setup();
-            console.log(`✅ Initialized example: ${example.id}`);
-        } catch (error) {
-            console.error(`❌ Failed to initialize example: ${example.id}`, error);
-        }
-    });
-
-    // Highlight all code blocks that are already in the HTML
-    if (typeof hljs !== 'undefined') {
-        document.querySelectorAll('pre code').forEach((block) => {
-            hljs.highlightElement(block);
-        });
+  // Initialize all examples
+  examples.forEach(example => {
+    if (example.id !== 'web-component-usage') {
+      example.setup();
     }
+  });
 
-    console.log('🧞 Genie Textarea Playground (CDN Version) initialized with', examples.length, 'examples');
-    console.log('📝 Note: Replace "your-api-key" with your actual Serenity* Star API key to enable AI functionality');
+  // Highlight all code blocks that are already in the HTML
+  if (typeof hljs !== 'undefined') {
+    document.querySelectorAll('pre code').forEach((block) => {
+      hljs.highlightElement(block);
+    });
+  }
+
+  console.log('🧞 Genie Textarea Playground initialized with', examples.length, 'examples');
 }
 
-// Only initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', initializePlayground);
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializePlayground);
+} else {
+  initializePlayground();
+}

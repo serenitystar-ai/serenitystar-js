@@ -30,6 +30,10 @@ export type GenieTextareaProps = {
     thinkingMessage?: string;
     completionErrorMessage?: string;
     undoButtonTooltip?: string;
+    assistedMode?: {
+      inputPlaceholder?: string;
+      quickActionsTitle?: string;
+    };
   };
 };
 
