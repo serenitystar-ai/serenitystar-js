@@ -317,7 +317,7 @@ const examples = [
         locale: {
           assistedMode: {
             inputPlaceholder: 'Escribe una instrucción personalizada...',
-            executeButtonText: 'Ejecutar'
+            quickActionsTitle: 'Acciones Rápidas'
           }
         },
         quickActions: [
