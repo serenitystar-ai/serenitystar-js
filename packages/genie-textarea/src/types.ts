@@ -8,6 +8,7 @@ export type GenieTextareaProps = {
 
   labelProps?: Omit<HTMLLabelAttributes, "children">
   aiButtonProps?: AiButtonOptions;
+  undoButtonProps?: UndoButtonOptions;
   textareaProps?: Omit<HTMLTextareaAttributes, "value" | "placeholder">;
   
   id?: string;
@@ -28,6 +29,11 @@ export type GenieTextareaProps = {
     contentMissingErrorMessage?: string;
     thinkingMessage?: string;
     completionErrorMessage?: string;
+    undoButtonTooltip?: string;
+    assistedMode?: {
+      inputPlaceholder?: string;
+      quickActionsTitle?: string;
+    };
   };
 };
 
@@ -43,6 +49,11 @@ type AiButtonOptions = {
   icon?: IconOptions;
   bgColor?: string;
   text?: string;
+  tintColor?: string;
+};
+
+type UndoButtonOptions = {
+  bgColor?: string;
   tintColor?: string;
 };
 

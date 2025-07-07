@@ -8,7 +8,10 @@
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
       "Courier New", monospace;
     --color-red-500: oklch(63.7% 0.237 25.331);
+    --color-gray-100: oklch(96.7% 0.003 264.542);
     --color-gray-300: oklch(87.2% 0.01 258.338);
+    --color-gray-700: oklch(37.3% 0.034 259.733);
+    --color-gray-900: oklch(21% 0.034 264.665);
     --color-black: #000;
     --color-white: #fff;
     --spacing: 0.25rem;
@@ -180,6 +183,9 @@
   }
 }
 @layer utilities {
+  .genie-textarea-root .relative {
+    position: relative;
+  }
   .genie-textarea-root .static {
     position: static;
   }
@@ -201,6 +207,15 @@
       max-width: 96rem;
     }
   }
+  .genie-textarea-root .mt-2 {
+    margin-top: calc(var(--spacing) * 2);
+  }
+  .genie-textarea-root .mt-4 {
+    margin-top: calc(var(--spacing) * 4);
+  }
+  .genie-textarea-root .mb-2 {
+    margin-bottom: calc(var(--spacing) * 2);
+  }
   .genie-textarea-root .flex {
     display: flex;
   }
@@ -216,11 +231,23 @@
   .genie-textarea-root .h-10 {
     height: calc(var(--spacing) * 10);
   }
+  .genie-textarea-root .w-1\/2 {
+    width: calc(1/2 * 100%);
+  }
   .genie-textarea-root .w-4 {
     width: calc(var(--spacing) * 4);
   }
+  .genie-textarea-root .w-10 {
+    width: calc(var(--spacing) * 10);
+  }
+  .genie-textarea-root .max-w-\[400px\] {
+    max-width: 400px;
+  }
   .genie-textarea-root .flex-1 {
     flex: 1;
+  }
+  .genie-textarea-root .flex-shrink-0 {
+    flex-shrink: 0;
   }
   .genie-textarea-root .transform {
     transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);
@@ -237,11 +264,20 @@
   .genie-textarea-root .items-center {
     align-items: center;
   }
+  .genie-textarea-root .items-end {
+    align-items: flex-end;
+  }
   .genie-textarea-root .justify-center {
     justify-content: center;
   }
+  .genie-textarea-root .gap-1 {
+    gap: calc(var(--spacing) * 1);
+  }
   .genie-textarea-root .gap-2 {
     gap: calc(var(--spacing) * 2);
+  }
+  .genie-textarea-root .gap-3 {
+    gap: calc(var(--spacing) * 3);
   }
   .genie-textarea-root .rounded {
     border-radius: 0.25rem;
@@ -256,17 +292,29 @@
   .genie-textarea-root .bg-white {
     background-color: var(--color-white);
   }
+  .genie-textarea-root .p-4 {
+    padding: calc(var(--spacing) * 4);
+  }
   .genie-textarea-root .p-8 {
     padding: calc(var(--spacing) * 8);
   }
   .genie-textarea-root .px-2 {
     padding-inline: calc(var(--spacing) * 2);
   }
+  .genie-textarea-root .px-3 {
+    padding-inline: calc(var(--spacing) * 3);
+  }
   .genie-textarea-root .px-4 {
     padding-inline: calc(var(--spacing) * 4);
   }
   .genie-textarea-root .py-1 {
     padding-block: calc(var(--spacing) * 1);
+  }
+  .genie-textarea-root .py-2 {
+    padding-block: calc(var(--spacing) * 2);
+  }
+  .genie-textarea-root .text-left {
+    text-align: left;
   }
   .genie-textarea-root .text-sm {
     font-size: var(--text-sm);
@@ -285,6 +333,12 @@
       color: color-mix(in oklab, var(--color-black) 80%, transparent);
     }
   }
+  .genie-textarea-root .text-gray-700 {
+    color: var(--color-gray-700);
+  }
+  .genie-textarea-root .text-gray-900 {
+    color: var(--color-gray-900);
+  }
   .genie-textarea-root .text-red-500 {
     color: var(--color-red-500);
   }
@@ -298,6 +352,10 @@
     --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 1px 2px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
+  .genie-textarea-root .shadow-lg {
+    --tw-shadow: 0 10px 15px -3px var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 4px 6px -4px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
   .genie-textarea-root .outline {
     outline-style: var(--tw-outline-style);
     outline-width: 1px;
@@ -307,10 +365,22 @@
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
     transition-duration: var(--tw-duration, var(--default-transition-duration));
   }
+  .genie-textarea-root .transition-colors {
+    transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to;
+    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+    transition-duration: var(--tw-duration, var(--default-transition-duration));
+  }
   .genie-textarea-root .select-none {
     -webkit-user-select: none;
     -moz-user-select: none;
          user-select: none;
+  }
+  .genie-textarea-root .hover\:bg-gray-100 {
+    .genie-textarea-root &:hover {
+      @media (hover: hover) {
+        background-color: var(--color-gray-100);
+      }
+    }
   }
   .genie-textarea-root .hover\:opacity-90 {
     .genie-textarea-root &:hover {
