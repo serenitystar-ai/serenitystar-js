@@ -23,10 +23,9 @@
         {agentCode}
         contentParameterName="userMessage"
         instructionParameterName="instruction"
-        aiButtonProps={{
-          text: "Run",
+        containerProps={{
+          class: "p-4"
         }}
-        
         value="¡Bienvenido a la documentación de Serenity AI Hub! Aquí encontrarás información detallada sobre nuestros productos, funciones y más."
       />
     </div>

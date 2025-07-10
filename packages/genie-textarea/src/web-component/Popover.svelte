@@ -40,7 +40,7 @@
   <Popover.Root bind:open={isOpen}>
     <Popover.Trigger
       disabled={buttonIsDisabled ?? false}
-      class="rounded text-white shadow inline-flex h-10 select-none items-center justify-center whitespace-nowrap px-4 text-md font-medium transition-all active:scale-[0.98] gap-2 {(buttonIsDisabled ??
+      class="rounded text-white shadow inline-flex select-none items-center justify-center whitespace-nowrap p-3 text-md font-medium transition-all active:scale-[0.98] gap-2 {(buttonIsDisabled ??
       false)
         ? 'cursor-not-allowed opacity-50'
         : 'hover:opacity-90 cursor-pointer'}"

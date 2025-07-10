@@ -12,7 +12,7 @@
   let {
     icon,
     fallbackTintColor = "white",
-    class: className = "w-4 h-4",
+    class: className = "w-3.5 h-3.5",
     showDefaultIcon = true,
   }: IconRendererProps = $props();
 </script>
@@ -33,8 +33,8 @@
 {:else if showDefaultIcon}
   <!-- Default Serena SVG - inline for color customization -->
   <svg
-    width="17"
-    height="16"
+    width="14"
+    height="14"
     viewBox="0 0 17 16"
     fill="currentColor"
     xmlns="http://www.w3.org/2000/svg"

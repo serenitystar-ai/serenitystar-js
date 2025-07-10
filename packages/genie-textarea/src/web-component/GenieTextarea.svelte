@@ -71,6 +71,11 @@
         type: "Object",
         attribute: "label-props",
       },
+      containerProps: {
+        reflect: false,
+        type: "Object",
+        attribute: "container-props",
+      },
     },
   }}
 />
@@ -122,6 +127,7 @@
     instructionParameterName = "instruction",
     textareaProps = {},
     labelProps = {},
+    containerProps = {},
   }: GenieTextareaProps = $props();
 
   // Generate a unique ID for the textarea (separate from container id)
@@ -357,59 +363,65 @@
     >
   {/if}
 
-  <div class="flex gap-2">
+  <div 
+    {...containerProps}
+    class="border border-gray-300 rounded flex gap-2 p-2 {containerProps?.class || ''}"
+  >
     <textarea
       bind:this={textarea}
       use:autosize
       bind:value={internalValue}
       {placeholder}
       id={textareaId}
+      rows="1"
       {...textareaProps}
-      class="border flex-1 border-gray-300 px-2 py-1 rounded {textareaProps?.class ||
+      class="border-none flex-1 px-0 py-0 outline-none resize-none {textareaProps?.class ||
         ''}"
     ></textarea>
 
-    {#if canUndo}
-      <button
-        data-undo
-        disabled={!canUndo}
-        onclick={handleUndo}
-        title={locale?.undoButtonTooltip || "Undo"}
-        class="rounded text-white shadow inline-flex h-10 w-10 select-none items-center justify-center whitespace-nowrap text-md font-medium transition-all active:scale-[0.98] {!canUndo
-          ? 'cursor-not-allowed opacity-50'
-          : 'hover:opacity-90 cursor-pointer'}"
-        style="background-color: {undoButtonProps?.bgColor || '#6b7280'}"
-      >
-        <Undo 
-          size={16} 
-          color={undoButtonProps?.tintColor || 'white'} 
+    <div class="buttons-container flex flex-col items-end gap-1">
+      {#if mode == "direct"}
+        <button
+          disabled={buttonIsDisabled}
+          onclick={handleExecuteAI}
+          class="rounded text-white shadow inline-flex select-none items-center justify-center whitespace-nowrap p-3 text-md font-medium transition-all gap-2 {buttonIsDisabled
+            ? 'cursor-not-allowed opacity-50'
+            : 'hover:opacity-90 cursor-pointer'}"
+          style="background-color: {aiButtonProps?.bgColor || '#4862ff'}"
+        >
+          {@render buttonRenderer(aiButtonProps)}
+        </button>
+      {:else if mode === "assisted"}
+        <Popover
+          bind:isOpen
+          {buttonIsDisabled}
+          {aiButtonProps}
+          {customAnchor}
+          {buttonRenderer}
+          {quickActions}
+          {locale}
+          {executeInstruction}
         />
-      </button>
-    {/if}
+      {/if}
 
-    {#if mode == "direct"}
-      <button
-        disabled={buttonIsDisabled}
-        onclick={handleExecuteAI}
-        class="rounded text-white shadow inline-flex h-10 select-none items-center justify-center whitespace-nowrap px-4 text-md font-medium transition-all active:scale-[0.98] gap-2 {buttonIsDisabled
-          ? 'cursor-not-allowed opacity-50'
-          : 'hover:opacity-90 cursor-pointer'}"
-        style="background-color: {aiButtonProps?.bgColor || '#4862ff'}"
-      >
-        {@render buttonRenderer(aiButtonProps)}
-      </button>
-    {:else if mode === "assisted"}
-      <Popover
-        bind:isOpen
-        {buttonIsDisabled}
-        {aiButtonProps}
-        {customAnchor}
-        {buttonRenderer}
-        {quickActions}
-        {locale}
-        {executeInstruction}
-      />
-    {/if}
+      {#if canUndo}
+        <button
+          data-undo
+          disabled={!canUndo}
+          onclick={handleUndo}
+          title={locale?.undoButtonTooltip || "Undo"}
+          class="rounded text-white shadow inline-flex p-3 select-none items-center justify-center whitespace-nowrap text-sm font-medium transition-all {!canUndo
+            ? 'cursor-not-allowed opacity-50'
+            : 'hover:opacity-90 cursor-pointer'}"
+          style="background-color: {undoButtonProps?.bgColor || '#6b7280'}"
+        >
+          <Undo 
+            size={14} 
+            color={undoButtonProps?.tintColor || 'white'} 
+          />
+        </button>
+      {/if}
+    </div>
   </div>
 
   {#if errorMessage}
