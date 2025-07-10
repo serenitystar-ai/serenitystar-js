@@ -20,6 +20,7 @@ interface GenieTextareaElement extends HTMLElement {
   undoButtonProps?: GenieTextareaProps["undoButtonProps"];
   textareaProps?: GenieTextareaProps["textareaProps"];
   labelProps?: GenieTextareaProps["labelProps"];
+  containerProps?: GenieTextareaProps["containerProps"];
 }
 
 // Global registry to track web component instances
@@ -190,6 +191,9 @@ export class GenieTextarea {
     if (options.labelProps !== undefined) {
       this.webComponent.labelProps = options.labelProps;
     }
+    if (options.containerProps !== undefined) {
+      this.webComponent.containerProps = options.containerProps;
+    }
   }
 
   /**
@@ -242,6 +246,8 @@ export class GenieTextarea {
         return this.webComponent.textareaProps as GenieTextareaOptions[K];
       case "labelProps":
         return this.webComponent.labelProps as GenieTextareaOptions[K];
+      case "containerProps":
+        return this.webComponent.containerProps as GenieTextareaOptions[K];
       default:
         return undefined;
     }

@@ -340,6 +340,9 @@ interface GenieTextareaOptions {
     // Textarea Customization
     textareaProps?: HTMLTextareaAttributes; // Pass any HTML textarea attributes (rows, cols, maxlength, class, style, etc.)
     
+    // Container Customization
+    containerProps?: HTMLDivAttributes; // Pass any HTML div attributes to the container that wraps the textarea and buttons (class, style, data-*, etc.)
+    
     // Label Customization
     labelProps?: HTMLLabelAttributes; // Pass any HTML label attributes (class, style, for, etc.)
 
@@ -518,6 +521,24 @@ genieTextarea('my-textarea', {
 
 **Note:** The `value`, and `placeholder` props are handled separately by the component's dedicated properties and should not be passed through `textareaProps`. Custom classes in `textareaProps.class` will be merged with the component's default styling.
 
+### Container Customization
+
+You can customize the container that wraps the textarea and buttons using the `containerProps` option. This allows you to style the outer container, add custom classes, and set any HTML div attributes.
+
+```javascript
+genieTextarea('my-textarea', {
+    apiKey: 'your-api-key',
+    agentCode: 'your-agent-code',
+    containerProps: {
+        // Styling
+        class: 'my-custom-container-class shadow-lg',
+        style: 'border-radius: 12px; background-color: #f9fafb; border-color: #3b82f6;'
+    }
+});
+```
+
+**Note:** Custom classes in `containerProps.class` will be merged with the component's default container styling.
+
 ### Label Customization
 You can also customize the label element using the `labelProps` option. This allows you to style the label, set its text, and add any HTML attributes you need.
 
@@ -617,6 +638,15 @@ The component includes scoped styles, but you can customize the appearance:
 /* Target the root container */
 .genie-textarea-root {
     font-family: 'Your Custom Font', sans-serif;
+}
+
+/* Target the inner container (textarea + buttons wrapper) */
+.genie-textarea-root .my-custom-container-class {
+    border: 2px solid #3b82f6;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    padding: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 /* Style the textarea */

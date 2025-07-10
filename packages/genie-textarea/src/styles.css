@@ -225,20 +225,14 @@
   .genie-textarea-root .inline-flex {
     display: inline-flex;
   }
-  .genie-textarea-root .h-4 {
-    height: calc(var(--spacing) * 4);
-  }
-  .genie-textarea-root .h-10 {
-    height: calc(var(--spacing) * 10);
+  .genie-textarea-root .h-3\.5 {
+    height: calc(var(--spacing) * 3.5);
   }
   .genie-textarea-root .w-1\/2 {
     width: calc(1/2 * 100%);
   }
-  .genie-textarea-root .w-4 {
-    width: calc(var(--spacing) * 4);
-  }
-  .genie-textarea-root .w-10 {
-    width: calc(var(--spacing) * 10);
+  .genie-textarea-root .w-3\.5 {
+    width: calc(var(--spacing) * 3.5);
   }
   .genie-textarea-root .max-w-\[400px\] {
     max-width: 400px;
@@ -257,6 +251,9 @@
   }
   .genie-textarea-root .cursor-pointer {
     cursor: pointer;
+  }
+  .genie-textarea-root .resize-none {
+    resize: none;
   }
   .genie-textarea-root .flex-col {
     flex-direction: column;
@@ -286,11 +283,21 @@
     border-style: var(--tw-border-style);
     border-width: 1px;
   }
+  .genie-textarea-root .border-none {
+    --tw-border-style: none;
+    border-style: none;
+  }
   .genie-textarea-root .border-gray-300 {
     border-color: var(--color-gray-300);
   }
   .genie-textarea-root .bg-white {
     background-color: var(--color-white);
+  }
+  .genie-textarea-root .p-2 {
+    padding: calc(var(--spacing) * 2);
+  }
+  .genie-textarea-root .p-3 {
+    padding: calc(var(--spacing) * 3);
   }
   .genie-textarea-root .p-4 {
     padding: calc(var(--spacing) * 4);
@@ -298,8 +305,8 @@
   .genie-textarea-root .p-8 {
     padding: calc(var(--spacing) * 8);
   }
-  .genie-textarea-root .px-2 {
-    padding-inline: calc(var(--spacing) * 2);
+  .genie-textarea-root .px-0 {
+    padding-inline: calc(var(--spacing) * 0);
   }
   .genie-textarea-root .px-3 {
     padding-inline: calc(var(--spacing) * 3);
@@ -307,8 +314,8 @@
   .genie-textarea-root .px-4 {
     padding-inline: calc(var(--spacing) * 4);
   }
-  .genie-textarea-root .py-1 {
-    padding-block: calc(var(--spacing) * 1);
+  .genie-textarea-root .py-0 {
+    padding-block: calc(var(--spacing) * 0);
   }
   .genie-textarea-root .py-2 {
     padding-block: calc(var(--spacing) * 2);
@@ -369,6 +376,10 @@
     transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to;
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
     transition-duration: var(--tw-duration, var(--default-transition-duration));
+  }
+  .genie-textarea-root .outline-none {
+    --tw-outline-style: none;
+    outline-style: none;
   }
   .genie-textarea-root .select-none {
     -webkit-user-select: none;
