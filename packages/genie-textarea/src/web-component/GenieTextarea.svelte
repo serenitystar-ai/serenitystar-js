@@ -368,7 +368,7 @@
   {/if}
 {/snippet}
 
-<div class="genie-textarea-root flex flex-col" {id}>
+<div class="genie-textarea-root" {id}>
   {#if label}
     <label
       for={textareaId}
@@ -444,3 +444,10 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .genie-textarea-root {
+    display: flex;
+    flex-direction: column;
+  }
+</style>
