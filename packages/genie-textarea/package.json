@@ -1,6 +1,6 @@
 {
   "name": "@serenity-star/genie-textarea",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A web component textarea with AI features, built with Svelte 5",
   "main": "dist/genie-textarea.iife.js",
   "module": "dist/index.js",

@@ -243,22 +243,36 @@
     }
 
     if (handleRequestCompletion) {
-      await handleRequestCompletion({
-        content: internalValue,
-        setContent: (newContent: string) => {
-          internalValue = newContent;
-          handleValueChange?.(internalValue);
-          autosize.update(textarea);
-        },
-        addChunk: (chunk: string) => {
-          internalValue += chunk;
-          handleValueChange?.(internalValue);
-          autosize.update(textarea);
-        },
-      });
-      loading = false;
-      // Enable undo if the content changed
-      canUndo = internalValue !== previousValue;
+      try {
+        await handleRequestCompletion({
+          content: internalValue,
+          setContent: (newContent: string) => {
+            internalValue = newContent;
+            handleValueChange?.(internalValue);
+            autosize.update(textarea);
+          },
+          addChunk: (chunk: string) => {
+            internalValue += chunk;
+            handleValueChange?.(internalValue);
+            autosize.update(textarea);
+          },
+          instruction,
+        });
+        // Enable undo if the content changed
+        canUndo = internalValue !== previousValue;
+      } catch (error) {
+        const message = await ErrorHelper.extractErrorMessage(error, locale);
+        console.error(message);
+        errorMessage = locale.completionErrorMessage;
+        internalValue = previousValue; // Restore the original value
+        handleValueChange?.(internalValue);
+        autosize.update(textarea);
+        // Don't enable undo if there was an error
+        canUndo = false;
+        previousValue = undefined;
+      } finally {
+        loading = false;
+      }
       return;
     }
 
