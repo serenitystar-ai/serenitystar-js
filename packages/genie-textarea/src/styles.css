@@ -18,6 +18,7 @@
     --text-sm: 0.875rem;
     --text-sm--line-height: calc(1.25 / 0.875);
     --font-weight-medium: 500;
+    --font-weight-semibold: 600;
     --default-transition-duration: 150ms;
     --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     --default-font-family: var(--font-sans);
@@ -234,6 +235,9 @@
   .genie-textarea-root .w-3\.5 {
     width: calc(var(--spacing) * 3.5);
   }
+  .genie-textarea-root .w-full {
+    width: 100%;
+  }
   .genie-textarea-root .max-w-\[400px\] {
     max-width: 400px;
   }
@@ -330,6 +334,10 @@
   .genie-textarea-root .font-medium {
     --tw-font-weight: var(--font-weight-medium);
     font-weight: var(--font-weight-medium);
+  }
+  .genie-textarea-root .font-semibold {
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
   }
   .genie-textarea-root .whitespace-nowrap {
     white-space: nowrap;
