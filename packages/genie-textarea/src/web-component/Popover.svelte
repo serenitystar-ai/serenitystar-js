@@ -59,7 +59,7 @@
           bind:value={customInstruction}
           placeholder={locale?.assistedMode?.inputPlaceholder ||
             "Enter an instruction..."}
-          class="border flex-1 border-gray-300 px-4 py-2 rounded"
+          class="border flex-1 border-gray-300 px-4 py-2 rounded w-full"
           onkeydown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
@@ -73,14 +73,14 @@
       <!-- Quick actions section -->
       {#if quickActions && quickActions.length > 0}
         <div class="mt-4">
-          <h3 class="text-sm font-medium text-gray-900 mb-2">
+          <h3 class="text-sm font-semibold text-gray-900 mb-2">
             {locale?.assistedMode?.quickActionsTitle || "Quick actions"}
           </h3>
           <div class="flex flex-col gap-1">
             {#each quickActions as action}
               <button
                 onclick={() => executeInstruction(action.instruction)}
-                class="flex items-center gap-3 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                class="flex items-center gap-3 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors cursor-pointer"
               >
                 {#if action.icon}
                   <div class="flex-shrink-0">
