@@ -214,7 +214,8 @@ $('#my-textarea').genieTextarea({
     api-key="your-api-key"
     agent-code="your-agent-code"
     placeholder="Direct web component usage"
-    label="Content">
+    label="Content"
+    buttons-always-visible="true">
 </genie-textarea>
 ```
 
@@ -298,6 +299,21 @@ genieTextarea('email-composer', {
 });
 ```
 
+#### Always Visible Buttons
+
+```javascript
+genieTextarea('chat-input', {
+    apiKey: 'your-api-key',
+    agentCode: 'chat-assistant',
+    placeholder: 'Type your message...',
+    buttonsAlwaysVisible: true, // Buttons stay visible even when not focused
+    aiButtonProps: {
+        text: 'AI',
+        bgColor: '#22c55e'
+    }
+});
+```
+
 ## ⚙️ Configuration Options
 
 ### Complete Options Reference
@@ -330,6 +346,7 @@ interface GenieTextareaOptions {
             tintColor?: string;        // Icon color override
         };
     };
+    buttonsAlwaysVisible?: boolean;    // Always show buttons (default: false, shows only on focus)
     
     // Undo Button Customization
     undoButtonProps?: {
@@ -611,6 +628,22 @@ genieTextarea('my-textarea', {
     }
 });
 ```
+
+#### Button Visibility Control
+
+By default, the AI and undo buttons only appear when the textarea is focused to provide a clean interface. You can make them always visible using the `buttonsAlwaysVisible` option:
+
+```javascript
+genieTextarea('my-textarea', {
+    apiKey: 'your-api-key',
+    agentCode: 'your-agent-code',
+    buttonsAlwaysVisible: true // Buttons are always visible
+});
+```
+
+**Behavior:**
+- `false` (default): Buttons appear only when the textarea is focused
+- `true`: Buttons are always visible regardless of focus state
 
 #### Undo Button Customization
 

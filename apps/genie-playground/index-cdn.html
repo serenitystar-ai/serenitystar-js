@@ -42,6 +42,7 @@
             <li>
               <a href="#undo-button-customization">Undo Button Customization</a>
             </li>
+            <li><a href="#buttons-always-visible">Always Visible Buttons</a></li>
             <li><a href="#custom-svg-icon">Custom SVG Icon</a></li>
             <li><a href="#custom-image-icon">Custom Image Icon</a></li>
             <li>
@@ -254,6 +255,32 @@ genieTextarea('tracking-example', {
         bgColor: '#f59e0b', // Orange background
         tintColor: '#ffffff' // White icon
     }
+})</code></pre>
+            </div>
+          </div>
+
+          <!-- Always Visible Buttons -->
+          <div class="example" id="buttons-always-visible">
+            <div class="example-header">
+              <h2 class="example-title">Always Visible Buttons</h2>
+              <p class="example-description">
+                By default, buttons only appear when the textarea is focused for a clean interface. 
+                Use <code>buttonsAlwaysVisible: true</code> to make both the AI button and undo button 
+                always visible regardless of focus state.
+              </p>
+            </div>
+            <div class="example-demo">
+              <div id="buttons-always-visible-example"></div>
+            </div>
+            <div class="example-code">
+              <pre><code class="language-javascript">genieTextarea('buttons-always-visible-example', {
+    apiKey: 'your-api-key',
+    agentCode: 'inline-translator-for-genie',
+    contentParameterName: 'userMessage',
+    label: 'Always Visible Buttons',
+    placeholder: 'Notice how the buttons stay visible even when not focused...',
+    value: 'This example shows buttons that are always visible, not just on focus.',
+    buttonsAlwaysVisible: true // Key property for this example
 })</code></pre>
             </div>
           </div>

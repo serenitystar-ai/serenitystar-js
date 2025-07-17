@@ -14,10 +14,10 @@
         type: "Object",
         attribute: "handle-agent-result",
       },
-      aiButtonProps: {
+      buttonsAlwaysVisible: {
         reflect: false,
-        type: "Object",
-        attribute: "ai-button-props",
+        type: "Boolean",
+        attribute: "buttons-always-visible",
       },
       undoButtonProps: {
         reflect: false,
@@ -100,6 +100,7 @@
     apiKey,
     handleBeforeSubmit,
     aiButtonProps,
+    buttonsAlwaysVisible = false,
     undoButtonProps = {},
     id,
     handleRequestCompletion,
@@ -140,7 +141,8 @@
     loading,
     previousValue,
     canUndo,
-    instruction
+    instruction,
+    isFocused
   }: {
     errorMessage?: string;
     internalValue: string;
@@ -148,13 +150,15 @@
     loading?: boolean;
     previousValue?: string;
     canUndo: boolean;
+    isFocused: boolean;
   } = $state({ 
     errorMessage: "", 
     internalValue: value,
     instruction: "", 
     loading: false,
     previousValue: undefined,
-    canUndo: false
+    canUndo: false,
+    isFocused: false
   });
 
   let isOpen = $state(false);
@@ -172,6 +176,8 @@
     }
     return false;
   });
+
+  const showButtons = $derived(buttonsAlwaysVisible || isFocused);
 
   // Effect that only reacts to external value prop changes
   $effect(() => {
@@ -380,6 +386,13 @@
   <div 
     {...containerProps}
     class="border border-gray-300 rounded flex gap-2 p-2 {containerProps?.class || ''}"
+    onfocusin={() => isFocused = true}
+    onfocusout={(e) => {
+      // Only hide if focus is moving completely outside the container
+      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+        isFocused = false;
+      }
+    }}
   >
     <textarea
       bind:this={textarea}
@@ -400,22 +413,24 @@
           onclick={handleExecuteAI}
           class="rounded text-white shadow inline-flex select-none items-center justify-center whitespace-nowrap p-3 text-md font-medium transition-all gap-2 {buttonIsDisabled
             ? 'cursor-not-allowed opacity-50'
-            : 'hover:opacity-90 cursor-pointer'}"
+            : 'hover:opacity-90 cursor-pointer'} {!showButtons ? 'invisible' : ''}"
           style="background-color: {aiButtonProps?.bgColor || '#4862ff'}"
         >
           {@render buttonRenderer(aiButtonProps)}
         </button>
       {:else if mode === "assisted"}
-        <Popover
-          bind:isOpen
-          {buttonIsDisabled}
-          {aiButtonProps}
-          {customAnchor}
-          {buttonRenderer}
-          {quickActions}
-          {locale}
-          {executeInstruction}
-        />
+        <div class="{!showButtons ? 'invisible' : ''}">
+          <Popover
+            bind:isOpen
+            {buttonIsDisabled}
+            {aiButtonProps}
+            {customAnchor}
+            {buttonRenderer}
+            {quickActions}
+            {locale}
+            {executeInstruction}
+          />
+        </div>
       {/if}
 
       {#if canUndo}
@@ -426,7 +441,7 @@
           title={locale?.undoButtonTooltip || "Undo"}
           class="rounded text-white shadow inline-flex p-3 select-none items-center justify-center whitespace-nowrap text-sm font-medium transition-all {!canUndo
             ? 'cursor-not-allowed opacity-50'
-            : 'hover:opacity-90 cursor-pointer'}"
+            : 'hover:opacity-90 cursor-pointer'} {!showButtons ? 'invisible' : ''}"
           style="background-color: {undoButtonProps?.bgColor || '#6b7280'}"
         >
           <Undo 
