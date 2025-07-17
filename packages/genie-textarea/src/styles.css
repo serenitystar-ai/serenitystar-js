@@ -184,6 +184,12 @@
   }
 }
 @layer utilities {
+  .genie-textarea-root .invisible {
+    visibility: hidden;
+  }
+  .genie-textarea-root .visible {
+    visibility: visible;
+  }
   .genie-textarea-root .relative {
     position: relative;
   }

@@ -1,17 +1,22 @@
 import type { AgentResult } from "@serenity-star/sdk";
-import type { HTMLLabelAttributes, HTMLTextareaAttributes, HTMLAttributes } from "svelte/elements";
+import type {
+  HTMLLabelAttributes,
+  HTMLTextareaAttributes,
+  HTMLAttributes,
+} from "svelte/elements";
 
 export type GenieTextareaProps = {
   // These are the only properties that are passed to the textarea element outside of textareaProps
   value?: string;
   placeholder?: string;
 
-  labelProps?: Omit<HTMLLabelAttributes, "children">
+  labelProps?: Omit<HTMLLabelAttributes, "children">;
   aiButtonProps?: AiButtonOptions;
+  buttonsAlwaysVisible?: boolean;
   undoButtonProps?: UndoButtonOptions;
   textareaProps?: Omit<HTMLTextareaAttributes, "value" | "placeholder">;
   containerProps?: Omit<HTMLAttributes<HTMLDivElement>, "children">;
-  
+
   id?: string;
   label?: string;
   mode?: "direct" | "assisted";

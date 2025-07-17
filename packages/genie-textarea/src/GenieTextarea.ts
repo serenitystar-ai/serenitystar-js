@@ -17,6 +17,7 @@ interface GenieTextareaElement extends HTMLElement {
   handleAgentResult?: GenieTextareaProps["handleAgentResult"];
   locale?: GenieTextareaProps["locale"];
   aiButtonProps?: GenieTextareaProps["aiButtonProps"];
+  buttonsAlwaysVisible?: GenieTextareaProps["buttonsAlwaysVisible"];
   undoButtonProps?: GenieTextareaProps["undoButtonProps"];
   textareaProps?: GenieTextareaProps["textareaProps"];
   labelProps?: GenieTextareaProps["labelProps"];
@@ -173,6 +174,9 @@ export class GenieTextarea {
     if (options.aiButtonProps !== undefined) {
       this.webComponent.aiButtonProps = options.aiButtonProps;
     }
+    if (options.buttonsAlwaysVisible !== undefined) {
+      this.webComponent.buttonsAlwaysVisible = options.buttonsAlwaysVisible;
+    }
     if (options.undoButtonProps !== undefined) {
       this.webComponent.undoButtonProps = options.undoButtonProps;
     }
@@ -234,6 +238,8 @@ export class GenieTextarea {
         return this.webComponent.inputParameters as GenieTextareaOptions[K];
       case "aiButtonProps":
         return this.webComponent.aiButtonProps as GenieTextareaOptions[K];
+      case "buttonsAlwaysVisible":
+        return this.webComponent.buttonsAlwaysVisible as GenieTextareaOptions[K];
       case "undoButtonProps":
         return this.webComponent.undoButtonProps as GenieTextareaOptions[K];
       case "handleBeforeSubmit":

@@ -143,6 +143,21 @@ const examples: Example[] = [
   },
 
   {
+    id: 'buttons-always-visible',
+    setup: () => {
+      (genieTextarea as any)('buttons-always-visible-example', {
+        apiKey,
+        agentCode,
+        contentParameterName: "userMessage",
+        label: 'Always Visible Buttons',
+        placeholder: 'Notice how the buttons stay visible even when not focused...',
+        value: 'This example shows buttons that are always visible, not just on focus.',
+        buttonsAlwaysVisible: true
+      })
+    }
+  },
+
+  {
     id: 'custom-svg-icon',
     setup: () => {
       (genieTextarea as any)('svg-icon-example', {
