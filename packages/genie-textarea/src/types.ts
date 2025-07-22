@@ -35,6 +35,7 @@ export type GenieTextareaProps = {
     contentMissingErrorMessage?: string;
     thinkingMessage?: string;
     completionErrorMessage?: string;
+    aiButtonTooltip?: string;
     undoButtonTooltip?: string;
     assistedMode?: {
       inputPlaceholder?: string;

@@ -142,23 +142,23 @@
     previousValue,
     canUndo,
     instruction,
-    isFocused
+    isFocused,
   }: {
     errorMessage?: string;
     internalValue: string;
     instruction?: string;
-    loading?: boolean;
+    loading: boolean;
     previousValue?: string;
     canUndo: boolean;
     isFocused: boolean;
-  } = $state({ 
-    errorMessage: "", 
+  } = $state({
+    errorMessage: "",
     internalValue: value,
-    instruction: "", 
+    instruction: "",
     loading: false,
     previousValue: undefined,
     canUndo: false,
-    isFocused: false
+    isFocused: false,
   });
 
   let isOpen = $state(false);
@@ -168,16 +168,15 @@
 
   let previousExternalValue = value;
 
-  const buttonIsDisabled = $derived.by(() => {
-    if (mode === "direct") {
-      return internalValue === "" || loading;
-    } else if (mode === "assisted") {
-      return internalValue === "";
-    }
-    return false;
-  });
+  const showButtons = $derived.by(
+    () => buttonsAlwaysVisible || isFocused || loading
+  );
 
-  const showButtons = $derived(buttonsAlwaysVisible || isFocused);
+  const aiButtonTooltip = $derived.by(
+    () =>
+      locale?.aiButtonTooltip ||
+      (mode === "assisted" ? "Get AI assistance" : "Process with AI")
+  );
 
   // Effect that only reacts to external value prop changes
   $effect(() => {
@@ -191,19 +190,28 @@
 
   // Register this component instance when it mounts using $effect
   $effect(() => {
-    if (typeof window !== 'undefined' && id) {
+    if (typeof window !== "undefined" && id) {
       // Initialize registry if it doesn't exist
       if (!(window as any).__genieTextareaRegistry) {
         (window as any).__genieTextareaRegistry = {};
       }
-      
+
       // Register this component instance using the current element
       const currentElement = document.getElementById(id);
-      if (currentElement && currentElement.tagName.toLowerCase() === 'genie-textarea') {
+      if (
+        currentElement &&
+        currentElement.tagName.toLowerCase() === "genie-textarea"
+      ) {
         (window as any).__genieTextareaRegistry[id] = currentElement;
       }
     }
   });
+
+  async function restoreFocusToTextarea() {
+    await tick();
+    textarea?.focus();
+    textarea?.setSelectionRange(textarea.value.length, textarea.value.length);
+  }
 
   async function handleUndo() {
     if (previousValue !== undefined) {
@@ -213,22 +221,20 @@
       previousValue = undefined;
       await tick();
       autosize.update(textarea);
+
+      await restoreFocusToTextarea();
     }
   }
 
   function executeInstruction(text: string) {
     isOpen = false;
     instruction = text;
+
+    // Don't set loading here, let handleExecuteAI manage it
     handleExecuteAI();
   }
 
   async function handleExecuteAI() {
-    if (!internalValue) {
-      errorMessage =
-        locale?.contentMissingErrorMessage || "Content is required.";
-      return;
-    }
-
     // Store the current value before processing
     previousValue = internalValue;
     loading = true;
@@ -242,7 +248,7 @@
           autosize.update(textarea);
         },
       });
-      if(!proceed) {
+      if (!proceed) {
         loading = false;
         return;
       }
@@ -266,6 +272,8 @@
         });
         // Enable undo if the content changed
         canUndo = internalValue !== previousValue;
+
+        await restoreFocusToTextarea();
       } catch (error) {
         const message = await ErrorHelper.extractErrorMessage(error, locale);
         console.error(message);
@@ -276,6 +284,8 @@
         // Don't enable undo if there was an error
         canUndo = false;
         previousValue = undefined;
+
+        await restoreFocusToTextarea();
       } finally {
         loading = false;
       }
@@ -291,9 +301,13 @@
     loading = false;
     // Enable undo if the content changed
     canUndo = internalValue !== previousValue;
+
+    await restoreFocusToTextarea();
   }
 
-  async function executeAgent(additionalInputParameters: Record<string, any> = {}) {
+  async function executeAgent(
+    additionalInputParameters: Record<string, any> = {}
+  ) {
     if (agentCode && apiKey) {
       // Save the current value before clearing
       const savedValue = internalValue;
@@ -327,8 +341,10 @@
           handleValueChange?.(internalValue);
           autosize.update(textarea);
         })
-        .on("stop", (result) => {
+        .on("stop", async (result) => {
           handleAgentResult?.(result);
+
+          await restoreFocusToTextarea();
         })
         .on("error", (error) => {
           errorMessage = error?.message || "An error occurred";
@@ -336,6 +352,8 @@
 
       try {
         await activity.stream();
+
+        await restoreFocusToTextarea();
       } catch (error) {
         const message = await ErrorHelper.extractErrorMessage(error, locale);
         console.error(message);
@@ -346,6 +364,8 @@
         // Don't enable undo if there was an error
         canUndo = false;
         previousValue = undefined;
+
+        await restoreFocusToTextarea();
       }
     }
   }
@@ -364,9 +384,9 @@
 {#snippet buttonRenderer(
   aiButtonConfig: GenieTextareaProps["aiButtonProps"] | undefined
 )}
-  <IconRenderer 
+  <IconRenderer
     icon={aiButtonConfig?.icon}
-    fallbackTintColor={aiButtonConfig?.tintColor || 'white'}
+    fallbackTintColor={aiButtonConfig?.tintColor || "white"}
   />
 
   {#if aiButtonConfig?.text}
@@ -383,12 +403,14 @@
     >
   {/if}
 
-  <div 
+  <div
     {...containerProps}
-    class="border border-gray-300 rounded flex gap-2 p-2 {containerProps?.class || ''}"
-    onfocusin={() => isFocused = true}
+    class="border border-gray-300 rounded flex gap-2 p-2 {containerProps?.class ||
+      ''}"
+    onfocusin={() => (isFocused = true)}
     onfocusout={(e) => {
       // Only hide if focus is moving completely outside the container
+      // Add a small delay to prevent flicker when clicking buttons
       if (!e.currentTarget.contains(e.relatedTarget as Node)) {
         isFocused = false;
       }
@@ -409,25 +431,29 @@
     <div class="buttons-container flex flex-col items-end gap-1">
       {#if mode == "direct"}
         <button
-          disabled={buttonIsDisabled}
+          disabled={loading}
           onclick={handleExecuteAI}
-          class="rounded text-white shadow inline-flex select-none items-center justify-center whitespace-nowrap p-3 text-md font-medium transition-all gap-2 {buttonIsDisabled
+          title={aiButtonTooltip}
+          class="rounded text-white shadow inline-flex select-none items-center justify-center whitespace-nowrap p-3 text-md font-medium transition-all gap-2 {loading
             ? 'cursor-not-allowed opacity-50'
-            : 'hover:opacity-90 cursor-pointer'} {!showButtons ? 'invisible' : ''}"
+            : 'hover:opacity-90 cursor-pointer'} {!showButtons
+            ? 'invisible'
+            : ''}"
           style="background-color: {aiButtonProps?.bgColor || '#4862ff'}"
         >
           {@render buttonRenderer(aiButtonProps)}
         </button>
       {:else if mode === "assisted"}
-        <div class="{!showButtons ? 'invisible' : ''}">
+        <div class={!showButtons ? "invisible" : ""}>
           <Popover
             bind:isOpen
-            {buttonIsDisabled}
+            {loading}
             {aiButtonProps}
             {customAnchor}
             {buttonRenderer}
             {quickActions}
             {locale}
+            tooltip={aiButtonTooltip}
             {executeInstruction}
           />
         </div>
@@ -441,13 +467,12 @@
           title={locale?.undoButtonTooltip || "Undo"}
           class="rounded text-white shadow inline-flex p-3 select-none items-center justify-center whitespace-nowrap text-sm font-medium transition-all {!canUndo
             ? 'cursor-not-allowed opacity-50'
-            : 'hover:opacity-90 cursor-pointer'} {!showButtons ? 'invisible' : ''}"
+            : 'hover:opacity-90 cursor-pointer'} {!showButtons
+            ? 'invisible'
+            : ''}"
           style="background-color: {undoButtonProps?.bgColor || '#6b7280'}"
         >
-          <Undo 
-            size={14} 
-            color={undoButtonProps?.tintColor || 'white'} 
-          />
+          <Undo size={14} color={undoButtonProps?.tintColor || "white"} />
         </button>
       {/if}
     </div>
