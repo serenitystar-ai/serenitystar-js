@@ -5,22 +5,24 @@
 
   interface PopoverProps {
     isOpen: boolean;
-    buttonIsDisabled: boolean | undefined;
+    loading: boolean;
     aiButtonProps?: GenieTextareaProps["aiButtonProps"];
     buttonRenderer: any;
     customAnchor?: HTMLElement;
     quickActions?: GenieTextareaProps["quickActions"];
     locale?: GenieTextareaProps["locale"];
+    tooltip?: string;
     executeInstruction: (instruction: string) => void;
   }
 
   let {
     isOpen = $bindable(),
-    buttonIsDisabled,
+    loading,
     aiButtonProps,
     buttonRenderer,
     quickActions = [],
     locale,
+    tooltip,
     customAnchor = $bindable<HTMLElement>(null!),
     executeInstruction,
   }: PopoverProps = $props();
@@ -39,9 +41,9 @@
 <div class="flex flex-col items-end relative">
   <Popover.Root bind:open={isOpen}>
     <Popover.Trigger
-      disabled={buttonIsDisabled ?? false}
-      class="rounded text-white shadow inline-flex select-none items-center justify-center whitespace-nowrap p-3 text-md font-medium transition-all active:scale-[0.98] gap-2 {(buttonIsDisabled ??
-      false)
+      disabled={loading}
+      title={tooltip}
+      class="rounded text-white shadow inline-flex select-none items-center justify-center whitespace-nowrap p-3 text-md font-medium transition-all active:scale-[0.98] gap-2 {loading
         ? 'cursor-not-allowed opacity-50'
         : 'hover:opacity-90 cursor-pointer'}"
       style="background-color: {aiButtonProps?.bgColor || '#4862ff'}"

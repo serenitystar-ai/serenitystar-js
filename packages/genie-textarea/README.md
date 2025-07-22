@@ -378,6 +378,7 @@ interface GenieTextareaOptions {
         contentMissingErrorMessage?: string;
         thinkingMessage?: string;
         completionErrorMessage?: string;
+        aiButtonTooltip?: string;          // Custom tooltip for AI button (defaults: "Process with AI" for direct mode, "Get AI assistance" for assisted mode)
         undoButtonTooltip?: string;
         assistedMode?: {
             inputPlaceholder?: string;       // Placeholder for custom instruction input
@@ -589,6 +590,9 @@ genieTextarea('my-textarea', {
         text: 'Enhance',
         bgColor: '#10b981', // Green background
         tintColor: '#ffffff' // White text/icon
+    },
+    locale: {
+        aiButtonTooltip: 'Enhance content with AI'
     }
 });
 ```
@@ -771,6 +775,7 @@ genieTextarea('my-textarea', {
         contentMissingErrorMessage: 'Por favor, proporciona contenido para procesar.',
         thinkingMessage: 'Pensando...',
         completionErrorMessage: 'Ocurrió un error al procesar tu solicitud.',
+        aiButtonTooltip: 'Procesar con IA',
         undoButtonTooltip: 'Deshacer',
         assistedMode: {
             inputPlaceholder: 'Ingresa una instrucción...',
