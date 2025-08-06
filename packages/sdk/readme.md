@@ -59,7 +59,7 @@ const client = new SerenityClient({
 });
 
 // Create a new conversation with an assistant
-const conversation = client.agents.assistants.createConversation("chef-assistant");
+const conversation = await client.agents.assistants.createConversation("chef-assistant");
 ```
 
 ## Get conversation information
