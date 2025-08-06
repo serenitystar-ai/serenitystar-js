@@ -158,7 +158,7 @@ export type ConversationRes = {
   startDate: string;
   endDate: string;
   id: string;
-  messagesJson: string | Message[];
+  messages: Message[];
   name: string;
   userIdentifier?: string;
   useVision?: boolean;

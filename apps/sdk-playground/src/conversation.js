@@ -110,7 +110,7 @@ setupDynamicHandler("start-advanced-info", async () => {
 setupDynamicHandler("start-get-conversation", async () => {
   try {
     // Note: Using a sample conversation ID - in real usage, you'd have a valid conversation ID
-    const conversationId = "sample-conversation-id-123";
+    const conversationId = "c0b928f2-29d3-48ee-9431-e22d423564a2";
     const conversation = await client.agents.assistants.getConversationById("chef-assistant", conversationId);
     console.log("Conversation Details:", conversation);
     const responseElement = document.getElementById("get-conversation-response");
@@ -124,7 +124,7 @@ setupDynamicHandler("start-get-conversation", async () => {
         <strong>Vision Enabled:</strong> ${conversation.useVision}
         <strong>Is Open:</strong> ${conversation.open}
         <strong>Conversation Starters:</strong> ${JSON.stringify(conversation.conversationStarters, null, 2) || 'N/A'}
-        <strong>Messages:</strong> ${typeof conversation.messagesJson === 'string' ? conversation.messagesJson : JSON.stringify(conversation.messagesJson, null, 2)}
+        <strong>Messages:</strong> ${JSON.stringify(conversation.messages, null, 2)}
       </div>
     `;
   } catch (error) {
@@ -161,7 +161,7 @@ setupDynamicHandler("start-get-conversation-logs", async () => {
         <strong>Vision Enabled:</strong> ${conversation.useVision}
         <strong>Is Open:</strong> ${conversation.open}
         <strong>Executor Task Logs:</strong> ${JSON.stringify(conversation.executorTaskLogs, null, 2) || 'N/A'}
-        <strong>Messages:</strong> ${typeof conversation.messagesJson === 'string' ? conversation.messagesJson : JSON.stringify(conversation.messagesJson, null, 2)}
+        <strong>Messages:</strong> ${JSON.stringify(conversation.messages, null, 2)}
       </div>
     `;
   } catch (error) {

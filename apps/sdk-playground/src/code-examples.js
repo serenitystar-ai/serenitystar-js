@@ -250,7 +250,7 @@ console.log("Conversation ID:", conversation.id);
 console.log("Start Date:", conversation.startDate);
 console.log("End Date:", conversation.endDate);
 console.log("Name:", conversation.name);
-console.log("Messages:", conversation.messagesJson);
+console.log("Messages:", conversation.messages);
 console.log("User ID:", conversation.userIdentifier);
 console.log("Vision Enabled:", conversation.useVision);
 console.log("Is Open:", conversation.open);

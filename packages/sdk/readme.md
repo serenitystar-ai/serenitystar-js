@@ -117,7 +117,7 @@ const conversation = await client.agents.assistants.getConversationById("<agent-
 
 console.log(
   conversation.id, // "<conversation-id>"
-  conversation.messagesJson, // Array of messages
+  conversation.messages, // Array of messages
   conversation.open // Boolean that indicates if the conversation was closed or not
 );
 

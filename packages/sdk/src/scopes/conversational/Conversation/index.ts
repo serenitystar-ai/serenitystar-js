@@ -204,6 +204,16 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       );
     }
 
+    // Map messagesJson string to messages array
+    if (data.messagesJson && typeof data.messagesJson === 'string') {
+      try {
+        data.messages = JSON.parse(data.messagesJson);
+        delete data.messagesJson; // Remove the original string property
+      } catch (error) {
+        throw new Error("Failed to parse messagesJson: " + error);
+      }
+    }
+
     return data as ConversationRes;
   }
 
