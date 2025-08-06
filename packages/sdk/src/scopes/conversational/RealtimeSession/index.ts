@@ -1,8 +1,5 @@
 import { EventEmitter } from "../../../EventEmitter";
-import {
-  AgentExecutionOptions,
-  AgentExecutionOptionsWithParameters,
-} from "../../../types";
+import { AgentSetupOptions } from "../../../types";
 import {
   RealtimeSessionEvents,
   SerenitySessionCreateEvent,
@@ -41,7 +38,7 @@ export class RealtimeSession extends EventEmitter<RealtimeSessionEvents> {
     agentCode: string,
     apiKey: string,
     baseUrl: string,
-    options?: AgentExecutionOptionsWithParameters
+    options?: AgentSetupOptions
   ) {
     super();
     this.apiKey = apiKey;

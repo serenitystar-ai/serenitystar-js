@@ -1,23 +1,20 @@
-import { AgentExecutionOptions } from "../../types";
-import { ConversationalAgentExecutionOptionsMap } from "../../types";
+import { AgentSetupOptions } from "../../types";
 import { Conversation } from "./Conversation";
 import { RealtimeSession } from "./RealtimeSession";
 
-export abstract class ConversationalAgent<
-  T extends keyof ConversationalAgentExecutionOptionsMap,
-> {
+export abstract class ConversationalAgent {
   protected constructor(
     protected readonly agentCode: string,
     protected readonly apiKey: string,
     protected readonly baseUrl: string,
-    protected readonly options?: ConversationalAgentExecutionOptionsMap[T]
+    protected readonly options?: AgentSetupOptions
   ) {}
 
   createRealtimeSession(
     agentCode: string,
     apiKey: string,
     baseUrl: string,
-    options?: AgentExecutionOptions
+    options?: AgentSetupOptions
   ): RealtimeSession {
     return new RealtimeSession(agentCode, apiKey, baseUrl, options);
   }
@@ -26,8 +23,8 @@ export abstract class ConversationalAgent<
     agentCode: string,
     apiKey: string,
     baseUrl: string,
-    options?: AgentExecutionOptions
+    options?: AgentSetupOptions
   ): Promise<Conversation> {
-    return await Conversation["create"](agentCode, apiKey, baseUrl, options);
+    return Conversation["create"](agentCode, apiKey, baseUrl, options);
   }
 }

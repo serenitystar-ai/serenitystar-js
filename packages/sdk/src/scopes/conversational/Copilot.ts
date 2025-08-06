@@ -1,13 +1,12 @@
-import { AgentExecutionOptions } from "../../types";
-import { ConversationalAgentExecutionOptionsMap } from "../../types";
+import { AgentSetupOptions } from "../../types";
 import { ConversationalAgent } from "./ConversationalAgent";
 
-export class Copilot extends ConversationalAgent<"copilot"> {
+export class Copilot extends ConversationalAgent {
   constructor(
     agentCode: string,
     apiKey: string,
     baseUrl: string,
-    options?: AgentExecutionOptions
+    options?: AgentSetupOptions
   ) {
     super(agentCode, apiKey, baseUrl, options);
   }
@@ -16,7 +15,7 @@ export class Copilot extends ConversationalAgent<"copilot"> {
       agentCode: string,
       apiKey: string,
       baseUrl: string,
-      options?: ConversationalAgentExecutionOptionsMap["copilot"]
+      options?: AgentSetupOptions
     ): Copilot {
       return new Copilot(agentCode, apiKey, baseUrl, options);
     }

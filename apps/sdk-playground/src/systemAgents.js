@@ -195,37 +195,3 @@ setupDynamicHandler("start-sse-proxy", async () => {
     console.error("Error:", error);
   }
 });
-
-// Plan Demo without SSE
-setupDynamicHandler("start-normal-plan", async () => {
-  try {
-    const response = await client.agents.plans.execute("event-planner");
-    console.log("Response:", response);
-    document.getElementById("normal-response-plan").textContent =
-      response.content;
-  } catch (error) {
-    console.error("Error:", error);
-  }
-});
-
-// Plan Demo with SSE
-setupDynamicHandler("start-sse-plan", async () => {
-  try {
-    const responseElement = document.getElementById("sse-response-plan");
-    const plan = client.agents.plans
-      .create("event-planner")
-      .on("start", () => {
-        responseElement.textContent = "";
-      })
-      .on("content", (chunk) => {
-        responseElement.textContent += chunk;
-      })
-      .on("error", (error) => {
-        console.error("Error:", error);
-      });
-
-    await plan.stream();
-  } catch (error) {
-    console.error("Error:", error);
-  }
-});

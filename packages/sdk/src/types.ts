@@ -14,12 +14,12 @@ export type SerenityClientOptions = {
   baseUrl?: string;
 };
 
-export type AgentType = 'assistant' | 'copilot' | 'proxy' | 'activity' | 'plan' | 'chat-completion';
+export type AgentType = 'assistant' | 'copilot' | 'proxy' | 'activity' | 'chat-completion';
 
 /**
- * Base options for executing any type of agent.
- */
-export type AgentExecutionOptions = {
+ * Base options for setting up an agent.
+*/
+export type AgentSetupOptions = {
   /**
    * Optional identifier for the user initiating the execution.
    */
@@ -33,20 +33,21 @@ export type AgentExecutionOptions = {
    */
   channel?: string;
   /**
-   * Optional array of volatile knowledge IDs to include in the execution context.
-   */
-  volatileKnowledgeIds?: string[];
-};
-
-/**
- * Extends AgentExecutionOptions to include input parameters for agents that support them.
- */
-export type AgentExecutionOptionsWithParameters = AgentExecutionOptions & {
-  /**
    * Optional key-value pairs of input parameters specific to the agent.
    */
   inputParameters?: { [key: string]: any }
 }
+
+/**
+ * Base options for executing any type of agent.
+ */
+export type AgentExecutionOptions = AgentSetupOptions & {
+  
+  /**
+   * Optional array of volatile knowledge IDs to include in the execution context.
+   */
+  volatileKnowledgeIds?: string[];
+};
 
 /**
  * Maps agent types to their specific execution options for conversational agents.
@@ -55,8 +56,8 @@ export type AgentExecutionOptionsWithParameters = AgentExecutionOptions & {
  * Both assistant and copilot agents support input parameters in addition to base execution options.
  */
 export type ConversationalAgentExecutionOptionsMap = {
-  "assistant": AgentExecutionOptionsWithParameters,
-  "copilot": AgentExecutionOptionsWithParameters,
+  "assistant": AgentSetupOptions,
+  "copilot": AgentSetupOptions,
 }
 
 /**
@@ -67,9 +68,8 @@ export type ConversationalAgentExecutionOptionsMap = {
  * - Proxy agents have specific proxy execution options
  */
 export type SystemAgentExecutionOptionsMap = {
-  "activity": AgentExecutionOptionsWithParameters,
-  "plan": AgentExecutionOptionsWithParameters,
-  "chat-completion": AgentExecutionOptionsWithParameters & {
+  "activity": AgentExecutionOptions,
+  "chat-completion": AgentExecutionOptions & {
       /** The single message content for the chat completion */
       message: string,
       /** Optional array of message objects representing the conversation history */

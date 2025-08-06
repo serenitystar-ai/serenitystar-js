@@ -11,6 +11,7 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
 - [Usage](#usage)
 - [Assistants / Copilots](#assistants--copilots)
   - [Start a new conversation with an Agent](#start-a-new-conversation-with-an-agent)
+  - [Get conversation information](#get-conversation-information)
   - [Sending messages within a conversation](#sending-messages-within-a-conversation)
     - [Stream message with SSE](#stream-message-with-sse)
   - [Real time conversation](#real-time-conversation)
@@ -24,9 +25,6 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
 - [Chat Completions](#chat-completions)
   - [Execute a chat completion](#execute-a-chat-completion)
   - [Stream responses with SSE](#stream-responses-with-sse-2)
-- [Plans](#plans)
-  - [Execute a plan](#execute-a-plan)
-  - [Stream responses with SSE](#stream-responses-with-sse-3)
 
 # Installation
 
@@ -60,8 +58,49 @@ const client = new SerenityClient({
   apiKey: '<SERENITY_API_KEY>',
 });
 
-// Create conversation with an assistant
-const conversation = await client.agents.assistants.createConversation("chef-assistant");
+// Create a new conversation with an assistant
+const conversation = client.agents.assistants.createConversation("chef-assistant");
+```
+
+## Get conversation information
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+// Get information about an assistant agent conversation (basic example)
+const agentInfo = await client.agents.assistants.getInfoByCode("chef-assistant");
+
+console.log(
+  agentInfo.conversation.initialMessage, // "Hello! I'm your personal chef assistant..."
+  agentInfo.conversation.starters, // ["What's for dinner tonight?", "Help me plan a meal", ...]
+  agentInfo.agent.version, // 1
+  agentInfo.agent.visionEnabled, // true/false
+  agentInfo.agent.isRealtime, // true/false
+  agentInfo.channel, // Optional chat widget configuration
+  agentInfo.agent.imageId // Agent's profile image ID
+);
+
+// Get information about an assistant agent conversation (advanced example with options)
+const agentInfoAdvanced = await client.agents.assistants.getInfoByCode("chef-assistant", {
+  agentVersion: 2, // Target specific version of the agent
+  inputParameters: {
+    dietaryRestrictions: "vegetarian",
+    cuisinePreference: "italian",
+    skillLevel: "beginner"
+  },
+  userIdentifier: "user-123",
+  channel: "web"
+});
+
+console.log(
+  agentInfoAdvanced.conversation.initialMessage, // "Hello! I'm your personalized Italian vegetarian chef assistant for beginners..."
+  agentInfoAdvanced.conversation.starters, // ["Show me easy vegetarian pasta recipes", "What Italian herbs should I use?", ...]
+  agentInfoAdvanced.agent.version, // 2
+);
 ```
 
 ## Sending messages within a conversation
@@ -83,6 +122,7 @@ console.log(
   response.content, // "Sure! Here is a recipe for parmesan chicken..."
   response.completion_usage, // { completion_tokens: 200, prompt_tokens: 30, total_tokens: 230 }
   response.executor_task_logs, // [ { description: 'Task 1', duration: 100 }, { description: 'Task 2', duration: 500 }]
+  response.instance_id, // instance id for the conversation
 )
 ```
 
@@ -113,7 +153,8 @@ const response = await conversation.streamMessage("I would like to get a recipe 
 console.log(
   response.content, // "Sure! Here is a recipe for parmesan chicken..."
   response.completion_usage, // { completion_tokens: 200, prompt_tokens: 30, total_tokens: 230 }
-  response.executor_task_logs, // [ { description: 'Task 1', duration: 100 }, { description: 'Task 2', duration: 500 }]
+  response.executor_task_logs, // [ { description: 'Task 1', duration: 100 }, { description: 'Task 2', duration: 500 }],
+  response.instance_id, // instance id for the conversation
 )
 ```
 
@@ -126,7 +167,7 @@ const client = new SerenityClient({
   apiKey: '<SERENITY_API_KEY>',
 });
 
-// Create conversation
+// Create a real-time session
 const session = await client.agents.assistants.createRealtimeSession("chef-assistant")
 	.on("session.created", () => {
 		// Update UI to provide feedback if you need
@@ -401,73 +442,4 @@ console.log(
   response.content, // AI-generated response
   response.completion_usage // { completion_tokens: 200, prompt_tokens: 30, total_tokens: 230 }
 );
-```
-
----
-
-# Plans
-
-## Execute a plan
-
-```tsx
-import SerenityClient from '@serenity-star/sdk';
-
-const client = new SerenityClient({
-  apiKey: '<SERENITY_API_KEY>',
-});
-
-// Execute plan (basic example)
-const response = await client.agents.plans.execute("event-planner");
-
-// Execute plan (advanced example)
-const response = await client.agents.plans.execute("event-planner", {
-  userIdentifier: "user-123",
-  agentVersion: 2,
-  channel: "web",
-  volatileKnowledgeIds: ["knowledge-1", "knowledge-2"]
-});
-
-console.log(
-  response.content,
-  response.completion_usage, // { completion_tokens: 200, prompt_tokens: 30, total_tokens: 230 }
-  response.executor_task_logs // [ { description: 'Task 1', duration: 100 }, { description: 'Task 2', duration: 500 }]
-);
-
-```
-
-## Stream responses with SSE
-
-```tsx
-import SerenityClient from '@serenity-star/sdk';
-
-const client = new SerenityClient({
-  apiKey: '<SERENITY_API_KEY>',
-});
-
-// Execute plan and stream response with Server Sent Events (SSE)
-const plan = client.agents.plans.create("event-planner", {
-  userIdentifier: "user-123",
-  agentVersion: 2,
-  channel: "web",
-  volatileKnowledgeIds: ["knowledge-1", "knowledge-2"]
-})
-.on("start", () => {
-  console.log("Plan execution started");
-})
-.on("content", (chunk) => {
-  console.log("Response chunk:", chunk);
-})
-.on("error", (error) => {
-  console.error("Error:", error);
-});
-
-const response = await plan.stream();
-
-// Access final response data
-console.log(
-  response.content,
-  response.completion_usage, // { completion_tokens: 200, prompt_tokens: 30, total_tokens: 230 }
-  response.executor_task_logs // [ { description: 'Task 1', duration: 100 }, { description: 'Task 2', duration: 500 }]
-);
-
 ```

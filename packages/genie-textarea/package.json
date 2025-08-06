@@ -1,6 +1,6 @@
 {
   "name": "@serenity-star/genie-textarea",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "A web component textarea with AI features, built with Svelte 5",
   "main": "dist/genie-textarea.iife.js",
   "module": "dist/index.js",
@@ -31,7 +31,7 @@
   "dependencies": {
     "@lucide/svelte": "^0.515.0",
     "@rollup/plugin-terser": "^0.4.4",
-    "@serenity-star/sdk": "*",
+    "@serenity-star/sdk": "1.0.3",
     "@tailwindcss/postcss": "^4.1.10",
     "@tailwindcss/vite": "^4.1.10",
     "autoprefixer": "^10.4.21",

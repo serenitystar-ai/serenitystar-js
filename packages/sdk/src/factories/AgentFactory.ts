@@ -1,12 +1,13 @@
 import { Assistant } from "../scopes/conversational/Assistant";
 import { Conversation } from "../scopes/conversational/Conversation";
+import { ConversationInfoResult } from "../scopes/conversational/Conversation/types";
 import { Copilot } from "../scopes/conversational/Copilot";
 import { RealtimeSession } from "../scopes/conversational/RealtimeSession";
 import { Activity } from "../scopes/system/Activity";
 import { ChatCompletion } from "../scopes/system/ChatCompletion";
-import { Plan } from "../scopes/system/Plan";
 import { Proxy } from "../scopes/system/Proxy";
 import {
+  AgentSetupOptions,
   AgentResult,
   AgentType,
   ConversationalAgentExecutionOptionsMap,
@@ -24,7 +25,7 @@ export class AgentFactory {
         return {
           createConversation: async (
             agentCode: string,
-            options?: ConversationalAgentExecutionOptionsMap["assistant"]
+            options?: AgentSetupOptions
           ) => {
             const assistant = Assistant.create(
               agentCode,
@@ -40,6 +41,20 @@ export class AgentFactory {
             );
 
             return conversation;
+          },
+          getInfoByCode: async (agentCode: string, options?: AgentSetupOptions) => {
+            const assistant = Assistant.create(
+              agentCode,
+              apiKey,
+              baseUrl,
+              options);
+            const conversation = await assistant.createConversation(
+              agentCode,
+              apiKey,
+              baseUrl,
+              options
+            );
+            return conversation.info;
           },
           createRealtimeSession: (
             agentCode: string,
@@ -64,7 +79,7 @@ export class AgentFactory {
         return {
           createConversation: async (
             agentCode: string,
-            options?: ConversationalAgentExecutionOptionsMap["copilot"]
+            options?: AgentSetupOptions
           ): Promise<Conversation> => {
             const copilot = Copilot.create(agentCode, apiKey, baseUrl, options);
             const conversation = await copilot.createConversation(
@@ -74,6 +89,20 @@ export class AgentFactory {
               options
             );
             return conversation;
+          },
+          getInfoByCode: async (agentCode: string, options?: AgentSetupOptions) => {
+            const assistant = Assistant.create(
+              agentCode,
+              apiKey,
+              baseUrl,
+              options);
+            const conversation = await assistant.createConversation(
+              agentCode,
+              apiKey,
+              baseUrl,
+              options
+            );
+            return conversation.info;
           },
           createRealtimeSession: (
             agentCode: string,
@@ -157,27 +186,6 @@ export class AgentFactory {
           },
         } as AgentTypeMap[T];
       }
-      case "plan": {
-        return {
-          execute: (
-            agentCode: string,
-            options?: SystemAgentExecutionOptionsMap["plan"]
-          ): Promise<AgentResult> => {
-            return Plan["createAndExecute"](
-              agentCode,
-              apiKey,
-              baseUrl,
-              options
-            );
-          },
-          create: (
-            agentCode: string,
-            options?: SystemAgentExecutionOptionsMap["plan"]
-          ): Plan => {
-            return Plan["create"](agentCode, apiKey, baseUrl, options);
-          }
-        } as AgentTypeMap[T];
-      }
       default:
         throw new Error(`Agent type ${type} not supported`);
     }
@@ -215,7 +223,7 @@ export type ConversationalAgentScope<
    */
   createConversation: (
     agentCode: string,
-    options?: ConversationalAgentExecutionOptionsMap[T]
+    options?: AgentSetupOptions
   ) => Promise<Conversation>;
 
   /**
@@ -244,6 +252,8 @@ export type ConversationalAgentScope<
     agentCode: string,
     options?: ConversationalAgentExecutionOptionsMap[T]
   ) => RealtimeSession;
+
+  getInfoByCode: (agentCode: string, options?: AgentSetupOptions) => Promise<ConversationInfoResult> | null;
 };
 
 export type SystemAgentScope<
@@ -310,5 +320,4 @@ type AgentTypeMap = {
   activity: SystemAgentScope<"activity", Activity>;
   "chat-completion": SystemAgentScope<"chat-completion", ChatCompletion>;
   proxy: SystemAgentScope<"proxy", Proxy>;
-  plan: SystemAgentScope<"plan", Plan>;
 };
