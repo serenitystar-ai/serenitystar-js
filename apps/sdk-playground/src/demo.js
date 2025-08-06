@@ -124,6 +124,25 @@ const demos = [
       buttonId: 'start-advanced-info',
       codeExample: codeExamples.getInfoAdvanced
     }]
+  },
+  {
+    group: 'Get conversation by id',
+    demos: [{
+      id: 'get-conversation-basic',
+      title: 'Get Conversation by ID (Basic)',
+      description: 'Retrieve conversation details by ID including messages, metadata, and status information.',
+      resultId: 'get-conversation-response',
+      buttonId: 'start-get-conversation',
+      codeExample: codeExamples.getConversationById
+    },
+    {
+      id: 'get-conversation-logs',
+      title: 'Get Conversation by ID (With Logs)',
+      description: 'Get conversation details including executor task logs for detailed execution information.',
+      resultId: 'get-conversation-logs-response',
+      buttonId: 'start-get-conversation-logs',
+      codeExample: codeExamples.getConversationById
+    }]
   }
 ];
 

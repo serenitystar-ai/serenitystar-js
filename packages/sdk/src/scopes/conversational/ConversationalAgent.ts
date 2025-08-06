@@ -27,4 +27,12 @@ export abstract class ConversationalAgent {
   ): Promise<Conversation> {
     return Conversation["create"](agentCode, apiKey, baseUrl, options);
   }
+
+  createConversationWithoutInfo(
+    agentCode: string,
+    apiKey: string,
+    baseUrl: string
+  ): Conversation {
+    return Conversation["createWithoutInfo"](agentCode, apiKey, baseUrl);
+  }
 }

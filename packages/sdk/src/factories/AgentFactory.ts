@@ -1,6 +1,6 @@
 import { Assistant } from "../scopes/conversational/Assistant";
 import { Conversation } from "../scopes/conversational/Conversation";
-import { ConversationInfoResult } from "../scopes/conversational/Conversation/types";
+import { ConversationInfoResult, ConversationRes } from "../scopes/conversational/Conversation/types";
 import { Copilot } from "../scopes/conversational/Copilot";
 import { RealtimeSession } from "../scopes/conversational/RealtimeSession";
 import { Activity } from "../scopes/system/Activity";
@@ -41,6 +41,17 @@ export class AgentFactory {
             );
 
             return conversation;
+          },
+          getConversationById: async (agentCode: string, conversationId: string, options: {
+            showExecutorTaskLogs: boolean;
+          } = { showExecutorTaskLogs: false }): Promise<ConversationRes> => {
+            const assistant = Assistant.create(
+              agentCode,
+              apiKey,
+              baseUrl
+            );
+            const conversation = await assistant.createConversationWithoutInfo(agentCode, apiKey, baseUrl);
+            return await conversation.getConversationById(conversationId, options);
           },
           getInfoByCode: async (agentCode: string, options?: AgentSetupOptions) => {
             const assistant = Assistant.create(
@@ -89,6 +100,17 @@ export class AgentFactory {
               options
             );
             return conversation;
+          },
+          getConversationById: async (agentCode: string, conversationId: string, options: {
+            showExecutorTaskLogs: boolean;
+          } = { showExecutorTaskLogs: false }): Promise<ConversationRes> => {
+            const assistant = Assistant.create(
+              agentCode,
+              apiKey,
+              baseUrl
+            );
+            const conversation = await assistant.createConversationWithoutInfo(agentCode, apiKey, baseUrl);
+            return await conversation.getConversationById(conversationId, options);
           },
           getInfoByCode: async (agentCode: string, options?: AgentSetupOptions) => {
             const assistant = Assistant.create(
@@ -254,6 +276,9 @@ export type ConversationalAgentScope<
   ) => RealtimeSession;
 
   getInfoByCode: (agentCode: string, options?: AgentSetupOptions) => Promise<ConversationInfoResult> | null;
+  getConversationById: (agentCode: string, conversationId: string, options?: {
+    showExecutorTaskLogs: boolean;
+  }) => Promise<ConversationRes>;
 };
 
 export type SystemAgentScope<

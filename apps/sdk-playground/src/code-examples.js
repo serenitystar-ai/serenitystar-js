@@ -235,4 +235,32 @@ const agentInfo = await client.agents.assistants
 console.log("Personalized message:", agentInfo.conversation.initialMessage);
 console.log("Custom starters:", agentInfo.conversation.starters);
 console.log("Agent version:", agentInfo.agent.version);`,
+
+  getConversationById: `import { SerenityClient } from "@serenity-star/sdk"
+
+const client = new SerenityClient({
+  apiKey: &lt;YOUR_SERENITY_API_KEY&gt;
+});
+
+// Get conversation by id (basic example)
+const conversation = await client.agents.assistants
+  .getConversationById("chef-assistant", "conversation-123");
+
+console.log("Conversation ID:", conversation.id);
+console.log("Start Date:", conversation.startDate);
+console.log("End Date:", conversation.endDate);
+console.log("Name:", conversation.name);
+console.log("Messages:", conversation.messagesJson);
+console.log("User ID:", conversation.userIdentifier);
+console.log("Vision Enabled:", conversation.useVision);
+console.log("Is Open:", conversation.open);
+console.log("Starters:", conversation.conversationStarters);
+
+// Get conversation by id with executor task logs
+const conversationWithLogs = await client.agents.assistants
+  .getConversationById("chef-assistant", "conversation-123", {
+    showExecutorTaskLogs: true
+  });
+
+console.log("Executor Task Logs:", conversationWithLogs.executorTaskLogs);`,
 };

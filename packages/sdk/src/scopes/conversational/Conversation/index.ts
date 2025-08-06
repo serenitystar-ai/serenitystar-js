@@ -1,6 +1,16 @@
 import { EventEmitter } from "../../../EventEmitter";
-import { AgentExecutionOptions, AgentResult, ExecuteBodyParams, SSEStreamEvents } from "../../../types";
-import { ConversationInfoResult, CreateExecuteBodyOptions, MessageAdditionalInfo } from "./types";
+import {
+  AgentExecutionOptions,
+  AgentResult,
+  ExecuteBodyParams,
+  SSEStreamEvents,
+} from "../../../types";
+import {
+  ConversationInfoResult,
+  ConversationRes,
+  CreateExecuteBodyOptions,
+  MessageAdditionalInfo,
+} from "./types";
 import { SseConnection } from "./SseConnection";
 import { AgentMapper } from "../../../utils/AgentMapper";
 
@@ -45,8 +55,19 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     return instance;
   }
 
-  async streamMessage(message: string, options?: MessageAdditionalInfo): Promise<AgentResult> {
-    const version = this.agentVersion ? `/${this.agentVersion}` : '';
+  private static createWithoutInfo(
+    agentCode: string,
+    apiKey: string,
+    baseUrl: string
+  ): Conversation {
+    return new Conversation(agentCode, apiKey, baseUrl);
+  }
+
+  async streamMessage(
+    message: string,
+    options?: MessageAdditionalInfo
+  ): Promise<AgentResult> {
+    const version = this.agentVersion ? `/${this.agentVersion}` : "";
     const url = `${this.baseUrl}/v2/agent/${this.agentCode}/execute${version}`;
 
     let body = this.#createExecuteBody({
@@ -76,7 +97,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       });
 
       connection.on("stop", (data) => {
-        const finalMessage = JSON.parse(data) as { result: AgentResult};
+        const finalMessage = JSON.parse(data) as { result: AgentResult };
         if (!this.conversationId) {
           this.conversationId = finalMessage.result.instance_id;
         }
@@ -92,7 +113,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
         },
         body: JSON.stringify(body),
       };
-  
+
       try {
         await connection.start(url, fetchOptions);
       } catch (error) {
@@ -103,10 +124,13 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     return responsePromise;
   }
 
-  async sendMessage(message: string, options?: MessageAdditionalInfo): Promise<AgentResult> {
-    const version = this.agentVersion ? `/${this.agentVersion}` : '';
+  async sendMessage(
+    message: string,
+    options?: MessageAdditionalInfo
+  ): Promise<AgentResult> {
+    const version = this.agentVersion ? `/${this.agentVersion}` : "";
     const url = `${this.baseUrl}/v2/agent/${this.agentCode}/execute${version}`;
-    
+
     let body = this.#createExecuteBody({
       message,
       stream: false,
@@ -141,6 +165,48 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     return mappedData;
   }
 
+  async getConversationById(
+    id: string,
+    options: {
+      showExecutorTaskLogs: boolean;
+    } = {
+      showExecutorTaskLogs: false,
+    }
+  ): Promise<ConversationRes> {
+    let url = `${this.baseUrl}/v2/agent/${this.agentCode}/conversation/${id}`;
+
+    const queryParams = new URLSearchParams();
+    if (options.showExecutorTaskLogs) {
+      queryParams.append("showExecutorTaskLogs", "true");
+    }
+
+    if (queryParams.toString()) {
+      url += `?${queryParams.toString()}`;
+    }
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "X-API-KEY": this.apiKey,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.status === 429) {
+      const retryAfter = parseInt(response.headers.get("Retry-After") || "60");
+      throw new Error(`Rate limit exceeded. Retry after ${retryAfter} seconds`);
+    }
+
+    const data = await response.json();
+    if (response.status !== 200) {
+      throw new Error(
+        data.message || "Failed to get conversation details by id"
+      );
+    }
+
+    return data as ConversationRes;
+  }
+
   async getInfo(): Promise<ConversationInfoResult> {
     let url = `${this.baseUrl}/v2/agent/${this.agentCode}`;
     if (this.agentVersion) {
@@ -152,14 +218,17 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       channel?: string;
       inputParameters?: ExecuteBodyParams;
       userIdentifier?: string;
-    } = {}
+    } = {};
 
     if (this.channel) {
       body.channel = this.channel;
     }
     if (this.inputParameters) {
       body.inputParameters = [];
-      this.#appendInputParametersIfNeeded(body.inputParameters, this.inputParameters);
+      this.#appendInputParametersIfNeeded(
+        body.inputParameters,
+        this.inputParameters
+      );
     }
     if (this.userIdentifier) {
       body.userIdentifier = this.userIdentifier;
@@ -201,7 +270,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     ];
 
     if (options.isNewConversation) {
-      this.#appendUserIdentifierIfNeeded(body)
+      this.#appendUserIdentifierIfNeeded(body);
     } else {
       body.push({
         Key: "chatId",
@@ -209,8 +278,14 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       });
     }
 
-    this.#appendInputParametersIfNeeded(body, options.additionalInfo?.inputParameters);
-    this.#appendVolatileKnowledgeIdsIfNeeded(body, options.additionalInfo?.volatileKnowledgeIds);
+    this.#appendInputParametersIfNeeded(
+      body,
+      options.additionalInfo?.inputParameters
+    );
+    this.#appendVolatileKnowledgeIdsIfNeeded(
+      body,
+      options.additionalInfo?.volatileKnowledgeIds
+    );
     this.#appendChannelIfNeeded(body);
 
     return body;
@@ -234,7 +309,10 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     }
   }
 
-  #appendInputParametersIfNeeded(body: ExecuteBodyParams, parameters: { [key: string]: any } = {}) {
+  #appendInputParametersIfNeeded(
+    body: ExecuteBodyParams,
+    parameters: { [key: string]: any } = {}
+  ) {
     if (!parameters || Object.keys(parameters).length === 0) return;
 
     for (const [key, value] of Object.entries(parameters)) {
@@ -245,7 +323,10 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     }
   }
 
-  #appendVolatileKnowledgeIdsIfNeeded(body: ExecuteBodyParams, volatileKnowledgeIds?: string[]) {
+  #appendVolatileKnowledgeIdsIfNeeded(
+    body: ExecuteBodyParams,
+    volatileKnowledgeIds?: string[]
+  ) {
     if (!volatileKnowledgeIds || volatileKnowledgeIds.length === 0) return;
 
     body.push({

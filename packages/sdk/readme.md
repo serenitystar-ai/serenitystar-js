@@ -103,6 +103,34 @@ console.log(
 );
 ```
 
+## Get conversation by id
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+// Get conversation by id (basic example)
+const conversation = await client.agents.assistants.getConversationById("<agent-code>", "<conversation-id>");
+
+console.log(
+  conversation.id, // "<conversation-id>"
+  conversation.messagesJson, // Array of messages
+  conversation.open // Boolean that indicates if the conversation was closed or not
+);
+
+// Get conversation by id with executor task logs
+const conversationWithLogs = await client.agents.assistants.getConversationById("<agent-code>", "<conversation-id>", {
+  showExecutorTaskLogs: true
+});
+
+console.log(
+  conversationWithLogs.executorTaskLogs // Detailed task execution logs
+);
+```
+
 ## Sending messages within a conversation
 
 ```tsx

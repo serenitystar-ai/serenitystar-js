@@ -105,3 +105,74 @@ setupDynamicHandler("start-advanced-info", async () => {
     document.getElementById("advanced-info-response").textContent = `Error: ${error.message}`;
   }
 });
+
+// Demo for getting conversation by id
+setupDynamicHandler("start-get-conversation", async () => {
+  try {
+    // Note: Using a sample conversation ID - in real usage, you'd have a valid conversation ID
+    const conversationId = "sample-conversation-id-123";
+    const conversation = await client.agents.assistants.getConversationById("chef-assistant", conversationId);
+    console.log("Conversation Details:", conversation);
+    const responseElement = document.getElementById("get-conversation-response");
+    responseElement.innerHTML = `
+      <div style="white-space: pre-wrap; font-family: monospace;">
+        <strong>Conversation ID:</strong> ${conversation.id}
+        <strong>Start Date:</strong> ${conversation.startDate}
+        <strong>End Date:</strong> ${conversation.endDate}
+        <strong>Name:</strong> ${conversation.name}
+        <strong>User Identifier:</strong> ${conversation.userIdentifier || 'N/A'}
+        <strong>Vision Enabled:</strong> ${conversation.useVision}
+        <strong>Is Open:</strong> ${conversation.open}
+        <strong>Conversation Starters:</strong> ${JSON.stringify(conversation.conversationStarters, null, 2) || 'N/A'}
+        <strong>Messages:</strong> ${typeof conversation.messagesJson === 'string' ? conversation.messagesJson : JSON.stringify(conversation.messagesJson, null, 2)}
+      </div>
+    `;
+  } catch (error) {
+    console.error("Error:", error);
+    const responseElement = document.getElementById("get-conversation-response");
+    responseElement.innerHTML = `
+      <div style="color: #ff6b6b; font-family: monospace;">
+        <strong>Error:</strong> ${error.message}
+        <br><br>
+        <em>Note: This demo requires a valid conversation ID. In a real application, you would first create a conversation and use that ID.</em>
+      </div>
+    `;
+  }
+});
+
+// Demo for getting conversation by id with logs
+setupDynamicHandler("start-get-conversation-logs", async () => {
+  try {
+    // Note: Using a sample conversation ID - in real usage, you'd have a valid conversation ID
+    const conversationId = "sample-conversation-id-123";
+    const conversation = await client.agents.assistants.getConversationById("chef-assistant", conversationId, {
+      showExecutorTaskLogs: true
+    });
+    
+    console.log("Conversation with Logs:", conversation);
+    const responseElement = document.getElementById("get-conversation-logs-response");
+    responseElement.innerHTML = `
+      <div style="white-space: pre-wrap; font-family: monospace;">
+        <strong>Conversation ID:</strong> ${conversation.id}
+        <strong>Start Date:</strong> ${conversation.startDate}
+        <strong>End Date:</strong> ${conversation.endDate}
+        <strong>Name:</strong> ${conversation.name}
+        <strong>User Identifier:</strong> ${conversation.userIdentifier || 'N/A'}
+        <strong>Vision Enabled:</strong> ${conversation.useVision}
+        <strong>Is Open:</strong> ${conversation.open}
+        <strong>Executor Task Logs:</strong> ${JSON.stringify(conversation.executorTaskLogs, null, 2) || 'N/A'}
+        <strong>Messages:</strong> ${typeof conversation.messagesJson === 'string' ? conversation.messagesJson : JSON.stringify(conversation.messagesJson, null, 2)}
+      </div>
+    `;
+  } catch (error) {
+    console.error("Error:", error);
+    const responseElement = document.getElementById("get-conversation-logs-response");
+    responseElement.innerHTML = `
+      <div style="color: #ff6b6b; font-family: monospace;">
+        <strong>Error:</strong> ${error.message}
+        <br><br>
+        <em>Note: This demo requires a valid conversation ID. In a real application, you would first create a conversation and use that ID.</em>
+      </div>
+    `;
+  }
+});
