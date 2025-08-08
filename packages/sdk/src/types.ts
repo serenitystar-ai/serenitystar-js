@@ -229,7 +229,6 @@ export type ExecutorTaskLogsRes = {
   duration: number;
 }[];
 
-// #region Plugin types
 export type SpeechGenerationResult = {
   content: string;
   finish_reason?: string;
@@ -237,5 +236,16 @@ export type SpeechGenerationResult = {
 };
 
 type PluginExecutionResult = SpeechGenerationResult;
-// #endregion
-// #endregion
+
+export type BaseErrorBody = {
+  message: string;
+  statusCode: number;
+};
+
+export type ValidationErrorBody = BaseErrorBody & {
+  errors: { [key: string]: string };
+};
+
+export type RateLimitErrorBody = BaseErrorBody & {
+  retryAfter: number; // seconds
+};

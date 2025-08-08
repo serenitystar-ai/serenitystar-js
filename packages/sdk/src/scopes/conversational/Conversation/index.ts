@@ -13,6 +13,7 @@ import {
 } from "./types";
 import { SseConnection } from "./SseConnection";
 import { AgentMapper } from "../../../utils/AgentMapper";
+import { InternalErrorHelper } from "../../../utils/ErrorHelper";
 
 export class Conversation extends EventEmitter<SSEStreamEvents> {
   private agentCode: string;
@@ -117,7 +118,8 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       try {
         await connection.start(url, fetchOptions);
       } catch (error) {
-        reject(error);
+        const response = await InternalErrorHelper.process(error, "Failed to send message");
+        reject(response);
       }
     });
 
@@ -147,15 +149,11 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       body: JSON.stringify(body),
     });
 
-    if (response.status === 429) {
-      const retryAfter = parseInt(response.headers.get("Retry-After") || "60");
-      throw new Error(`Rate limit exceeded. Retry after ${retryAfter} seconds`);
+    if (response.status !== 200) {
+      throw await InternalErrorHelper.process(response, "Failed to send message");
     }
 
     const data = await response.json();
-    if (response.status !== 200) {
-      throw new Error(data.message || "Failed to execute message");
-    }
 
     const mappedData = AgentMapper.mapAgentResultToSnakeCase(data);
     if (!this.conversationId) {
@@ -192,17 +190,12 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       },
     });
 
-    if (response.status === 429) {
-      const retryAfter = parseInt(response.headers.get("Retry-After") || "60");
-      throw new Error(`Rate limit exceeded. Retry after ${retryAfter} seconds`);
+    if (response.status !== 200) {
+      const error = await InternalErrorHelper.process(response, "Failed to get conversation by id");
+      throw error;
     }
 
     const data = await response.json();
-    if (response.status !== 200) {
-      throw new Error(
-        data.message || "Failed to get conversation details by id"
-      );
-    }
 
     // Map messagesJson string to messages array
     if (data.messagesJson && typeof data.messagesJson === 'string') {
@@ -253,16 +246,13 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       body: JSON.stringify(body),
     });
 
-    if (response.status === 429) {
-      const retryAfter = parseInt(response.headers.get("Retry-After") || "60");
-      throw new Error(`Rate limit exceeded. Retry after ${retryAfter} seconds`);
-    }
-
-    const data = await response.json();
     if (response.status !== 200) {
-      throw new Error(data.message || "Failed to get conversation info");
+      const error = await InternalErrorHelper.process(response, "Failed to get conversation initial info");
+      throw error;
     }
-
+    
+    const data = await response.json();
+    
     this.info = data as ConversationInfoResult;
     return this.info;
   }
@@ -290,7 +280,10 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
 
     this.#appendInputParametersIfNeeded(
       body,
-      options.additionalInfo?.inputParameters
+      {
+      ...(options.additionalInfo?.inputParameters ?? {}),
+      ...(this.inputParameters ?? {})
+      }
     );
     this.#appendVolatileKnowledgeIdsIfNeeded(
       body,

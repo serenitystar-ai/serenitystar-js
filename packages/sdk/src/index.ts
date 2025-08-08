@@ -1,9 +1,30 @@
 import "./polyfill";
-import { ChatWidgetRes, ConversationInfoResult, ConversationRes } from "./scopes/conversational/Conversation/types";
+import { Conversation } from "./scopes/conversational/Conversation";
+import {
+  ChatWidgetRes,
+  ConversationInfoResult,
+  ConversationRes,
+  Message,
+} from "./scopes/conversational/Conversation/types";
 import { RealtimeSession } from "./scopes/conversational/RealtimeSession";
 import SerenityClient from "./SerenityClient";
-import { AgentResult } from "./types";
+import {
+  AgentResult,
+  BaseErrorBody,
+  RateLimitErrorBody,
+  ValidationErrorBody,
+} from "./types";
+import { ExternalErrorHelper } from "./utils/ErrorHelper";
 
-export { SerenityClient, RealtimeSession };
-
-export type { AgentResult, ConversationRes, ConversationInfoResult, ChatWidgetRes };
+export { SerenityClient, RealtimeSession, ExternalErrorHelper as ErrorHelper };
+export type {
+  AgentResult,
+  ConversationRes,
+  ConversationInfoResult,
+  ChatWidgetRes,
+  BaseErrorBody,
+  RateLimitErrorBody,
+  ValidationErrorBody,
+  Conversation,
+  Message
+};

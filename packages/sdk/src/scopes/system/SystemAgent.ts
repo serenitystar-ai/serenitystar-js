@@ -1,6 +1,7 @@
 import { EventEmitter } from "../../EventEmitter";
 import { AgentResult, ExecuteBodyParams, SSEStreamEvents } from "../../types";
 import { AgentMapper } from "../../utils/AgentMapper";
+import { InternalErrorHelper } from "../../utils/ErrorHelper";
 import { SseConnection } from "../conversational/Conversation/SseConnection";
 import { SystemAgentExecutionOptionsMap } from "./../../types";
 
@@ -61,7 +62,8 @@ export abstract class SystemAgent<
       try {
         await connection.start(url, fetchOptions);
       } catch (error) {
-        reject(error);
+        const response = await InternalErrorHelper.process(error, "Failed to send message");
+        reject(response);
       }
     });
 
@@ -85,16 +87,12 @@ export abstract class SystemAgent<
       body: JSON.stringify(body),
     });
 
-    if (response.status === 429) {
-      const retryAfter = parseInt(response.headers.get("Retry-After") || "60");
-      throw new Error(`Rate limit exceeded. Retry after ${retryAfter} seconds`);
-    }
-
-    const data = await response.json();
     if (response.status !== 200) {
-      throw new Error(data.message || "Failed to execute message");
+      const error = await InternalErrorHelper.process(response, "Failed to send message");
+      throw error;
     }
-
+    
+    const data = await response.json();
     return AgentMapper.mapAgentResultToSnakeCase(data);
   }
 
