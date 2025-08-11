@@ -234,41 +234,6 @@ async function demonstrateAIModelProxyWithStreaming() {
   }
 }
 
-// Event Planning Demos
-// Demonstrates automated event planning capabilities
-async function demonstrateEventPlanner() {
-  try {
-    console.log("\n=== Starting Event Planner Demo ===\n");
-    const response = await client.agents.plans.execute("event-planner");
-    console.log("Response:", response.content);
-  } catch (error) {
-    console.error("Error:", error);
-  }
-}
-
-async function demonstrateEventPlannerWithStreaming() {
-  try {
-    console.log("\n=== Starting Event Planner Streaming Demo ===\n");
-    const plan = client.agents.plans.create("event-planner");
-
-    plan
-      .on("start", () => {
-        console.log("Plan started...");
-      })
-      .on("content", (chunk) => {
-        process.stdout.write(chunk);
-      })
-      .on("error", (error) => {
-        console.error("Error:", error);
-      });
-
-    await plan.stream();
-    console.log("\n");
-  } catch (error) {
-    console.error("Error:", error);
-  }
-}
-
 // Demo Runner
 async function runAllDemonstrations() {
   const demos = [
@@ -281,9 +246,7 @@ async function runAllDemonstrations() {
     demonstrateCookingChatCompletion,
     demonstrateCookingChatCompletionWithStreaming,
     demonstrateAIModelProxy,
-    demonstrateAIModelProxyWithStreaming,
-    demonstrateEventPlanner,
-    demonstrateEventPlannerWithStreaming
+    demonstrateAIModelProxyWithStreaming
   ];
 
   for (const demo of demos) {

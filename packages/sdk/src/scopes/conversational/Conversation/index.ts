@@ -1,8 +1,19 @@
 import { EventEmitter } from "../../../EventEmitter";
-import { AgentExecutionOptions, AgentExecutionOptionsWithParameters, AgentResult, ExecuteBodyParams, SSEStreamEvents } from "../../../types";
-import { InitConversationParams, InitConversationResponse, MessageOptions } from "./types";
+import {
+  AgentExecutionOptions,
+  AgentResult,
+  ExecuteBodyParams,
+  SSEStreamEvents,
+} from "../../../types";
+import {
+  ConversationInfoResult,
+  ConversationRes,
+  CreateExecuteBodyOptions,
+  MessageAdditionalInfo,
+} from "./types";
 import { SseConnection } from "./SseConnection";
 import { AgentMapper } from "../../../utils/AgentMapper";
+import { InternalErrorHelper } from "../../../utils/ErrorHelper";
 
 export class Conversation extends EventEmitter<SSEStreamEvents> {
   private agentCode: string;
@@ -10,18 +21,18 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
   private baseUrl: string;
 
   // Optional parameters.
-  private inputParameters?: { [key: string]: any };
   private userIdentifier?: string;
   private agentVersion?: number;
   private channel?: string;
-
+  private inputParameters?: { [key: string]: any };
   public conversationId?: string;
+  public info: ConversationInfoResult | null = null;
 
   private constructor(
     agentCode: string,
     apiKey: string,
     baseUrl: string,
-    options?: AgentExecutionOptionsWithParameters
+    options?: AgentExecutionOptions
   ) {
     super();
     this.apiKey = apiKey;
@@ -29,9 +40,9 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     this.baseUrl = baseUrl;
 
     this.agentVersion = options?.agentVersion;
-    this.inputParameters = options?.inputParameters;
     this.userIdentifier = options?.userIdentifier;
     this.channel = options?.channel;
+    this.inputParameters = options?.inputParameters;
   }
 
   private static async create(
@@ -41,52 +52,31 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     options?: AgentExecutionOptions
   ): Promise<Conversation> {
     const instance = new Conversation(agentCode, apiKey, baseUrl, options);
-    await instance.#getConversationId();
+    await instance.getInfo();
     return instance;
   }
 
-  async #getConversationId(): Promise<void> {
-    if (this.conversationId) return;
-
-    const version = this.agentVersion ? `/${this.agentVersion}` : '';
-    const url = `${this.baseUrl}/v2/agent/${this.agentCode}/conversation${version}`;
-    let reqBody: InitConversationParams = {};
-
-    this.#appendInitConversationParamsIfNeeded(reqBody);
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-KEY": this.apiKey,
-      },
-      body: JSON.stringify(reqBody),
-    });
-
-    if (response.status === 429) {
-      const retryAfter = parseInt(response.headers.get("Retry-After") || "60");
-      throw new Error(`Rate limit exceeded. Retry after ${retryAfter} seconds`);
-    }
-
-    const body = await response.json();
-
-    if (response.status !== 200) {
-      throw new Error(body.message || "Failed to initialize conversation");
-    }
-
-    const data = body as InitConversationResponse;
-    this.conversationId = data.chatId;
+  private static createWithoutInfo(
+    agentCode: string,
+    apiKey: string,
+    baseUrl: string
+  ): Conversation {
+    return new Conversation(agentCode, apiKey, baseUrl);
   }
 
-  async streamMessage(message: string, options?: MessageOptions): Promise<AgentResult> {
-    if (!this.conversationId) {
-      throw new Error("Conversation not initialized");
-    }
-
-    const version = this.agentVersion ? `/${this.agentVersion}` : '';
+  async streamMessage(
+    message: string,
+    options?: MessageAdditionalInfo
+  ): Promise<AgentResult> {
+    const version = this.agentVersion ? `/${this.agentVersion}` : "";
     const url = `${this.baseUrl}/v2/agent/${this.agentCode}/execute${version}`;
-    
-    let body = this.#createExecuteBody(message, true, options);
+
+    let body = this.#createExecuteBody({
+      message,
+      stream: true,
+      additionalInfo: options,
+      isNewConversation: !this.conversationId,
+    });
 
     const connection = new SseConnection();
     let responsePromise: Promise<AgentResult>;
@@ -108,7 +98,10 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       });
 
       connection.on("stop", (data) => {
-        const finalMessage = JSON.parse(data) as { result: AgentResult};
+        const finalMessage = JSON.parse(data) as { result: AgentResult };
+        if (!this.conversationId) {
+          this.conversationId = finalMessage.result.instance_id;
+        }
         this.emit("stop", finalMessage.result);
         resolve(finalMessage.result);
       });
@@ -121,25 +114,31 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
         },
         body: JSON.stringify(body),
       };
-  
+
       try {
         await connection.start(url, fetchOptions);
       } catch (error) {
-        reject(error);
+        const response = await InternalErrorHelper.process(error, "Failed to send message");
+        reject(response);
       }
     });
 
     return responsePromise;
   }
 
-  async sendMessage(message: string, options?: MessageOptions): Promise<AgentResult> {
-    if (!this.conversationId) {
-      throw new Error("Conversation not initialized");
-    }
-    const version = this.agentVersion ? `/${this.agentVersion}` : '';
+  async sendMessage(
+    message: string,
+    options?: MessageAdditionalInfo
+  ): Promise<AgentResult> {
+    const version = this.agentVersion ? `/${this.agentVersion}` : "";
     const url = `${this.baseUrl}/v2/agent/${this.agentCode}/execute${version}`;
-    
-    let body = this.#createExecuteBody(message, false, options);
+
+    let body = this.#createExecuteBody({
+      message,
+      stream: false,
+      additionalInfo: options,
+      isNewConversation: !this.conversationId,
+    });
 
     const response = await fetch(url, {
       method: "POST",
@@ -150,40 +149,146 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       body: JSON.stringify(body),
     });
 
-    if (response.status === 429) {
-      const retryAfter = parseInt(response.headers.get("Retry-After") || "60");
-      throw new Error(`Rate limit exceeded. Retry after ${retryAfter} seconds`);
+    if (response.status !== 200) {
+      throw await InternalErrorHelper.process(response, "Failed to send message");
     }
 
     const data = await response.json();
-    if (response.status !== 200) {
-      throw new Error(data.message || "Failed to execute message");
-    }
 
     const mappedData = AgentMapper.mapAgentResultToSnakeCase(data);
+    if (!this.conversationId) {
+      this.conversationId = mappedData.instance_id;
+    }
 
     return mappedData;
   }
 
-  #createExecuteBody(message: string, stream: boolean, options?: MessageOptions): ExecuteBodyParams {
+  async getConversationById(
+    id: string,
+    options: {
+      showExecutorTaskLogs: boolean;
+    } = {
+      showExecutorTaskLogs: false,
+    }
+  ): Promise<ConversationRes> {
+    let url = `${this.baseUrl}/v2/agent/${this.agentCode}/conversation/${id}`;
+
+    const queryParams = new URLSearchParams();
+    if (options.showExecutorTaskLogs) {
+      queryParams.append("showExecutorTaskLogs", "true");
+    }
+
+    if (queryParams.toString()) {
+      url += `?${queryParams.toString()}`;
+    }
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "X-API-KEY": this.apiKey,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.status !== 200) {
+      const error = await InternalErrorHelper.process(response, "Failed to get conversation by id");
+      throw error;
+    }
+
+    const data = await response.json();
+
+    // Map messagesJson string to messages array
+    if (data.messagesJson && typeof data.messagesJson === 'string') {
+      try {
+        data.messages = JSON.parse(data.messagesJson);
+        delete data.messagesJson; // Remove the original string property
+      } catch (error) {
+        throw new Error("Failed to parse messagesJson: " + error);
+      }
+    }
+
+    return data as ConversationRes;
+  }
+
+  async getInfo(): Promise<ConversationInfoResult> {
+    let url = `${this.baseUrl}/v2/agent/${this.agentCode}`;
+    if (this.agentVersion) {
+      url += `/${this.agentVersion}`;
+    }
+    url += "/conversation/info";
+
+    let body: {
+      channel?: string;
+      inputParameters?: ExecuteBodyParams;
+      userIdentifier?: string;
+    } = {};
+
+    if (this.channel) {
+      body.channel = this.channel;
+    }
+    if (this.inputParameters) {
+      body.inputParameters = [];
+      this.#appendInputParametersIfNeeded(
+        body.inputParameters,
+        this.inputParameters
+      );
+    }
+    if (this.userIdentifier) {
+      body.userIdentifier = this.userIdentifier;
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "X-API-KEY": this.apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (response.status !== 200) {
+      const error = await InternalErrorHelper.process(response, "Failed to get conversation initial info");
+      throw error;
+    }
+    
+    const data = await response.json();
+    
+    this.info = data as ConversationInfoResult;
+    return this.info;
+  }
+
+  #createExecuteBody(options: CreateExecuteBodyOptions): ExecuteBodyParams {
     let body: ExecuteBodyParams = [
       {
-        Key: "chatId",
-        Value: this.conversationId,
-      },
-      {
         Key: "message",
-        Value: message,
+        Value: options.message,
       },
       {
         Key: "stream",
-        Value: stream.toString(),
+        Value: options.stream.toString(),
       },
     ];
 
-    this.#appendInputParametersIfNeeded(body, options?.inputParameters);
-    this.#appendVolatileKnowledgeIdsIfNeeded(body, options?.volatileKnowledgeIds);
-    this.#appendUserIdentifierIfNeeded(body);
+    if (options.isNewConversation) {
+      this.#appendUserIdentifierIfNeeded(body);
+    } else {
+      body.push({
+        Key: "chatId",
+        Value: this.conversationId,
+      });
+    }
+
+    this.#appendInputParametersIfNeeded(
+      body,
+      {
+      ...(options.additionalInfo?.inputParameters ?? {}),
+      ...(this.inputParameters ?? {})
+      }
+    );
+    this.#appendVolatileKnowledgeIdsIfNeeded(
+      body,
+      options.additionalInfo?.volatileKnowledgeIds
+    );
     this.#appendChannelIfNeeded(body);
 
     return body;
@@ -207,7 +312,10 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     }
   }
 
-  #appendInputParametersIfNeeded(body: ExecuteBodyParams, parameters: { [key: string]: any } = {}) {
+  #appendInputParametersIfNeeded(
+    body: ExecuteBodyParams,
+    parameters: { [key: string]: any } = {}
+  ) {
     if (!parameters || Object.keys(parameters).length === 0) return;
 
     for (const [key, value] of Object.entries(parameters)) {
@@ -218,18 +326,10 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     }
   }
 
-  #appendInitConversationParamsIfNeeded(body: InitConversationParams) {
-    if (this.userIdentifier) {
-      body.userIdentifier = this.userIdentifier;
-    }
-
-    if (this.inputParameters) {
-      body.inputParameters = [];
-      this.#appendInputParametersIfNeeded(body.inputParameters, this.inputParameters);
-    }
-  }
-
-  #appendVolatileKnowledgeIdsIfNeeded(body: ExecuteBodyParams, volatileKnowledgeIds?: string[]) {
+  #appendVolatileKnowledgeIdsIfNeeded(
+    body: ExecuteBodyParams,
+    volatileKnowledgeIds?: string[]
+  ) {
     if (!volatileKnowledgeIds || volatileKnowledgeIds.length === 0) return;
 
     body.push({

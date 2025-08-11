@@ -107,22 +107,41 @@ const demos = [
     }]
   },
   {
-    group: 'Plans',
+    group: 'Get conversation initial info',
     demos: [{
-      id: 'plan-sse',
-      title: 'Event Planner with SSE',
-      description: 'Watch an AI event planner work in real-time, breaking down event requirements and generating organized plans step by step.',
-      resultId: 'sse-response-plan',
-      buttonId: 'start-sse-plan',
-      codeExample: codeExamples.planSse
+      id: 'get-info-basic',
+      title: 'Get Conversation Info (Basic)',
+      description: 'Retrieve basic information about a conversation including initial message, conversation starters, and capabilities.',
+      resultId: 'basic-info-response',
+      buttonId: 'start-basic-info',
+      codeExample: codeExamples.getInfoBasic
     },
     {
-      id: 'plan-normal',
-      title: 'Event Planner with SSE',
-      description: 'Get comprehensive event plans delivered as complete packages. Ideal for quick event planning and organization needs.',
-      resultId: 'normal-response-plan',
-      buttonId: 'start-normal-plan',
-      codeExample: codeExamples.planNormal
+      id: 'get-info-advanced',
+      title: 'Get Conversation Info (Advanced)',
+      description: 'Get personalized conversation information using input parameters to customize the initial message',
+      resultId: 'advanced-info-response',
+      buttonId: 'start-advanced-info',
+      codeExample: codeExamples.getInfoAdvanced
+    }]
+  },
+  {
+    group: 'Get conversation by id',
+    demos: [{
+      id: 'get-conversation-basic',
+      title: 'Get Conversation by ID (Basic)',
+      description: 'Retrieve conversation details by ID including messages, metadata, and status information.',
+      resultId: 'get-conversation-response',
+      buttonId: 'start-get-conversation',
+      codeExample: codeExamples.getConversationById
+    },
+    {
+      id: 'get-conversation-logs',
+      title: 'Get Conversation by ID (With Logs)',
+      description: 'Get conversation details including executor task logs for detailed execution information.',
+      resultId: 'get-conversation-logs-response',
+      buttonId: 'start-get-conversation-logs',
+      codeExample: codeExamples.getConversationById
     }]
   }
 ];

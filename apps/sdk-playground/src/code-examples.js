@@ -196,28 +196,71 @@ const response = await client.agents.proxies
 
 console.log("Response:", response.content);`,
 
-  planSse: `import { SerenityClient } from "@serenity-star/sdk"
+  getInfoBasic: `import { SerenityClient } from "@serenity-star/sdk"
 
 const client = new SerenityClient({
   apiKey: &lt;YOUR_SERENITY_API_KEY&gt;
 });
 
-const plan = client.agents.plans
-  .create("event-planner")
-  .on("content", (chunk) => {
-    console.log("Plan chunk:", chunk)
+// Get basic information about a conversation
+const agentInfo = await client.agents.assistants
+  .getInfoByCode("chef-assistant", {
+    channel: "ChatComponent"
   });
 
-await plan.stream();`,
+console.log("Initial message:", agentInfo.conversation.initialMessage);
+console.log("Conversation starters:", agentInfo.conversation.starters);
+console.log("Agent version:", agentInfo.agent.version);
+console.log("Vision enabled:", agentInfo.agent.visionEnabled);`,
 
-  planNormal: `import { SerenityClient } from "@serenity-star/sdk"
+  getInfoAdvanced: `import { SerenityClient } from "@serenity-star/sdk"
 
 const client = new SerenityClient({
   apiKey: &lt;YOUR_SERENITY_API_KEY&gt;
 });
 
-const response = await client.agents.plans
-  .execute("event-planner");
+// Get advanced information with input parameters
+const agentInfo = await client.agents.assistants
+  .getInfoByCode("chef-assistant", {
+    agentVersion: 2,
+    channel: "ChatComponent",
+    inputParameters: {
+      dietaryRestrictions: "vegetarian",
+      cuisinePreference: "italian",
+      skillLevel: "beginner"
+    },
+    userIdentifier: "user-123"
+  });
 
-console.log("Plan:", response.content);`
+console.log("Personalized message:", agentInfo.conversation.initialMessage);
+console.log("Custom starters:", agentInfo.conversation.starters);
+console.log("Agent version:", agentInfo.agent.version);`,
+
+  getConversationById: `import { SerenityClient } from "@serenity-star/sdk"
+
+const client = new SerenityClient({
+  apiKey: &lt;YOUR_SERENITY_API_KEY&gt;
+});
+
+// Get conversation by id (basic example)
+const conversation = await client.agents.assistants
+  .getConversationById("chef-assistant", "conversation-123");
+
+console.log("Conversation ID:", conversation.id);
+console.log("Start Date:", conversation.startDate);
+console.log("End Date:", conversation.endDate);
+console.log("Name:", conversation.name);
+console.log("Messages:", conversation.messages);
+console.log("User ID:", conversation.userIdentifier);
+console.log("Vision Enabled:", conversation.useVision);
+console.log("Is Open:", conversation.open);
+console.log("Starters:", conversation.conversationStarters);
+
+// Get conversation by id with executor task logs
+const conversationWithLogs = await client.agents.assistants
+  .getConversationById("chef-assistant", "conversation-123", {
+    showExecutorTaskLogs: true
+  });
+
+console.log("Executor Task Logs:", conversationWithLogs.executorTaskLogs);`,
 };

@@ -5,7 +5,6 @@ import {
 } from "./factories/AgentFactory";
 import { Activity } from "./scopes/system/Activity";
 import { ChatCompletion } from "./scopes/system/ChatCompletion";
-import { Plan } from "./scopes/system/Plan";
 import { Proxy } from "./scopes/system/Proxy";
 import { SerenityClientOptions } from "./types";
 
@@ -15,7 +14,7 @@ export default class SerenityClient {
 
   /**
    * Interact with the different agents available in Serenity Star.
-   * You can choose between assistants, copilots, activities, chat completions, proxies, and plans.
+   * You can choose between assistants, copilots, activities, chat completions and proxies.
    */
   public readonly agents: {
     /**
@@ -190,31 +189,6 @@ export default class SerenityClient {
      * ```
      */
     proxies: SystemAgentScope<"proxy", Proxy>;
-
-    /**
-     * Interact with Plan agents available in Serenity Star.
-     * This allows you to execute plans.
-     * It supports streaming.
-     * Plan agents are capable of building an execution plan based on the user input and execute it.
-     * 
-     * ## Regular plan execution:
-     * ```typescript
-     * const response = await client.agents.plans.execute("event-planner");
-     * console.log(response.content);
-     * ```
-     * 
-     * ## Stream plan with SSE:
-     * ```typescript
-     * const plan = client.agents.plans
-     *   .create("event-planner")
-     *   .on("start", () => console.log("Started"))
-     *   .on("content", (chunk) => console.log(chunk))
-     *   .on("error", (error) => console.error(error));
-     * 
-     * await plan.stream();
-     * ```
-     */
-    plans: SystemAgentScope<"plan", Plan>;
   };
 
   constructor(options: SerenityClientOptions) {
@@ -242,7 +216,6 @@ export default class SerenityClient {
         this.baseUrl
       ),
       proxies: AgentFactory.createAgent("proxy", this.apiKey, this.baseUrl),
-      plans: AgentFactory.createAgent("plan", this.apiKey, this.baseUrl),
     };
   }
 }
