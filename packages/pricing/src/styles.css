@@ -1,0 +1,711 @@
+/*! tailwindcss v4.1.10 | MIT License | https://tailwindcss.com */
+@layer properties;
+@layer theme, base, components, utilities;
+@layer theme {
+  :root, :host {
+    --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+      "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+      "Courier New", monospace;
+    --color-red-400: oklch(70.4% 0.191 22.216);
+    --color-slate-100: oklch(96.8% 0.007 247.896);
+    --color-slate-200: oklch(92.9% 0.013 255.508);
+    --color-slate-300: oklch(86.9% 0.022 252.894);
+    --color-slate-400: oklch(70.4% 0.04 256.788);
+    --color-slate-700: oklch(37.2% 0.044 257.287);
+    --color-slate-800: oklch(27.9% 0.041 260.031);
+    --color-slate-900: oklch(20.8% 0.042 265.755);
+    --color-black: #000;
+    --color-white: #fff;
+    --spacing: 0.25rem;
+    --container-2xl: 40rem;
+    --container-7xl: 80rem;
+    --text-sm: 0.875rem;
+    --text-sm--line-height: calc(1.25 / 0.875);
+    --text-base: 1rem;
+    --text-base--line-height: calc(1.5 / 1);
+    --text-lg: 1.125rem;
+    --text-lg--line-height: calc(1.75 / 1.125);
+    --text-2xl: 1.5rem;
+    --text-2xl--line-height: calc(2 / 1.5);
+    --text-3xl: 1.875rem;
+    --text-3xl--line-height: calc(2.25 / 1.875);
+    --text-4xl: 2.25rem;
+    --text-4xl--line-height: calc(2.5 / 2.25);
+    --font-weight-light: 300;
+    --font-weight-semibold: 600;
+    --tracking-tight: -0.025em;
+    --radius-3xl: 1.5rem;
+    --default-transition-duration: 150ms;
+    --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    --default-font-family: var(--font-sans);
+    --default-mono-font-family: var(--font-mono);
+    --color-primary: #4862ff;
+    --color-serenity-deep-blue: #050a2b;
+  }
+}
+@layer base {
+  .serenity-pricing-root *, .serenity-pricing-root ::after, .serenity-pricing-root ::before, .serenity-pricing-root ::backdrop, .serenity-pricing-root ::file-selector-button {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+  }
+  html, :host {
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    -moz-tab-size: 4;
+      -o-tab-size: 4;
+         tab-size: 4;
+    font-family: var(--default-font-family, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji");
+    font-feature-settings: var(--default-font-feature-settings, normal);
+    font-variation-settings: var(--default-font-variation-settings, normal);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .serenity-pricing-root hr {
+    height: 0;
+    color: inherit;
+    border-top-width: 1px;
+  }
+  .serenity-pricing-root abbr:where([title]) {
+    -webkit-text-decoration: underline dotted;
+    text-decoration: underline dotted;
+  }
+  .serenity-pricing-root h1, .serenity-pricing-root h2, .serenity-pricing-root h3, .serenity-pricing-root h4, .serenity-pricing-root h5, .serenity-pricing-root h6 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  .serenity-pricing-root a {
+    color: inherit;
+    -webkit-text-decoration: inherit;
+    text-decoration: inherit;
+  }
+  .serenity-pricing-root b, .serenity-pricing-root strong {
+    font-weight: bolder;
+  }
+  .serenity-pricing-root code, .serenity-pricing-root kbd, .serenity-pricing-root samp, .serenity-pricing-root pre {
+    font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+    font-feature-settings: var(--default-mono-font-feature-settings, normal);
+    font-variation-settings: var(--default-mono-font-variation-settings, normal);
+    font-size: 1em;
+  }
+  .serenity-pricing-root small {
+    font-size: 80%;
+  }
+  .serenity-pricing-root sub, .serenity-pricing-root sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+  }
+  .serenity-pricing-root sub {
+    bottom: -0.25em;
+  }
+  .serenity-pricing-root sup {
+    top: -0.5em;
+  }
+  .serenity-pricing-root table {
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+  }
+  .serenity-pricing-root :-moz-focusring {
+    outline: auto;
+  }
+  .serenity-pricing-root progress {
+    vertical-align: baseline;
+  }
+  .serenity-pricing-root summary {
+    display: list-item;
+  }
+  .serenity-pricing-root ol, .serenity-pricing-root ul, .serenity-pricing-root menu {
+    list-style: none;
+  }
+  .serenity-pricing-root img, .serenity-pricing-root svg, .serenity-pricing-root video, .serenity-pricing-root canvas, .serenity-pricing-root audio, .serenity-pricing-root iframe, .serenity-pricing-root embed, .serenity-pricing-root object {
+    display: block;
+    vertical-align: middle;
+  }
+  .serenity-pricing-root img, .serenity-pricing-root video {
+    max-width: 100%;
+    height: auto;
+  }
+  .serenity-pricing-root button, .serenity-pricing-root input, .serenity-pricing-root select, .serenity-pricing-root optgroup, .serenity-pricing-root textarea, .serenity-pricing-root ::file-selector-button {
+    font: inherit;
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    border-radius: 0;
+    background-color: transparent;
+    opacity: 1;
+  }
+  .serenity-pricing-root :where(select:is([multiple], [size])) optgroup {
+    font-weight: bolder;
+  }
+  .serenity-pricing-root :where(select:is([multiple], [size])) optgroup option {
+    padding-inline-start: 20px;
+  }
+  .serenity-pricing-root ::file-selector-button {
+    margin-inline-end: 4px;
+  }
+  .serenity-pricing-root ::-moz-placeholder {
+    opacity: 1;
+  }
+  .serenity-pricing-root ::placeholder {
+    opacity: 1;
+  }
+  @supports (not (-webkit-appearance: -apple-pay-button))  or (contain-intrinsic-size: 1px) {
+    .serenity-pricing-root ::-moz-placeholder {
+      color: currentcolor;
+      @supports (color: color-mix(in lab, red, red)) {
+        color: color-mix(in oklab, currentcolor 50%, transparent);
+      }
+    }
+    .serenity-pricing-root ::placeholder {
+      color: currentcolor;
+      @supports (color: color-mix(in lab, red, red)) {
+        color: color-mix(in oklab, currentcolor 50%, transparent);
+      }
+    }
+  }
+  .serenity-pricing-root textarea {
+    resize: vertical;
+  }
+  .serenity-pricing-root ::-webkit-search-decoration {
+    -webkit-appearance: none;
+  }
+  .serenity-pricing-root ::-webkit-date-and-time-value {
+    min-height: 1lh;
+    text-align: inherit;
+  }
+  .serenity-pricing-root ::-webkit-datetime-edit {
+    display: inline-flex;
+  }
+  .serenity-pricing-root ::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+  }
+  .serenity-pricing-root ::-webkit-datetime-edit, .serenity-pricing-root ::-webkit-datetime-edit-year-field, .serenity-pricing-root ::-webkit-datetime-edit-month-field, .serenity-pricing-root ::-webkit-datetime-edit-day-field, .serenity-pricing-root ::-webkit-datetime-edit-hour-field, .serenity-pricing-root ::-webkit-datetime-edit-minute-field, .serenity-pricing-root ::-webkit-datetime-edit-second-field, .serenity-pricing-root ::-webkit-datetime-edit-millisecond-field, .serenity-pricing-root ::-webkit-datetime-edit-meridiem-field {
+    padding-block: 0;
+  }
+  .serenity-pricing-root :-moz-ui-invalid {
+    box-shadow: none;
+  }
+  .serenity-pricing-root button, .serenity-pricing-root input:where([type="button"], [type="reset"], [type="submit"]), .serenity-pricing-root ::file-selector-button {
+    -webkit-appearance: button;
+       -moz-appearance: button;
+            appearance: button;
+  }
+  .serenity-pricing-root ::-webkit-inner-spin-button, .serenity-pricing-root ::-webkit-outer-spin-button {
+    height: auto;
+  }
+  .serenity-pricing-root [hidden]:where(:not([hidden="until-found"])) {
+    display: none !important;
+  }
+}
+@layer utilities {
+  .serenity-pricing-root .absolute {
+    position: absolute;
+  }
+  .serenity-pricing-root .relative {
+    position: relative;
+  }
+  .serenity-pricing-root .top-1\/2 {
+    top: calc(1/2 * 100%);
+  }
+  .serenity-pricing-root .left-0 {
+    left: calc(var(--spacing) * 0);
+  }
+  .serenity-pricing-root .order-last {
+    order: 9999;
+  }
+  .serenity-pricing-root .container {
+    width: 100%;
+    @media (width >= 40rem) {
+      max-width: 40rem;
+    }
+    @media (width >= 48rem) {
+      max-width: 48rem;
+    }
+    @media (width >= 64rem) {
+      max-width: 64rem;
+    }
+    @media (width >= 80rem) {
+      max-width: 80rem;
+    }
+    @media (width >= 100rem) {
+      max-width: 100rem;
+    }
+  }
+  .serenity-pricing-root .-mx-4 {
+    margin-inline: calc(var(--spacing) * -4);
+  }
+  .serenity-pricing-root .mx-auto {
+    margin-inline: auto;
+  }
+  .serenity-pricing-root .mt-2 {
+    margin-top: calc(var(--spacing) * 2);
+  }
+  .serenity-pricing-root .mt-4 {
+    margin-top: calc(var(--spacing) * 4);
+  }
+  .serenity-pricing-root .mt-5 {
+    margin-top: calc(var(--spacing) * 5);
+  }
+  .serenity-pricing-root .mt-8 {
+    margin-top: calc(var(--spacing) * 8);
+  }
+  .serenity-pricing-root .mt-10 {
+    margin-top: calc(var(--spacing) * 10);
+  }
+  .serenity-pricing-root .mt-16 {
+    margin-top: calc(var(--spacing) * 16);
+  }
+  .serenity-pricing-root .mb-6 {
+    margin-bottom: calc(var(--spacing) * 6);
+  }
+  .serenity-pricing-root .ml-4 {
+    margin-left: calc(var(--spacing) * 4);
+  }
+  .serenity-pricing-root .flex {
+    display: flex;
+  }
+  .serenity-pricing-root .grid {
+    display: grid;
+  }
+  .serenity-pricing-root .inline-flex {
+    display: inline-flex;
+  }
+  .serenity-pricing-root .table {
+    display: table;
+  }
+  .serenity-pricing-root .h-6 {
+    height: calc(var(--spacing) * 6);
+  }
+  .serenity-pricing-root .h-\[1em\] {
+    height: 1em;
+  }
+  .serenity-pricing-root .w-6 {
+    width: calc(var(--spacing) * 6);
+  }
+  .serenity-pricing-root .w-full {
+    width: 100%;
+  }
+  .serenity-pricing-root .max-w-2xl {
+    max-width: var(--container-2xl);
+  }
+  .serenity-pricing-root .max-w-7xl {
+    max-width: var(--container-7xl);
+  }
+  .serenity-pricing-root .max-w-\[80\%\] {
+    max-width: 80%;
+  }
+  .serenity-pricing-root .flex-none {
+    flex: none;
+  }
+  .serenity-pricing-root .transform {
+    transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);
+  }
+  .serenity-pricing-root .grid-cols-1 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  .serenity-pricing-root .flex-col {
+    flex-direction: column;
+  }
+  .serenity-pricing-root .items-center {
+    align-items: center;
+  }
+  .serenity-pricing-root .justify-center {
+    justify-content: center;
+  }
+  .serenity-pricing-root .gap-y-3 {
+    row-gap: calc(var(--spacing) * 3);
+  }
+  .serenity-pricing-root .gap-y-10 {
+    row-gap: calc(var(--spacing) * 10);
+  }
+  .serenity-pricing-root .rounded-3xl {
+    border-radius: var(--radius-3xl);
+  }
+  .serenity-pricing-root .rounded-full {
+    border-radius: calc(infinity * 1px);
+  }
+  .serenity-pricing-root .border {
+    border-style: var(--tw-border-style);
+    border-width: 1px;
+  }
+  .serenity-pricing-root .border-slate-700 {
+    border-color: var(--color-slate-700);
+  }
+  .serenity-pricing-root .border-slate-800 {
+    border-color: var(--color-slate-800);
+  }
+  .serenity-pricing-root .bg-black {
+    background-color: var(--color-black);
+  }
+  .serenity-pricing-root .bg-primary {
+    background-color: var(--color-primary);
+  }
+  .serenity-pricing-root .bg-serenity-deep-blue {
+    background-color: var(--color-serenity-deep-blue);
+  }
+  .serenity-pricing-root .bg-white {
+    background-color: var(--color-white);
+  }
+  .serenity-pricing-root .fill-primary\/30 {
+    fill: color-mix(in srgb, #4862ff 30%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      fill: color-mix(in oklab, var(--color-primary) 30%, transparent);
+    }
+  }
+  .serenity-pricing-root .px-4 {
+    padding-inline: calc(var(--spacing) * 4);
+  }
+  .serenity-pricing-root .px-6 {
+    padding-inline: calc(var(--spacing) * 6);
+  }
+  .serenity-pricing-root .py-2 {
+    padding-block: calc(var(--spacing) * 2);
+  }
+  .serenity-pricing-root .py-8 {
+    padding-block: calc(var(--spacing) * 8);
+  }
+  .serenity-pricing-root .py-20 {
+    padding-block: calc(var(--spacing) * 20);
+  }
+  .serenity-pricing-root .text-center {
+    text-align: center;
+  }
+  .serenity-pricing-root .text-2xl {
+    font-size: var(--text-2xl);
+    line-height: var(--tw-leading, var(--text-2xl--line-height));
+  }
+  .serenity-pricing-root .text-3xl {
+    font-size: var(--text-3xl);
+    line-height: var(--tw-leading, var(--text-3xl--line-height));
+  }
+  .serenity-pricing-root .text-base {
+    font-size: var(--text-base);
+    line-height: var(--tw-leading, var(--text-base--line-height));
+  }
+  .serenity-pricing-root .text-lg {
+    font-size: var(--text-lg);
+    line-height: var(--tw-leading, var(--text-lg--line-height));
+  }
+  .serenity-pricing-root .text-sm {
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+  }
+  .serenity-pricing-root .font-light {
+    --tw-font-weight: var(--font-weight-light);
+    font-weight: var(--font-weight-light);
+  }
+  .serenity-pricing-root .font-semibold {
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+  }
+  .serenity-pricing-root .tracking-tight {
+    --tw-tracking: var(--tracking-tight);
+    letter-spacing: var(--tracking-tight);
+  }
+  .serenity-pricing-root .whitespace-nowrap {
+    white-space: nowrap;
+  }
+  .serenity-pricing-root .text-red-400 {
+    color: var(--color-red-400);
+  }
+  .serenity-pricing-root .text-slate-200 {
+    color: var(--color-slate-200);
+  }
+  .serenity-pricing-root .text-slate-300 {
+    color: var(--color-slate-300);
+  }
+  .serenity-pricing-root .text-slate-400 {
+    color: var(--color-slate-400);
+  }
+  .serenity-pricing-root .text-slate-900 {
+    color: var(--color-slate-900);
+  }
+  .serenity-pricing-root .text-white {
+    color: var(--color-white);
+  }
+  .serenity-pricing-root .shadow {
+    --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 1px 2px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .serenity-pricing-root .transition {
+    transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter, display, visibility, content-visibility, overlay, pointer-events;
+    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+    transition-duration: var(--tw-duration, var(--default-transition-duration));
+  }
+  .serenity-pricing-root .hover\:bg-slate-100 {
+    .serenity-pricing-root &:hover {
+      @media (hover: hover) {
+        background-color: var(--color-slate-100);
+      }
+    }
+  }
+  .serenity-pricing-root .hover\:text-white {
+    .serenity-pricing-root &:hover {
+      @media (hover: hover) {
+        color: var(--color-white);
+      }
+    }
+  }
+  .serenity-pricing-root .focus-visible\:outline-2 {
+    .serenity-pricing-root &:focus-visible {
+      outline-style: var(--tw-outline-style);
+      outline-width: 2px;
+    }
+  }
+  .serenity-pricing-root .focus-visible\:outline-offset-2 {
+    .serenity-pricing-root &:focus-visible {
+      outline-offset: 2px;
+    }
+  }
+  .serenity-pricing-root .focus-visible\:outline-white {
+    .serenity-pricing-root &:focus-visible {
+      outline-color: var(--color-white);
+    }
+  }
+  .serenity-pricing-root .active\:bg-slate-100 {
+    .serenity-pricing-root &:active {
+      background-color: var(--color-slate-100);
+    }
+  }
+  .serenity-pricing-root .active\:text-slate-900 {
+    .serenity-pricing-root &:active {
+      color: var(--color-slate-900);
+    }
+  }
+  .serenity-pricing-root .active\:text-white {
+    .serenity-pricing-root &:active {
+      color: var(--color-white);
+    }
+  }
+  .serenity-pricing-root .sm\:mx-auto {
+    @media (width >= 40rem) {
+      margin-inline: auto;
+    }
+  }
+  .serenity-pricing-root .sm\:px-6 {
+    @media (width >= 40rem) {
+      padding-inline: calc(var(--spacing) * 6);
+    }
+  }
+  .serenity-pricing-root .sm\:px-8 {
+    @media (width >= 40rem) {
+      padding-inline: calc(var(--spacing) * 8);
+    }
+  }
+  .serenity-pricing-root .sm\:py-32 {
+    @media (width >= 40rem) {
+      padding-block: calc(var(--spacing) * 32);
+    }
+  }
+  .serenity-pricing-root .sm\:text-4xl {
+    @media (width >= 40rem) {
+      font-size: var(--text-4xl);
+      line-height: var(--tw-leading, var(--text-4xl--line-height));
+    }
+  }
+  .serenity-pricing-root .md\:grid-cols-2 {
+    @media (width >= 48rem) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .serenity-pricing-root .md\:gap-x-8 {
+    @media (width >= 48rem) {
+      -moz-column-gap: calc(var(--spacing) * 8);
+           column-gap: calc(var(--spacing) * 8);
+    }
+  }
+  .serenity-pricing-root .md\:text-center {
+    @media (width >= 48rem) {
+      text-align: center;
+    }
+  }
+  .serenity-pricing-root .lg\:order-0 {
+    @media (width >= 64rem) {
+      order: 0;
+    }
+  }
+  .serenity-pricing-root .lg\:-mx-8 {
+    @media (width >= 64rem) {
+      margin-inline: calc(var(--spacing) * -8);
+    }
+  }
+  .serenity-pricing-root .lg\:max-w-none {
+    @media (width >= 64rem) {
+      max-width: none;
+    }
+  }
+  .serenity-pricing-root .lg\:px-8 {
+    @media (width >= 64rem) {
+      padding-inline: calc(var(--spacing) * 8);
+    }
+  }
+  .serenity-pricing-root .lg\:py-8 {
+    @media (width >= 64rem) {
+      padding-block: calc(var(--spacing) * 8);
+    }
+  }
+  .serenity-pricing-root .xl\:mx-0 {
+    @media (width >= 80rem) {
+      margin-inline: calc(var(--spacing) * 0);
+    }
+  }
+  .serenity-pricing-root .xl\:grid-cols-3 {
+    @media (width >= 80rem) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  .serenity-pricing-root .xl\:gap-x-4 {
+    @media (width >= 80rem) {
+      -moz-column-gap: calc(var(--spacing) * 4);
+           column-gap: calc(var(--spacing) * 4);
+    }
+  }
+  .serenity-pricing-root .\32 xl\:grid-cols-5 {
+    @media (width >= 100rem) {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+  }
+  .serenity-pricing-root .\32 xl\:border-0 {
+    @media (width >= 100rem) {
+      border-style: var(--tw-border-style);
+      border-width: 0px;
+    }
+  }
+}
+@property --tw-rotate-x {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-rotate-y {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-rotate-z {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-skew-x {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-skew-y {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-border-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
+@property --tw-font-weight {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-tracking {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-inset-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-inset-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-inset-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-ring-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ring-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-inset-ring-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-inset-ring-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-ring-inset {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ring-offset-width {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --tw-ring-offset-color {
+  syntax: "*";
+  inherits: false;
+  initial-value: #fff;
+}
+@property --tw-ring-offset-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-outline-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
+@layer properties {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+    .serenity-pricing-root *, .serenity-pricing-root ::before, .serenity-pricing-root ::after, .serenity-pricing-root ::backdrop {
+      --tw-rotate-x: initial;
+      --tw-rotate-y: initial;
+      --tw-rotate-z: initial;
+      --tw-skew-x: initial;
+      --tw-skew-y: initial;
+      --tw-border-style: solid;
+      --tw-font-weight: initial;
+      --tw-tracking: initial;
+      --tw-shadow: 0 0 #0000;
+      --tw-shadow-color: initial;
+      --tw-shadow-alpha: 100%;
+      --tw-inset-shadow: 0 0 #0000;
+      --tw-inset-shadow-color: initial;
+      --tw-inset-shadow-alpha: 100%;
+      --tw-ring-color: initial;
+      --tw-ring-shadow: 0 0 #0000;
+      --tw-inset-ring-color: initial;
+      --tw-inset-ring-shadow: 0 0 #0000;
+      --tw-ring-inset: initial;
+      --tw-ring-offset-width: 0px;
+      --tw-ring-offset-color: #fff;
+      --tw-ring-offset-shadow: 0 0 #0000;
+      --tw-outline-style: solid;
+    }
+  }
+}
