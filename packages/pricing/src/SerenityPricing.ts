@@ -7,6 +7,7 @@ interface SerenityPricingElement extends HTMLElement {
   description?: SerenityPricingProps["description"];
   showCTA?: SerenityPricingProps["showCTA"];
   ctaText?: SerenityPricingProps["ctaText"];
+  typeOfPrice?: SerenityPricingProps["typeOfPrice"];
 }
 interface SerenityPricingRegistry {
   [id: string]: SerenityPricing;
@@ -68,6 +69,9 @@ export class SerenityPricing {
     if (options.ctaText !== undefined) {
       this.webComponent.ctaText = options.ctaText;
     }
+    if (options.typeOfPrice !== undefined) {
+      this.webComponent.typeOfPrice = options.typeOfPrice;
+    }
   }
 
   /**
@@ -87,6 +91,8 @@ export class SerenityPricing {
         return this.webComponent.showCTA as SerenityPricingProps[K];
       case "ctaText":
         return this.webComponent.ctaText as SerenityPricingProps[K];
+      case "typeOfPrice":
+        return this.webComponent.typeOfPrice as SerenityPricingProps[K];
       default:
         return undefined;
     }

@@ -15,7 +15,8 @@
     title = "Pricing",
     description = "Start with a free trial, no credit card required and pay-as-you-go.",
     showCTA = true,
-    ctaText = "Get Started"
+    ctaText = "Get Started",
+    typeOfPrice = "annual"
   }: SerenityPricingProps = $props();
   
   // State for pricing data
@@ -81,11 +82,14 @@
         {#each plans as plan}
           <Plan
             title={plan.title}
-            price={plan.price}
+            monthlyPrice={plan.monthlyPrice}
+            annualPricePerMonth={plan.annualPricePerMonth}
             description={plan.description}
             href={plan.href}
             features={plan.features}
-            featured={plan.isPopular}
+            isPopular={plan.isPopular}
+            showPrice={plan.showPrice}
+            typeOfPrice={typeOfPrice}
             {showCTA}
             {ctaText}
           />

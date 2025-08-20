@@ -280,7 +280,7 @@ The component includes scoped styles, but you can customize the appearance:
 
 ### Pricing Data API
 
-The component automatically fetches pricing data from: `https://mocki.io/v1/422fbbbf-ea3e-414c-878b-d87dfd62b122`
+The component automatically fetches pricing data from: `https://api.serenitystar.ai/api/v2/SubscriptionPlans`
 
 #### Expected Data Format
 

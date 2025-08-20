@@ -2,10 +2,13 @@ import type { HTMLAttributes } from "svelte/elements";
 
 export interface PricingPlan {
   title: string;
-  price: string;
+  // New price fields: monthly and annual-per-month
+  monthlyPrice: string;
+  annualPricePerMonth: string;
   features: string[];
   href?: string;
   isPopular?: boolean;
+  showPrice?: boolean;
   description?: string;
 }
 
@@ -20,4 +23,5 @@ export type SerenityPricingProps = {
   description?: string;
   showCTA?: boolean;
   ctaText?: string;
+  typeOfPrice?: "monthly" | "annual";
 }
