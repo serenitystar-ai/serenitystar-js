@@ -22,7 +22,6 @@
     typeOfPrice = "annual",
     showPrice = true,
   }: Props = $props();
-
 </script>
 
 <section
@@ -40,11 +39,16 @@
     {typeOfPrice === "annual" ? annualPricePerMonth : monthlyPrice}
   </p>
 
-  {#if showPrice}
-    <p class={clsx("text-sm", isPopular ? "text-slate-200" : "text-slate-400")}>
+  <p
+    class={clsx(
+      "text-sm min-h-4",
+      isPopular ? "text-slate-200" : "text-slate-400"
+    )}
+  >
+    {#if showPrice}
       {`${typeOfPrice === "annual" ? "/month (billed annually)" : "/month"}`}
-    </p>
-  {/if}
+    {/if}
+  </p>
 
   {#if description}
     <p

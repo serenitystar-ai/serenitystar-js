@@ -284,6 +284,9 @@
   .serenity-pricing-root .h-\[1em\] {
     height: 1em;
   }
+  .serenity-pricing-root .min-h-4 {
+    min-height: calc(var(--spacing) * 4);
+  }
   .serenity-pricing-root .w-6 {
     width: calc(var(--spacing) * 6);
   }
