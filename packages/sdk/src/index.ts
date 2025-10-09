@@ -5,6 +5,10 @@ import {
   ConversationInfoResult,
   ConversationRes,
   Message,
+  RemoveFeedbackOptions,
+  RemoveFeedbackResult,
+  SubmitFeedbackOptions,
+  SubmitFeedbackResult,
 } from "./scopes/conversational/Conversation/types";
 import { RealtimeSession } from "./scopes/conversational/RealtimeSession";
 import SerenityClient from "./SerenityClient";
@@ -26,5 +30,9 @@ export type {
   RateLimitErrorBody,
   ValidationErrorBody,
   Conversation,
-  Message
+  Message,
+  SubmitFeedbackOptions,
+  SubmitFeedbackResult,
+  RemoveFeedbackOptions,
+  RemoveFeedbackResult
 };

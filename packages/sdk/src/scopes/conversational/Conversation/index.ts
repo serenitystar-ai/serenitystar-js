@@ -10,6 +10,10 @@ import {
   ConversationRes,
   CreateExecuteBodyOptions,
   MessageAdditionalInfo,
+  SubmitFeedbackOptions,
+  SubmitFeedbackResult,
+  RemoveFeedbackOptions,
+  RemoveFeedbackResult,
 } from "./types";
 import { SseConnection } from "./SseConnection";
 import { AgentMapper } from "../../../utils/AgentMapper";
@@ -255,6 +259,103 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     
     this.info = data as ConversationInfoResult;
     return this.info;
+  }
+
+  /**
+   * Submit feedback for an agent message in the conversation.
+   * 
+   * @param options - The feedback options including the agent message ID and feedback value
+   * @returns A promise that resolves to the feedback submission result
+   * @throws Error if the conversation ID is not set or if the request fails
+   * 
+   * @example
+   * ```typescript
+   * const conversation = await client.agents.assistants.createConversation("agent-code");
+   * const response = await conversation.sendMessage("Hello!");
+   * 
+   * // Submit positive feedback
+   * await conversation.submitFeedback({
+   *   agentMessageId: response.agent_message_id!,
+   *   feedback: true
+   * });
+   * ```
+   */
+  async submitFeedback(options: SubmitFeedbackOptions): Promise<SubmitFeedbackResult> {
+    if (!this.conversationId) {
+      throw new Error("Conversation ID is not set. Please send a message first to initialize the conversation.");
+    }
+
+    const url = `${this.baseUrl}/agent/${this.agentCode}/conversation/${this.conversationId}/message/${options.agentMessageId}/feedback`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "X-API-KEY": this.apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        feedback: options.feedback
+      }),
+    });
+
+    if (response.status !== 200) {
+      return {
+        success: false,
+      }
+    }
+
+    return {
+      success: true
+    }
+  }
+
+  /**
+   * Remove feedback for an agent message in the conversation.
+   * 
+   * @param options - The feedback options including the agent message ID
+   * @returns A promise that resolves to the feedback removal result
+   * @throws Error if the conversation ID is not set or if the request fails
+   * 
+   * @example
+   * ```typescript
+   * const conversation = await client.agents.assistants.createConversation("agent-code");
+   * const response = await conversation.sendMessage("Hello!");
+   * 
+   * // Submit feedback first
+   * await conversation.submitFeedback({
+   *   agentMessageId: response.agent_message_id!,
+   *   feedback: true
+   * });
+   * 
+   * // Remove feedback
+   * await conversation.removeFeedback({
+   *   agentMessageId: response.agent_message_id!
+   * });
+   * ```
+   */
+  async removeFeedback(options: RemoveFeedbackOptions): Promise<RemoveFeedbackResult> {
+    if (!this.conversationId) {
+      throw new Error("Conversation ID is not set. Please send a message first to initialize the conversation.");
+    }
+
+    const url = `${this.baseUrl}/agent/${this.agentCode}/conversation/${this.conversationId}/message/${options.agentMessageId}/feedback`;
+
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        "X-API-KEY": this.apiKey,
+      },
+    });
+
+    if (response.status !== 200) {
+      return {
+        success: false,
+      }
+    }
+
+    return {
+      success: true
+    }
   }
 
   #createExecuteBody(options: CreateExecuteBodyOptions): ExecuteBodyParams {
