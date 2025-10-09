@@ -89,6 +89,8 @@ export type AgentResult = {
   action_results?: {
     [key: string]: PluginExecutionResult;
   };
+  agent_message_id?: string;
+  user_message_id?: string;
 }
 
 /**

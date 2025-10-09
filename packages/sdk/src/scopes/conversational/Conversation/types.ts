@@ -46,6 +46,7 @@ export type ChatWidgetRes = {
   engagementMessage: EngagementMessageRes;
   locale: LocaleRes;
   theme: ThemeRes;
+  enableFeedbackRecollection: boolean;
 }
 
 type EngagementMessageRes = {
@@ -175,6 +176,7 @@ export type Message = (
       conversationStarters?: string[];
     }
 ) & {
+  id: string;
   created_at: Date;
   type: "text" | "image" | "error" | "info";
   value: string;
@@ -277,4 +279,40 @@ export type MetaAnalysisRes = { [key: string]: any } & {
     medical_score?: number;
     tax_score?: number;
   }
+};
+
+// -------------------------------------------
+// *** Types for Message Feedback ***
+// -------------------------------------------
+
+export type SubmitFeedbackOptions = {
+  /**
+   * The ID of the agent message to provide feedback for
+   */
+  agentMessageId: string;
+  /**
+   * The feedback value - true for positive, false for negative
+   */
+  feedback: boolean;
+};
+
+export type SubmitFeedbackResult = {
+  /**
+   * Indicates if the feedback was successfully submitted
+   */
+  success: boolean;
+};
+
+export type RemoveFeedbackOptions = {
+  /**
+   * The ID of the agent message to remove feedback from
+   */
+  agentMessageId: string;
+};
+
+export type RemoveFeedbackResult = {
+  /**
+   * Indicates if the feedback was successfully removed
+   */
+  success: boolean;
 };
