@@ -226,6 +226,65 @@ session.unmuteMicrophone()
 session.stop();
 ```
 
+## Message Feedback
+
+You can collect user feedback on agent responses to help improve the quality of your assistant.
+
+### Submit feedback
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+// Create conversation with an assistant
+const conversation = await client.agents.assistants.createConversation("chef-assistant");
+
+// Send a message
+const response = await conversation.sendMessage("I would like to get a recipe for parmesan chicken");
+
+// Submit positive feedback (thumbs up)
+await conversation.submitFeedback({
+  agentMessageId: response.agent_message_id!,
+  feedback: true
+});
+
+// Or submit negative feedback (thumbs down)
+await conversation.submitFeedback({
+  agentMessageId: response.agent_message_id!,
+  feedback: false
+});
+```
+
+### Remove feedback
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+// Create conversation with an assistant
+const conversation = await client.agents.assistants.createConversation("chef-assistant");
+
+// Send a message
+const response = await conversation.sendMessage("I would like to get a recipe for parmesan chicken");
+
+// Submit feedback first
+await conversation.submitFeedback({
+  agentMessageId: response.agent_message_id!,
+  feedback: true
+});
+
+// Remove the feedback if the user changes their mind
+await conversation.removeFeedback({
+  agentMessageId: response.agent_message_id!
+});
+```
+
 ---
 
 # Activities
