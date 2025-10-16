@@ -83,7 +83,7 @@ export type PendingAction = {
   auth_type: string;
   url: string;
   connector_name: string;
-  connector_image_url?: string;
+  connector_img_url?: string;
   connector_id?: string;
 }
 
