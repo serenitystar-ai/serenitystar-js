@@ -2,8 +2,10 @@ import "./polyfill";
 import { Conversation } from "./scopes/conversational/Conversation";
 import {
   ChatWidgetRes,
+  ConnectorStatusResult,
   ConversationInfoResult,
   ConversationRes,
+  GetConnectorStatusOptions,
   Message,
   RemoveFeedbackOptions,
   RemoveFeedbackResult,
@@ -15,6 +17,7 @@ import SerenityClient from "./SerenityClient";
 import {
   AgentResult,
   BaseErrorBody,
+  PendingAction,
   RateLimitErrorBody,
   ValidationErrorBody,
 } from "./types";
@@ -34,5 +37,8 @@ export type {
   SubmitFeedbackOptions,
   SubmitFeedbackResult,
   RemoveFeedbackOptions,
-  RemoveFeedbackResult
+  RemoveFeedbackResult,
+  GetConnectorStatusOptions,
+  ConnectorStatusResult,
+  PendingAction
 };

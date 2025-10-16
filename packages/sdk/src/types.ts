@@ -78,6 +78,15 @@ export type SystemAgentExecutionOptionsMap = {
   "proxy": AgentExecutionOptions & ProxyExecutionOptions
 }
 
+export type PendingAction = {
+  type: string;
+  auth_type: string;
+  url: string;
+  connector_name: string;
+  connector_image_url?: string;
+  connector_id?: string;
+}
+
 export type AgentResult = {
   content: string;
   instance_id: string;
@@ -91,6 +100,7 @@ export type AgentResult = {
   };
   agent_message_id?: string;
   user_message_id?: string;
+  pending_actions?: PendingAction[];
 }
 
 /**

@@ -14,6 +14,8 @@ import {
   SubmitFeedbackResult,
   RemoveFeedbackOptions,
   RemoveFeedbackResult,
+  GetConnectorStatusOptions,
+  ConnectorStatusResult,
 } from "./types";
 import { SseConnection } from "./SseConnection";
 import { AgentMapper } from "../../../utils/AgentMapper";
@@ -356,6 +358,46 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     return {
       success: true
     }
+  }
+
+  /**
+   * Get the connector status for a specific agent instance and connector.
+   * 
+   * @param options - The connector status options including agent instance ID and connector ID
+   * @returns A promise that resolves to the connector status result
+   * @throws Error if the request fails
+   * 
+   * @example
+   * ```typescript
+   * const conversation = await client.agents.assistants.createConversation("agent-code");
+   * 
+   * // Check connector status
+   * const status = await conversation.getConnectorStatus({
+   *   agentInstanceId: conversation.conversationId!,
+   *   connectorId: "connector-uuid"
+   * });
+   * 
+   * console.log(status.isConnected); // true or false
+   * ```
+   */
+  async getConnectorStatus(options: GetConnectorStatusOptions): Promise<ConnectorStatusResult> {
+    const url = `${this.baseUrl}/connection/agentInstance/${options.agentInstanceId}/connector/${options.connectorId}/status`;
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "X-API-KEY": this.apiKey,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.status !== 200) {
+      const error = await InternalErrorHelper.process(response, "Failed to get connector status");
+      throw error;
+    }
+
+    const data = await response.json();
+    return data as ConnectorStatusResult;
   }
 
   #createExecuteBody(options: CreateExecuteBodyOptions): ExecuteBodyParams {

@@ -285,6 +285,46 @@ await conversation.removeFeedback({
 });
 ```
 
+## Connector Status
+
+Check the connection status of an agent's connector.
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+// Create conversation with an assistant
+const conversation = await client.agents.assistants.createConversation("chef-assistant");
+
+// Send a message that might require a connector
+const response = await conversation.sendMessage("I need a summary of my latest meeting notes stored in google drive");
+
+// Here the user should complete the authentication process.
+
+// Check connector status for this conversation (you can use a loop to check every 5 seconds)
+const status = await conversation.getConnectorStatus({
+  agentInstanceId: conversation.conversationId!,
+  // get the connector id using response.pending_actions[index].connector_id
+  connectorId: "connector-uuid"
+});
+
+console.log(status.isConnected); // true or false
+
+// You can use this to determine if a connector needs authentication
+if (!status.isConnected) {
+  console.log("Connector is not connected. Please authenticate.");
+  // After user authenticates the connector...
+}
+
+// Once connected, send the message again
+// The agent will now have access to Google Drive to retrieve the meeting notes
+const newResponse = await conversation.sendMessage("I need a summary of my latest meeting notes stored in google drive");
+console.log(newResponse.content); // Summary of the meeting notes
+```
+
 ---
 
 # Activities
