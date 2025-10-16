@@ -316,3 +316,25 @@ export type RemoveFeedbackResult = {
    */
   success: boolean;
 };
+
+// -------------------------------------------
+// *** Types for Connector Status ***
+// -------------------------------------------
+
+export type GetConnectorStatusOptions = {
+  /**
+   * The agent instance identifier (conversation ID)
+   */
+  agentInstanceId: string;
+  /**
+   * The connector identifier
+   */
+  connectorId: string;
+};
+
+export type ConnectorStatusResult = {
+  /**
+   * Indicates if the connector is connected
+   */
+  isConnected: boolean;
+};
