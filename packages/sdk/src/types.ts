@@ -255,9 +255,42 @@ export type BaseErrorBody = {
 };
 
 export type ValidationErrorBody = BaseErrorBody & {
-  errors: { [key: string]: string };
+  errors: { [key: string]: string | string[] };
 };
 
 export type RateLimitErrorBody = BaseErrorBody & {
   retryAfter: number; // seconds
 };
+
+export type FileError = {
+  file?: File;
+  error: Error;
+};
+
+export type VolatileKnowledgeUploadRes = 
+  | {
+      success: true;
+      id: string;
+      expirationDate: string;
+      status: string;
+      fileName: string;
+      fileSize: number;
+    }
+  | {
+      success: false;
+      error: FileError;
+    };
+
+export type VolatileKnowledgeUploadOptions = {
+  processEmbeddings?: boolean;
+  noExpiration?: boolean;
+  expirationDays?: number;
+  useVision?: boolean;
+  locale?: {
+    uploadFileErrorMessage?: string;
+  }
+}
+
+export type UnauthorizedErrorBody = BaseErrorBody
+
+export type RequestEntityTooLargeErrorBody = BaseErrorBody

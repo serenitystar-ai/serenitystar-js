@@ -17,13 +17,17 @@ import SerenityClient from "./SerenityClient";
 import {
   AgentResult,
   BaseErrorBody,
+  FileError,
   PendingAction,
   RateLimitErrorBody,
   ValidationErrorBody,
+  VolatileKnowledgeUploadOptions,
+  VolatileKnowledgeUploadRes,
 } from "./types";
 import { ExternalErrorHelper } from "./utils/ErrorHelper";
+import { VolatileKnowledgeManager } from "./utils/VolatileKnowledgeManager";
 
-export { SerenityClient, RealtimeSession, ExternalErrorHelper as ErrorHelper };
+export { SerenityClient, RealtimeSession, ExternalErrorHelper as ErrorHelper, VolatileKnowledgeManager };
 export type {
   AgentResult,
   ConversationRes,
@@ -40,5 +44,8 @@ export type {
   RemoveFeedbackResult,
   GetConnectorStatusOptions,
   ConnectorStatusResult,
-  PendingAction
+  PendingAction,
+  VolatileKnowledgeUploadOptions,
+  VolatileKnowledgeUploadRes,
+  FileError
 };

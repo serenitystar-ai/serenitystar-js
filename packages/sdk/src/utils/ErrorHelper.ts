@@ -1,6 +1,8 @@
 import {
   BaseErrorBody,
   RateLimitErrorBody,
+  RequestEntityTooLargeErrorBody,
+  UnauthorizedErrorBody,
   ValidationErrorBody,
 } from "../types";
 
@@ -66,6 +68,45 @@ export class InternalErrorHelper {
       } as BaseErrorBody;
     }
   }
+
+  static processFile = (
+      statusCode: number,
+      file: File,
+      responseBody: unknown,
+      fallbackErrorMessage?: string
+    ) => {
+      switch (statusCode) {
+        case 401: {
+          const body = responseBody as UnauthorizedErrorBody;
+          return `${file.name}: ${body.message}`;
+        }
+        case 400: {
+          const body = responseBody as ValidationErrorBody;
+          return `${file.name}: ${this.#mergeFileErrors(body)}`;
+        }
+        case 413: {
+          const body = responseBody as RequestEntityTooLargeErrorBody;
+          return `${file.name}: ${body.message}`;
+        }
+        default: {
+          return `${file.name}: ${fallbackErrorMessage || "An unknown error occurred while uploading the file."}`;
+        }
+      }
+    };
+  
+  static #mergeFileErrors = (error: ValidationErrorBody) => {
+    // Validation errors uploading a file
+    if (error.errors && error.errors["File"]) {
+      if(Array.isArray(error.errors["File"])) {
+        return error.errors["File"].join(", ");
+      } else {
+        return error.errors["File"]
+      }
+    }
+
+    // merge errors into a single string
+    return Object.values(error.errors).flat().join(", ");
+  };
 }
 
 export class ExternalErrorHelper {
@@ -126,5 +167,3 @@ export class ExternalErrorHelper {
     );
   }
 }
-// dividir helper en dos. internal y external.
-// exportar el external para que pueda ser usado en el chat widget
