@@ -1,4 +1,4 @@
-import { ExecuteBodyParams } from "../../../types";
+import { ExecuteBodyParams, VolatileKnowledgeUploadRes } from "../../../types";
 
 export type MessageAdditionalInfo = {
   inputParameters?: { [key: string]: any }
@@ -198,14 +198,6 @@ export type SpeechGenerationResult = {
   finish_reason?: string;
   usage?: object;
 }
-
-export type VolatileKnowledgeUploadRes = {
-  id: string;
-  expirationDate: string;
-  status: string;
-  fileName: string;
-  fileSize: number;
-};
 
 export type AttachedVolatileKnowledge = {
   id: string;

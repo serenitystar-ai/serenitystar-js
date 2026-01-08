@@ -2,12 +2,27 @@ import { EventEmitter } from "../../EventEmitter";
 import { AgentResult, ExecuteBodyParams, SSEStreamEvents } from "../../types";
 import { AgentMapper } from "../../utils/AgentMapper";
 import { InternalErrorHelper } from "../../utils/ErrorHelper";
+import { VolatileKnowledgeManager } from "../../utils/VolatileKnowledgeManager";
 import { SseConnection } from "../conversational/Conversation/SseConnection";
 import { SystemAgentExecutionOptionsMap } from "./../../types";
 
 export abstract class SystemAgent<
   T extends keyof SystemAgentExecutionOptionsMap,
 > extends EventEmitter<SSEStreamEvents> {
+  /**
+   * Volatile knowledge manager for uploading and managing temporary files.
+   * Files uploaded through this manager will be included in the next execution.
+   * 
+   * @example
+   * ```typescript
+   * const uploadResult = await activity.volatileKnowledge.upload(file);
+   * if (uploadResult.success) {
+   *   console.log('File uploaded:', uploadResult.id);
+   * }
+   * ```
+   */
+  public readonly volatileKnowledge: VolatileKnowledgeManager;
+
   protected constructor(
     protected readonly agentCode: string,
     protected readonly apiKey: string,
@@ -15,6 +30,7 @@ export abstract class SystemAgent<
     protected readonly options?: SystemAgentExecutionOptionsMap[T]
   ) {
     super();
+    this.volatileKnowledge = new VolatileKnowledgeManager(baseUrl, apiKey);
   }
 
   async stream(): Promise<AgentResult> {
@@ -46,6 +62,8 @@ export abstract class SystemAgent<
 
       connection.on("stop", (data) => {
         const finalMessage = JSON.parse(data) as { result: AgentResult };
+        // Clear volatile knowledge IDs after message is sent
+        this.volatileKnowledge.clear();
         this.emit("stop", finalMessage.result);
         resolve(finalMessage.result);
       });
@@ -93,7 +111,10 @@ export abstract class SystemAgent<
     }
     
     const data = await response.json();
-    return AgentMapper.mapAgentResultToSnakeCase(data);
+    const mappedData = AgentMapper.mapAgentResultToSnakeCase(data);
+    // Clear volatile knowledge IDs after message is sent
+    this.volatileKnowledge.clear();
+    return mappedData;
   }
 
   protected createExecuteBody(
@@ -123,15 +144,17 @@ export abstract class SystemAgent<
   }
 
   protected appendVolatileKnowledgeIdsIfNeeded(body: ExecuteBodyParams) {
-    if (
-      !this.options?.volatileKnowledgeIds ||
-      this.options.volatileKnowledgeIds.length === 0
-    )
-      return;
+    // Merge volatile knowledge IDs from both sources and remove duplicates
+    const mergedVolatileKnowledgeIds = Array.from(new Set([
+      ...(this.options?.volatileKnowledgeIds ?? []),
+      ...this.volatileKnowledge.getIds()
+    ]));
+
+    if (mergedVolatileKnowledgeIds.length === 0) return;
 
     body.push({
       Key: "volatileKnowledgeIds",
-      Value: this.options.volatileKnowledgeIds,
+      Value: mergedVolatileKnowledgeIds,
     });
   }
 
@@ -143,4 +166,6 @@ export abstract class SystemAgent<
       });
     }
   }
+
+
 }

@@ -20,6 +20,7 @@ import {
 import { SseConnection } from "./SseConnection";
 import { AgentMapper } from "../../../utils/AgentMapper";
 import { InternalErrorHelper } from "../../../utils/ErrorHelper";
+import { VolatileKnowledgeManager } from "../../../utils/VolatileKnowledgeManager";
 
 export class Conversation extends EventEmitter<SSEStreamEvents> {
   private agentCode: string;
@@ -33,6 +34,20 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
   private inputParameters?: { [key: string]: any };
   public conversationId?: string;
   public info: ConversationInfoResult | null = null;
+  
+  /**
+   * Volatile knowledge manager for uploading and managing temporary files.
+   * Files uploaded through this manager will be included in the next message/execution.
+   * 
+   * @example
+   * ```typescript
+   * const uploadResult = await conversation.volatileKnowledge.upload(file);
+   * if (uploadResult.success) {
+   *   console.log('File uploaded:', uploadResult.id);
+   * }
+   * ```
+   */
+  public readonly volatileKnowledge: VolatileKnowledgeManager;
 
   private constructor(
     agentCode: string,
@@ -44,6 +59,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     this.apiKey = apiKey;
     this.agentCode = agentCode;
     this.baseUrl = baseUrl;
+    this.volatileKnowledge = new VolatileKnowledgeManager(baseUrl, apiKey);
 
     this.agentVersion = options?.agentVersion;
     this.userIdentifier = options?.userIdentifier;
@@ -108,6 +124,8 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
         if (!this.conversationId) {
           this.conversationId = finalMessage.result.instance_id;
         }
+        // Clear volatile knowledge IDs after message is sent
+        this.volatileKnowledge.clear();
         this.emit("stop", finalMessage.result);
         resolve(finalMessage.result);
       });
@@ -165,6 +183,8 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     if (!this.conversationId) {
       this.conversationId = mappedData.instance_id;
     }
+    // Clear volatile knowledge IDs after message is sent
+    this.volatileKnowledge.clear();
 
     return mappedData;
   }
@@ -400,6 +420,8 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     return data as ConnectorStatusResult;
   }
 
+
+
   #createExecuteBody(options: CreateExecuteBodyOptions): ExecuteBodyParams {
     let body: ExecuteBodyParams = [
       {
@@ -428,9 +450,15 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       ...(this.inputParameters ?? {})
       }
     );
+    
+    // Merge volatile knowledge IDs from both sources and remove duplicates
+    const mergedVolatileKnowledgeIds = Array.from(new Set([
+      ...(options.additionalInfo?.volatileKnowledgeIds ?? []),
+      ...this.volatileKnowledge.getIds()
+    ]));
     this.#appendVolatileKnowledgeIdsIfNeeded(
       body,
-      options.additionalInfo?.volatileKnowledgeIds
+      mergedVolatileKnowledgeIds.length > 0 ? mergedVolatileKnowledgeIds : undefined
     );
     this.#appendChannelIfNeeded(body);
 

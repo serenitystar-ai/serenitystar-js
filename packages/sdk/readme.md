@@ -38,8 +38,7 @@ npm install @serenity-star/sdk
 import SerenityClient from '@serenity-star/sdk';
 
 const client = new SerenityClient({
-  apiKey: '<SERENITY_API_KEY>',
-  apiVersion: 2 // Optional. 2 by default
+  apiKey: '<SERENITY_API_KEY>'
 });
 
 // Execute an activity agent
@@ -325,6 +324,100 @@ const newResponse = await conversation.sendMessage("I need a summary of my lates
 console.log(newResponse.content); // Summary of the meeting notes
 ```
 
+## Upload Files (volatile knowledge)
+
+Upload files to be used as context in your conversations. Files are automatically included in the next message sent.
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+// Create conversation with an assistant
+const conversation = await client.agents.assistants.createConversation("document-analyzer");
+
+// Upload a file (basic example)
+const file = new File(["content"], "document.pdf", { type: "application/pdf" });
+const uploadResult = await conversation.volatileKnowledge.upload(file);
+
+// Check if upload was successful
+if (uploadResult.success) {
+  console.log(
+    uploadResult.id,              // File ID
+    uploadResult.fileName,         // "document.pdf"
+    uploadResult.fileSize,         // Size in bytes
+    uploadResult.expirationDate,   // When the file will be deleted
+    uploadResult.status            // "processing" or "ready"
+  );
+  
+  // Send a message - the uploaded file will be automatically included
+  const response = await conversation.sendMessage("What are the main points in this document?");
+  console.log(response.content); // Analysis based on the uploaded file
+} else {
+  // Handle upload errors
+  console.error("Upload failed:", uploadResult.error);
+}
+
+// Upload with options
+const imageFile = new File(["image data"], "chart.png", { type: "image/png" });
+const uploadWithOptions = await conversation.volatileKnowledge.upload(imageFile, {
+  useVision: true,              // Enable vision for image files (automatically skips embeddings for images)
+  noExpiration: false,          // File will expire (default behavior)
+  expirationDays: 7,           // Custom expiration in days
+  locale: {
+    uploadFileErrorMessage: "Failed to upload file. Please try again." // You can optionally provide localized error messages
+  }
+});
+
+if (uploadWithOptions.success) {
+  // The file is now ready to be used in the next message
+  const response = await conversation.sendMessage("Describe what you see in this chart");
+  console.log(response.content);
+}
+
+// Check file status by ID
+const fileStatus = await conversation.volatileKnowledge.getById(uploadResult.id);
+
+if (fileStatus.success) {
+  console.log(
+    fileStatus.status,           // "analyzing", "invalid", "success", "error", or "expired"
+    fileStatus.fileName,         // "document.pdf"
+    fileStatus.fileSize,         // Size in bytes
+    fileStatus.expirationDate    // When the file will be deleted
+  );
+} else {
+  console.error("Failed to fetch file status:", fileStatus.error);
+}
+
+// Remove a specific file from the queue
+const file1 = new File(["content 1"], "doc1.pdf", { type: "application/pdf" });
+const file2 = new File(["content 2"], "doc2.pdf", { type: "application/pdf" });
+
+const upload1 = await conversation.volatileKnowledge.upload(file1);
+const upload2 = await conversation.volatileKnowledge.upload(file2);
+
+if (upload1.success && upload2.success) {
+  // Remove only the first file
+  conversation.volatileKnowledge.removeById(upload1.id);
+  
+  // Now only file2 will be included in the next message
+  const response = await conversation.sendMessage("Analyze these documents");
+  console.log(response.content);
+}
+
+// Clear all files from the queue
+await conversation.volatileKnowledge.upload(file1);
+await conversation.volatileKnowledge.upload(file2);
+
+// Clear all pending files
+conversation.volatileKnowledge.clear();
+
+// No files will be included in this message
+const response = await conversation.sendMessage("Hello");
+```
+
 ---
 
 # Activities
@@ -387,6 +480,100 @@ console.log(
   response.completion_usage, // { completion_tokens: 200, prompt_tokens: 30, total_tokens: 230 }
   response.executor_task_logs, // [ { description: 'Task 1', duration: 100 }, { description: 'Task 2', duration: 500 }]
 );
+```
+
+## Upload Files (volatile knowledge)
+
+Upload files to be used as context in your activity execution. Files are automatically included in the next execution.
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+// Create activity instance
+const activity = client.agents.activities.create("data-analyzer");
+
+// Upload a file
+const file = new File(["content"], "data.csv", { type: "text/csv" });
+const uploadResult = await activity.volatileKnowledge.upload(file);
+
+// Check if upload was successful
+if (uploadResult.success) {
+  console.log(
+    uploadResult.id,              // File ID
+    uploadResult.fileName,         // "data.csv"
+    uploadResult.fileSize,         // Size in bytes
+    uploadResult.expirationDate,   // When the file will be deleted
+    uploadResult.status            // "analyzing", "invalid", "success", "error", or "expired"
+  );
+  
+  // Execute the activity - the uploaded file will be automatically included
+  const response = await activity.execute();
+  console.log(response.content); // Analysis based on the uploaded file
+} else {
+  // Handle upload errors
+  console.error("Upload failed:", uploadResult.error);
+}
+
+// Upload with options
+const imageFile = new File(["image data"], "chart.png", { type: "image/png" });
+const uploadWithOptions = await activity.volatileKnowledge.upload(imageFile, {
+  useVision: true,              // Enable vision for image files (automatically skips embeddings for images)
+  noExpiration: false,          // File will expire (default behavior)
+  expirationDays: 7,           // Custom expiration in days
+  locale: {
+    uploadFileErrorMessage: "Failed to upload file. Please try again." // You can optionally provide localized error messages
+  }
+});
+
+if (uploadWithOptions.success) {
+  // The file is now ready to be used in the execution
+  const response = await activity.execute();
+  console.log(response.content);
+}
+
+// Check file status by ID
+const fileStatus = await activity.volatileKnowledge.getById(uploadResult.id);
+
+if (fileStatus.success) {
+  console.log(
+    fileStatus.status,           // "analyzing", "invalid", "success", "error", or "expired"
+    fileStatus.fileName,         // "data.csv"
+    fileStatus.fileSize,         // Size in bytes
+    fileStatus.expirationDate    // When the file will be deleted
+  );
+} else {
+  console.error("Failed to fetch file status:", fileStatus.error);
+}
+
+// Remove a specific file from the queue
+const file1 = new File(["content 1"], "data1.csv", { type: "text/csv" });
+const file2 = new File(["content 2"], "data2.csv", { type: "text/csv" });
+
+const upload1 = await activity.volatileKnowledge.upload(file1);
+const upload2 = await activity.volatileKnowledge.upload(file2);
+
+if (upload1.success && upload2.success) {
+  // Remove only the first file
+  activity.volatileKnowledge.removeById(upload1.id);
+  
+  // Now only file2 will be included in the next execution
+  const response = await activity.execute();
+  console.log(response.content);
+}
+
+// Clear all files from the queue
+await activity.volatileKnowledge.upload(file1);
+await activity.volatileKnowledge.upload(file2);
+
+// Clear all pending files
+activity.volatileKnowledge.clear();
+
+// No files will be included in this execution
+const response = await activity.execute();
 ```
 
 ---
@@ -492,6 +679,105 @@ The following options can be passed as the second parameter in `execute` or `cre
 }
 ```
 
+## Upload Files (volatile knowledge)
+
+Upload files to be used as context in your proxy execution. Files are automatically included in the next execution.
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+// Create proxy instance
+const proxy = client.agents.proxies.create("proxy-agent", {
+  model: "gpt-4o-mini-2024-07-18",
+  messages: [
+    { role: "user", content: "Analyze this document" },
+  ],
+});
+
+// Upload a file
+const file = new File(["content"], "report.pdf", { type: "application/pdf" });
+const uploadResult = await proxy.volatileKnowledge.upload(file);
+
+// Check if upload was successful
+if (uploadResult.success) {
+  console.log(
+    uploadResult.id,              // File ID
+    uploadResult.fileName,         // "report.pdf"
+    uploadResult.fileSize,         // Size in bytes
+    uploadResult.expirationDate,   // When the file will be deleted
+    uploadResult.status            // "analyzing", "invalid", "success", "error", or "expired"
+  );
+  
+  // Execute the proxy - the uploaded file will be automatically included
+  const response = await proxy.execute();
+  console.log(response.content); // Analysis based on the uploaded file
+} else {
+  // Handle upload errors
+  console.error("Upload failed:", uploadResult.error);
+}
+
+// Upload with options
+const imageFile = new File(["image data"], "diagram.png", { type: "image/png" });
+const uploadWithOptions = await proxy.volatileKnowledge.upload(imageFile, {
+  useVision: true,              // Enable vision for image files (automatically skips embeddings for images)
+  noExpiration: false,          // File will expire (default behavior)
+  expirationDays: 7,           // Custom expiration in days
+  locale: {
+    uploadFileErrorMessage: "Failed to upload file. Please try again." // You can optionally provide localized error messages
+  }
+});
+
+if (uploadWithOptions.success) {
+  // The file is now ready to be used in the execution
+  const response = await proxy.execute();
+  console.log(response.content);
+}
+
+// Check file status by ID
+const fileStatus = await proxy.volatileKnowledge.getById(uploadResult.id);
+
+if (fileStatus.success) {
+  console.log(
+    fileStatus.status,           // "analyzing", "invalid", "success", "error", or "expired"
+    fileStatus.fileName,         // "report.pdf"
+    fileStatus.fileSize,         // Size in bytes
+    fileStatus.expirationDate    // When the file will be deleted
+  );
+} else {
+  console.error("Failed to fetch file status:", fileStatus.error);
+}
+
+// Remove a specific file from the queue
+const file1 = new File(["content 1"], "report1.pdf", { type: "application/pdf" });
+const file2 = new File(["content 2"], "report2.pdf", { type: "application/pdf" });
+
+const upload1 = await proxy.volatileKnowledge.upload(file1);
+const upload2 = await proxy.volatileKnowledge.upload(file2);
+
+if (upload1.success && upload2.success) {
+  // Remove only the first file
+  proxy.volatileKnowledge.removeById(upload1.id);
+  
+  // Now only file2 will be included in the next execution
+  const response = await proxy.execute();
+  console.log(response.content);
+}
+
+// Clear all files from the queue
+await proxy.volatileKnowledge.upload(file1);
+await proxy.volatileKnowledge.upload(file2);
+
+// Clear all pending files
+proxy.volatileKnowledge.clear();
+
+// No files will be included in this execution
+const response = await proxy.execute();
+```
+
 ---
 
 
@@ -569,4 +855,100 @@ console.log(
   response.content, // AI-generated response
   response.completion_usage // { completion_tokens: 200, prompt_tokens: 30, total_tokens: 230 }
 );
+```
+
+## Upload Files (volatile knowledge)
+
+Upload files to be used as context in your chat completion execution. Files are automatically included in the next execution.
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+// Create chat completion instance
+const chatCompletion = client.agents.chatCompletions.create("document-assistant", {
+  message: "Summarize this document"
+});
+
+// Upload a file
+const file = new File(["content"], "document.pdf", { type: "application/pdf" });
+const uploadResult = await chatCompletion.volatileKnowledge.upload(file);
+
+// Check if upload was successful
+if (uploadResult.success) {
+  console.log(
+    uploadResult.id,              // File ID
+    uploadResult.fileName,         // "document.pdf"
+    uploadResult.fileSize,         // Size in bytes
+    uploadResult.expirationDate,   // When the file will be deleted
+    uploadResult.status            // "analyzing", "invalid", "success", "error", or "expired"
+  );
+  
+  // Execute the chat completion - the uploaded file will be automatically included
+  const response = await chatCompletion.execute();
+  console.log(response.content); // Summary based on the uploaded file
+} else {
+  // Handle upload errors
+  console.error("Upload failed:", uploadResult.error);
+}
+
+// Upload with options
+const imageFile = new File(["image data"], "screenshot.png", { type: "image/png" });
+const uploadWithOptions = await chatCompletion.volatileKnowledge.upload(imageFile, {
+  useVision: true,              // Enable vision for image files (automatically skips embeddings for images)
+  noExpiration: false,          // File will expire (default behavior)
+  expirationDays: 7,           // Custom expiration in days
+  locale: {
+    uploadFileErrorMessage: "Failed to upload file. Please try again." // You can optionally provide localized error messages
+  }
+});
+
+if (uploadWithOptions.success) {
+  // The file is now ready to be used in the execution
+  const response = await chatCompletion.execute();
+  console.log(response.content);
+}
+
+// Check file status by ID
+const fileStatus = await chatCompletion.volatileKnowledge.getById(uploadResult.id);
+
+if (fileStatus.success) {
+  console.log(
+    fileStatus.status,           // "analyzing", "invalid", "success", "error", or "expired"
+    fileStatus.fileName,         // "document.pdf"
+    fileStatus.fileSize,         // Size in bytes
+    fileStatus.expirationDate    // When the file will be deleted
+  );
+} else {
+  console.error("Failed to fetch file status:", fileStatus.error);
+}
+
+// Remove a specific file from the queue
+const file1 = new File(["content 1"], "doc1.pdf", { type: "application/pdf" });
+const file2 = new File(["content 2"], "doc2.pdf", { type: "application/pdf" });
+
+const upload1 = await chatCompletion.volatileKnowledge.upload(file1);
+const upload2 = await chatCompletion.volatileKnowledge.upload(file2);
+
+if (upload1.success && upload2.success) {
+  // Remove only the first file
+  chatCompletion.volatileKnowledge.removeById(upload1.id);
+  
+  // Now only file2 will be included in the next execution
+  const response = await chatCompletion.execute();
+  console.log(response.content);
+}
+
+// Clear all files from the queue
+await chatCompletion.volatileKnowledge.upload(file1);
+await chatCompletion.volatileKnowledge.upload(file2);
+
+// Clear all pending files
+chatCompletion.volatileKnowledge.clear();
+
+// No files will be included in this execution
+const response = await chatCompletion.execute();
 ```
