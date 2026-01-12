@@ -3,6 +3,7 @@ import {
   AgentExecutionOptions,
   AgentResult,
   ExecuteBodyParams,
+  FileUploadRes,
   SSEStreamEvents,
 } from "../../../types";
 import {
@@ -21,6 +22,7 @@ import { SseConnection } from "./SseConnection";
 import { AgentMapper } from "../../../utils/AgentMapper";
 import { InternalErrorHelper } from "../../../utils/ErrorHelper";
 import { VolatileKnowledgeManager } from "../../../utils/VolatileKnowledgeManager";
+import { FileManager } from "../../../utils/FileManager";
 
 export class Conversation extends EventEmitter<SSEStreamEvents> {
   private agentCode: string;
@@ -48,6 +50,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
    * ```
    */
   public readonly volatileKnowledge: VolatileKnowledgeManager;
+  private readonly fileManager: FileManager;
 
   private constructor(
     agentCode: string,
@@ -60,6 +63,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     this.agentCode = agentCode;
     this.baseUrl = baseUrl;
     this.volatileKnowledge = new VolatileKnowledgeManager(baseUrl, apiKey);
+    this.fileManager = new FileManager(baseUrl, apiKey);
 
     this.agentVersion = options?.agentVersion;
     this.userIdentifier = options?.userIdentifier;
@@ -90,103 +94,69 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     message: string,
     options?: MessageAdditionalInfo
   ): Promise<AgentResult> {
-    const version = this.agentVersion ? `/${this.agentVersion}` : "";
-    const url = `${this.baseUrl}/v2/agent/${this.agentCode}/execute${version}`;
-
-    let body = this.#createExecuteBody({
+    const bodyOptions: CreateExecuteBodyOptions = {
       message,
       stream: true,
       additionalInfo: options,
       isNewConversation: !this.conversationId,
-    });
-
-    const connection = new SseConnection();
-    let responsePromise: Promise<AgentResult>;
-
-    responsePromise = new Promise(async (resolve, reject) => {
-      connection.on("start", () => {
-        this.emit("start");
-      });
-
-      connection.on("error", (data) => {
-        const error = JSON.parse(data);
-        this.emit("error", error);
-        reject(error);
-      });
-
-      connection.on("content", (data) => {
-        const chunk = JSON.parse(data);
-        this.emit("content", chunk.text);
-      });
-
-      connection.on("stop", (data) => {
-        const finalMessage = JSON.parse(data) as { result: AgentResult };
-        if (!this.conversationId) {
-          this.conversationId = finalMessage.result.instance_id;
-        }
-        // Clear volatile knowledge IDs after message is sent
-        this.volatileKnowledge.clear();
-        this.emit("stop", finalMessage.result);
-        resolve(finalMessage.result);
-      });
-
-      const fetchOptions: RequestInit = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-KEY": this.apiKey,
-        },
-        body: JSON.stringify(body),
-      };
-
-      try {
-        await connection.start(url, fetchOptions);
-      } catch (error) {
-        const response = await InternalErrorHelper.process(error, "Failed to send message");
-        reject(response);
-      }
-    });
-
-    return responsePromise;
+    };
+    return this.#streamRequest(bodyOptions, "Failed to send message");
   }
 
   async sendMessage(
     message: string,
     options?: MessageAdditionalInfo
   ): Promise<AgentResult> {
-    const version = this.agentVersion ? `/${this.agentVersion}` : "";
-    const url = `${this.baseUrl}/v2/agent/${this.agentCode}/execute${version}`;
-
-    let body = this.#createExecuteBody({
+    const bodyOptions: CreateExecuteBodyOptions = {
       message,
       stream: false,
       additionalInfo: options,
       isNewConversation: !this.conversationId,
-    });
+    };
+    return this.#executeRequest(bodyOptions, "Failed to send message");
+  }
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-KEY": this.apiKey,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (response.status !== 200) {
-      throw await InternalErrorHelper.process(response, "Failed to send message");
+  async sendAudioMessage(
+    audio: Blob,
+    options?: MessageAdditionalInfo
+  ): Promise<AgentResult> {
+    try {
+      let uploadResult = await this.fileManager.upload(audio, {
+        fileName: `audio_input_${Date.now()}.webm`,
+      });
+      uploadResult.downloadUrl = `${this.baseUrl}/file/download/${uploadResult.id}`;
+      const bodyOptions: CreateExecuteBodyOptions = {
+        audio: { fileId: uploadResult.id },
+        stream: false,
+        additionalInfo: options,
+        isNewConversation: !this.conversationId,
+      };
+      return await this.#executeRequest(bodyOptions, "Failed to send audio message", uploadResult);
+    } catch (error) {
+      throw await InternalErrorHelper.process(error, "Failed to upload audio file or send audio message");
     }
+  }
 
-    const data = await response.json();
+  async streamAudioMessage(
+    audio: Blob,
+    options?: MessageAdditionalInfo
+  ): Promise<AgentResult> {
+    try {
+      let uploadResult = await this.fileManager.upload(audio, {
+        fileName: `audio_input_${Date.now()}.webm`,
+      });
+      uploadResult.downloadUrl = `${this.baseUrl}/file/download/${uploadResult.id}`;
 
-    const mappedData = AgentMapper.mapAgentResultToSnakeCase(data);
-    if (!this.conversationId) {
-      this.conversationId = mappedData.instance_id;
+      const bodyOptions: CreateExecuteBodyOptions = {
+        audio: { fileId: uploadResult.id },
+        stream: true,
+        additionalInfo: options,
+        isNewConversation: !this.conversationId,
+      };
+      return await this.#streamRequest(bodyOptions, "Failed to send audio message", uploadResult);
+    } catch (error) {
+      throw await InternalErrorHelper.process(error, "Failed to upload audio file or stream audio message");
     }
-    // Clear volatile knowledge IDs after message is sent
-    this.volatileKnowledge.clear();
-
-    return mappedData;
   }
 
   async getConversationById(
@@ -420,19 +390,118 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     return data as ConnectorStatusResult;
   }
 
+  async #executeRequest(
+    bodyOptions: CreateExecuteBodyOptions,
+    errorMessage: string,
+    audioUploadResult?: FileUploadRes
+  ): Promise<AgentResult> {
+    const url = this.#getExecuteUrl();
+    const body = this.#createExecuteBody(bodyOptions);
 
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-KEY": this.apiKey,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (response.status !== 200) {
+      throw await InternalErrorHelper.process(response, errorMessage);
+    }
+
+    const data = await response.json();
+    const mappedData = AgentMapper.mapAgentResultToSnakeCase(data);
+    
+    if (!this.conversationId) {
+      this.conversationId = mappedData.instance_id;
+    }
+    this.volatileKnowledge.clear();
+
+    return mappedData;
+  }
+
+  async #streamRequest(
+    bodyOptions: CreateExecuteBodyOptions,
+    errorMessage: string,
+    audioUploadResult?: FileUploadRes
+  ): Promise<AgentResult> {
+    const url = this.#getExecuteUrl();
+    const body = this.#createExecuteBody(bodyOptions);
+
+    const connection = new SseConnection();
+
+    return new Promise(async (resolve, reject) => {
+      connection.on("start", () => {
+        this.emit("start");
+      });
+
+      connection.on("error", (data) => {
+        const error = JSON.parse(data);
+        this.emit("error", error);
+        reject(error);
+      });
+
+      connection.on("content", (data) => {
+        const chunk = JSON.parse(data);
+        this.emit("content", chunk.text);
+      });
+
+      connection.on("stop", (data) => {
+        const finalMessage = JSON.parse(data) as { result: AgentResult };
+        
+        if (!this.conversationId) {
+          this.conversationId = finalMessage.result.instance_id;
+        }
+        this.volatileKnowledge.clear();
+        this.emit("stop", finalMessage.result);
+        resolve(finalMessage.result);
+      });
+
+      const fetchOptions: RequestInit = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-KEY": this.apiKey,
+        },
+        body: JSON.stringify(body),
+      };
+
+      try {
+        await connection.start(url, fetchOptions);
+      } catch (error) {
+        const response = await InternalErrorHelper.process(error, errorMessage);
+        reject(response);
+      }
+    });
+  }
+
+  #getExecuteUrl(): string {
+    const version = this.agentVersion ? `/${this.agentVersion}` : "";
+    return `${this.baseUrl}/v2/agent/${this.agentCode}/execute${version}`;
+  }
 
   #createExecuteBody(options: CreateExecuteBodyOptions): ExecuteBodyParams {
     let body: ExecuteBodyParams = [
-      {
-        Key: "message",
-        Value: options.message,
-      },
       {
         Key: "stream",
         Value: options.stream.toString(),
       },
     ];
+
+    // Add either message or audioInput
+    if (options.message) {
+      body.push({
+        Key: "message",
+        Value: options.message,
+      });
+    } else if (options.audio) {
+      body.push({
+        Key: "audioInput",
+        Value: options.audio,
+      });
+    }
 
     if (options.isNewConversation) {
       this.#appendUserIdentifierIfNeeded(body);

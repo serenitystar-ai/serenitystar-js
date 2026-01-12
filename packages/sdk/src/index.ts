@@ -23,6 +23,9 @@ import {
   ValidationErrorBody,
   VolatileKnowledgeUploadOptions,
   VolatileKnowledgeUploadRes,
+  TranscribeAudioOptions,
+  TranscribeAudioResult,
+  FileUploadRes,
 } from "./types";
 import { ExternalErrorHelper } from "./utils/ErrorHelper";
 import { VolatileKnowledgeManager } from "./utils/VolatileKnowledgeManager";
@@ -47,5 +50,8 @@ export type {
   PendingAction,
   VolatileKnowledgeUploadOptions,
   VolatileKnowledgeUploadRes,
-  FileError
+  FileError,
+  TranscribeAudioOptions,
+  TranscribeAudioResult,
+  FileUploadRes
 };

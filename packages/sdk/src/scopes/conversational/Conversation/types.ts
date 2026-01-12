@@ -6,17 +6,20 @@ export type MessageAdditionalInfo = {
 }
 
 export type CreateExecuteBodyOptions = {
-  message: string;
   stream: boolean;
   isNewConversation: boolean;
   additionalInfo?: MessageAdditionalInfo;
-}
+} & (
+  | { message: string; audio?: never }
+  | { audio: { fileId: string }; message?: never }
+)
 
 export type ConversationInfoResult = {
   agent: {
     isRealtime: boolean;
     version: number;
     visionEnabled: boolean;
+    audioInputEnabled: boolean;
     imageId: string;
   }
   conversation: {

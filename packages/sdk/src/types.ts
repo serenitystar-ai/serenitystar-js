@@ -291,6 +291,47 @@ export type VolatileKnowledgeUploadOptions = {
   }
 }
 
+export type TranscribeAudioOptions = {
+  modelId?: string;
+  prompt?: string;
+  userIdentifier?: string;
+}
+
+export type TranscribeAudioResult = {
+  transcript: string;
+  metadata?: TranscriptionMetadata;
+  tokenUsage?: TranscriptionTokenUsage;
+  cost?: TranscriptionCost;
+}
+
+type TranscriptionMetadata = {
+  language?: string;
+  duration?: number;
+}
+
+type TranscriptionTokenUsage = {
+  completionTokens: number;
+  promptTokens: number;
+  totalTokens: number;
+}
+
+type TranscriptionCost = {
+  completion: number;
+  prompt: number;
+  total: number;
+  currency: string;
+}
+
+export type FileUploadRes = {
+  id: string;
+  downloadUrl: string;
+}
+
+export type FileUploadOptions = {
+  fileName?: string;
+  public?: boolean;
+}
+
 export type UnauthorizedErrorBody = BaseErrorBody
 
 export type RequestEntityTooLargeErrorBody = BaseErrorBody
