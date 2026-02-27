@@ -27,6 +27,7 @@ export class SseConnection {
   private eventListeners: Record<string, ConnectionEventListener[]>;
   private active: boolean;
   private buffer: string = "";
+  private abortController: AbortController | null;
 
   /**
    * Creates an instance of SseConnection.
@@ -50,6 +51,7 @@ export class SseConnection {
       ],
     };
     this.active = false;
+    this.abortController = null; // Internal abort controller management
   }
 
   /**
@@ -65,7 +67,15 @@ export class SseConnection {
   ): Promise<Response> {
     this.active = true;
     try {
-      const response = await fetch(url, fetchOptions);
+      // Create a new abort controller for this connection
+      this.abortController = new AbortController();
+
+      const finalFetchOptions: RequestInit = {
+        ...fetchOptions,
+        signal: this.abortController.signal,
+      };
+
+      const response = await fetch(url, finalFetchOptions);
 
       if(!response.ok) {
         throw response;
@@ -93,6 +103,12 @@ export class SseConnection {
     } catch (error) {
       this.active = false;
       throw error;
+    } finally {
+      // Clean up the abort controller when the connection is stopped
+      if (this.abortController) {
+        this.abortController.abort();
+        this.abortController = null;
+      }
     }
   }
 
@@ -164,5 +180,10 @@ export class SseConnection {
    */
   stop(): void {
     this.active = false;
+    // Abort the fetch request if it's still active
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
   }
 }

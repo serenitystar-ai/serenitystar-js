@@ -31,6 +31,7 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
   - [Execute a chat completion](#execute-a-chat-completion)
   - [Stream responses with SSE](#stream-responses-with-sse-2)
 - [Shared Features](#shared-features)
+  - [Stop Streaming Response](#stop-streaming-response)
   - [Upload Files (Volatile Knowledge)](#upload-files-volatile-knowledge)
   - [Audio Input](#audio-input)
     - [Send Audio Messages (Assistants/Copilots)](#send-audio-messages-assistantscopilots)
@@ -583,6 +584,50 @@ console.log(
 ---
 
 # Shared Features
+
+## Stop Streaming Response
+
+You can stop a streaming response at any time by calling `stop()`. This works across all agent types: **Assistants**, **Copilots**, **Activities**, **Proxies**, and **Chat Completions**.
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+// Stop a streaming conversation (Assistants / Copilots)
+const conversation = await client.agents.assistants.createConversation("chef-assistant");
+
+conversation
+  .on("content", (chunk) => {
+    console.log(chunk);
+
+    // Stop the stream based on any condition
+    if (shouldStop) {
+      conversation.stop();
+    }
+  });
+
+await conversation.streamMessage("Tell me a long story about pasta");
+
+// Stop a streaming activity (Activities / Proxies / Chat Completions)
+const activity = client.agents.activities.create("translator-activity", {
+  inputParameters: {
+    targetLanguage: "russian",
+    textToTranslate: "hello world"
+  }
+})
+.on("content", (chunk) => {
+  console.log(chunk);
+
+  if (shouldStop) {
+    activity.stop();
+  }
+});
+
+await activity.stream();
+```
 
 ## Upload Files (Volatile Knowledge)
 
