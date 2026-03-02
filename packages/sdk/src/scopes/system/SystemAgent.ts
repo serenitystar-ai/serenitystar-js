@@ -24,6 +24,7 @@ export abstract class SystemAgent<
    */
   public readonly volatileKnowledge: VolatileKnowledgeManager;
   private readonly fileManager: FileManager;
+  private connection: SseConnection | null = null;
 
   protected constructor(
     protected readonly agentCode: string,
@@ -34,6 +35,26 @@ export abstract class SystemAgent<
     super();
     this.volatileKnowledge = new VolatileKnowledgeManager(baseUrl, apiKey);
     this.fileManager = new FileManager(baseUrl, apiKey);
+  }
+
+  /**
+   * Stops the current streaming response, aborting the SSE connection.
+   * If no stream is active, this method does nothing.
+   *
+   * @example
+   * ```typescript
+   * agent.on("content", (chunk) => {
+   *   if (shouldStop) {
+   *     agent.stop();
+   *   }
+   * });
+   * ```
+   */
+  stop(): void {
+    if (this.connection) {
+      this.connection.stop();
+      this.connection = null;
+    }
   }
 
   async stream(): Promise<AgentResult> {
@@ -164,25 +185,30 @@ export abstract class SystemAgent<
     audioUploadResult?: FileUploadRes
   ): Promise<AgentResult> {
     const url = this.#getExecuteUrl();
-    const connection = new SseConnection();
+    this.connection = new SseConnection();
 
     return new Promise(async (resolve, reject) => {
-      connection.on("start", () => {
+      if (!this.connection) {
+        reject(new Error("Failed to initialize SSE connection"));
+        return;
+      }
+
+      this.connection.on("start", () => {
         this.emit("start");
       });
 
-      connection.on("error", (data) => {
+      this.connection.on("error", (data) => {
         const error = JSON.parse(data);
         this.emit("error", error);
         reject(error);
       });
 
-      connection.on("content", (data) => {
+      this.connection.on("content", (data) => {
         const chunk = JSON.parse(data);
         this.emit("content", chunk.text);
       });
 
-      connection.on("stop", (data) => {
+      this.connection.on("stop", (data) => {
         const finalMessage = JSON.parse(data) as { result: AgentResult };
         
         this.volatileKnowledge.clear();
@@ -200,10 +226,15 @@ export abstract class SystemAgent<
       };
 
       try {
-        await connection.start(url, fetchOptions);
+        await this.connection.start(url, fetchOptions);
       } catch (error) {
         const response = await InternalErrorHelper.process(error, errorMessage);
         reject(response);
+      } finally {
+        if (this.connection) {
+          this.connection.stop();
+          this.connection = null;
+        }
       }
     });
   }
