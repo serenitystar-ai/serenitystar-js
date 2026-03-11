@@ -78,6 +78,15 @@ export type SystemAgentExecutionOptionsMap = {
   "proxy": AgentExecutionOptions & ProxyExecutionOptions
 }
 
+export type PendingAction = {
+  type: string;
+  auth_type: string;
+  url: string;
+  connector_name: string;
+  connector_img_url?: string;
+  connector_id?: string;
+}
+
 export type AgentResult = {
   content: string;
   instance_id: string;
@@ -89,6 +98,9 @@ export type AgentResult = {
   action_results?: {
     [key: string]: PluginExecutionResult;
   };
+  agent_message_id?: string;
+  user_message_id?: string;
+  pending_actions?: PendingAction[];
 }
 
 /**
@@ -243,9 +255,83 @@ export type BaseErrorBody = {
 };
 
 export type ValidationErrorBody = BaseErrorBody & {
-  errors: { [key: string]: string };
+  errors: { [key: string]: string | string[] };
 };
 
 export type RateLimitErrorBody = BaseErrorBody & {
   retryAfter: number; // seconds
 };
+
+export type FileError = {
+  file?: File;
+  error: Error;
+};
+
+export type VolatileKnowledgeUploadRes = 
+  | {
+      success: true;
+      id: string;
+      expirationDate: string;
+      status: string;
+      fileName: string;
+      fileSize: number;
+    }
+  | {
+      success: false;
+      error: FileError;
+    };
+
+export type VolatileKnowledgeUploadOptions = {
+  processEmbeddings?: boolean;
+  noExpiration?: boolean;
+  expirationDays?: number;
+  useVision?: boolean;
+  locale?: {
+    uploadFileErrorMessage?: string;
+  }
+}
+
+export type TranscribeAudioOptions = {
+  modelId?: string;
+  prompt?: string;
+  userIdentifier?: string;
+}
+
+export type TranscribeAudioResult = {
+  transcript: string;
+  metadata?: TranscriptionMetadata;
+  tokenUsage?: TranscriptionTokenUsage;
+  cost?: TranscriptionCost;
+}
+
+type TranscriptionMetadata = {
+  language?: string;
+  duration?: number;
+}
+
+type TranscriptionTokenUsage = {
+  completionTokens: number;
+  promptTokens: number;
+  totalTokens: number;
+}
+
+type TranscriptionCost = {
+  completion: number;
+  prompt: number;
+  total: number;
+  currency: string;
+}
+
+export type FileUploadRes = {
+  id: string;
+  downloadUrl: string;
+}
+
+export type FileUploadOptions = {
+  fileName?: string;
+  public?: boolean;
+}
+
+export type UnauthorizedErrorBody = BaseErrorBody
+
+export type RequestEntityTooLargeErrorBody = BaseErrorBody

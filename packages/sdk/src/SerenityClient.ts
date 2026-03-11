@@ -3,6 +3,10 @@ import {
   ConversationalAgentScope,
   SystemAgentScope,
 } from "./factories/AgentFactory";
+import {
+  ServiceFactory,
+  AudioServiceScope,
+} from "./factories/ServiceFactory";
 import { Activity } from "./scopes/system/Activity";
 import { ChatCompletion } from "./scopes/system/ChatCompletion";
 import { Proxy } from "./scopes/system/Proxy";
@@ -191,6 +195,32 @@ export default class SerenityClient {
     proxies: SystemAgentScope<"proxy", Proxy>;
   };
 
+  /**
+   * Access various services provided by Serenity Star.
+   * Services include audio transcription and other utility features.
+   */
+  public readonly services: {
+    /**
+     * Audio-related services including transcription.
+     * 
+     * ## Transcribe an audio file:
+     * ```typescript
+     * const file = new File([audioBlob], "audio.mp3", { type: "audio/mpeg" });
+     * const result = await client.services.audio.transcribe(file, {
+     *   modelId: '[YOUR_MODEL_ID]',
+     *   prompt: 'This is a conversation about AI',
+     *   userIdentifier: 'user123'
+     * });
+     * 
+     * console.log('Transcript:', result.transcript);
+     * console.log('Duration:', result.metadata?.duration);
+     * console.log('Total tokens:', result.tokenUsage?.totalTokens);
+     * console.log('Cost:', result.cost?.total, result.cost?.currency);
+     * ```
+     */
+    audio: AudioServiceScope;
+  };
+
   constructor(options: SerenityClientOptions) {
     if (!options.apiKey) {
       throw new Error("The API key is required");
@@ -216,6 +246,10 @@ export default class SerenityClient {
         this.baseUrl
       ),
       proxies: AgentFactory.createAgent("proxy", this.apiKey, this.baseUrl),
+    };
+
+    this.services = {
+      audio: ServiceFactory.createService("audio", this.apiKey, this.baseUrl),
     };
   }
 }
