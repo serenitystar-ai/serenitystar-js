@@ -51,6 +51,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
    */
   public readonly volatileKnowledge: VolatileKnowledgeManager;
   private readonly fileManager: FileManager;
+  private connection: SseConnection | null = null;
 
   private constructor(
     agentCode: string,
@@ -156,6 +157,26 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       return await this.#streamRequest(bodyOptions, "Failed to send audio message", uploadResult);
     } catch (error) {
       throw await InternalErrorHelper.process(error, "Failed to upload audio file or stream audio message");
+    }
+  }
+
+  /**
+   * Stops the current streaming response, aborting the SSE connection.
+   * If no stream is active, this method does nothing.
+   * 
+   * @example
+   * ```typescript
+   * conversation.on("content", (chunk) => {
+   *   if (shouldStop) {
+   *     conversation.stop();
+   *   }
+   * });
+   * ```
+   */
+  stop(): void {
+    if (this.connection) {
+      this.connection.stop();
+      this.connection = null;
     }
   }
 
@@ -430,25 +451,30 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     const url = this.#getExecuteUrl();
     const body = this.#createExecuteBody(bodyOptions);
 
-    const connection = new SseConnection();
+    this.connection = new SseConnection();
+
 
     return new Promise(async (resolve, reject) => {
-      connection.on("start", () => {
+      if(!this.connection) {
+        reject(new Error("Failed to initialize SSE connection"));
+        return;
+      }
+      this.connection.on("start", () => {
         this.emit("start");
       });
 
-      connection.on("error", (data) => {
+      this.connection.on("error", (data) => {
         const error = JSON.parse(data);
         this.emit("error", error);
         reject(error);
       });
 
-      connection.on("content", (data) => {
+      this.connection.on("content", (data) => {
         const chunk = JSON.parse(data);
         this.emit("content", chunk.text);
       });
 
-      connection.on("stop", (data) => {
+      this.connection.on("stop", (data) => {
         const finalMessage = JSON.parse(data) as { result: AgentResult };
         
         if (!this.conversationId) {
@@ -469,10 +495,15 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       };
 
       try {
-        await connection.start(url, fetchOptions);
+        await this.connection.start(url, fetchOptions);
       } catch (error) {
         const response = await InternalErrorHelper.process(error, errorMessage);
         reject(response);
+      } finally {
+        if (this.connection) {
+          this.connection.stop();
+          this.connection = null;
+        }
       }
     });
   }
