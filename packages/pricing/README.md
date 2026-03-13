@@ -11,9 +11,12 @@ A beautiful, responsive pricing section web component built with Svelte 5 that s
 - 📱 **Fully Responsive**: Adaptive layout (1-5 columns) that works on all devices
 - 🎨 **Customizable Design**: Tailwind CSS styling with Serenity Star theme
 - 🌐 **Universal Integration**: Works as ES module, IIFE script, or jQuery plugin
-- 📡 **API Integration**: Fetches pricing data our REST API endpoint
+- 📡 **API Integration**: Fetches pricing data from our REST API endpoint
 - 🎛️ **Flexible Configuration**: Customizable header and CTA buttons
-- � **TypeScript Support**: Complete type definitions included
+- 🌙 **Light & Dark Themes**: Toggle between `"light"` and `"dark"` themes
+- 💰 **Monthly / Annual Toggle**: Built-in price switch to display monthly or annual pricing
+- 🌍 **Internationalization (i18n)**: Ships with English and Spanish; auto-detects browser language
+- 📝 **TypeScript Support**: Complete type definitions included
 - ⚡ **Lightweight**: Minimal footprint
 
 ## 📦 Installation
@@ -169,6 +172,16 @@ interface SerenityPricingProps {
     // CTA Button Configuration
     showCTA?: boolean;         // Whether to display CTA buttons on plans (default: true)
     ctaText?: string;          // Text displayed on CTA buttons (default: "Get Started")
+    ctaUrl?: string;           // URL for CTA buttons (default: "https://hub.serenitystar.ai")
+    
+    // Pricing Display
+    typeOfPrice?: "monthly" | "annual";  // Which price to display (default: "annual")
+    
+    // Appearance
+    theme?: "light" | "dark";  // Color theme (default: "dark")
+    
+    // Internationalization
+    language?: "en" | "es";    // UI language; auto-detects from browser if omitted
 }
 ```
 
@@ -184,7 +197,11 @@ const defaults = {
     title: 'Pricing',
     description: 'Start with a free trial, no credit card required and pay-as-you-go.',
     showCTA: true,
-    ctaText: 'Get Started'
+    ctaText: 'Get Started',
+    ctaUrl: 'https://hub.serenitystar.ai',
+    typeOfPrice: 'annual',
+    theme: 'dark',
+    language: undefined // auto-detected from browser (falls back to 'en')
 };
 ```
 
@@ -237,94 +254,61 @@ serenityPricing('pricing-section', {
 });
 ```
 
-### CSS Styling Options
+#### Dark Theme (Default)
 
-The component includes scoped styles, but you can customize the appearance:
-
-```css
-/* Target the root container */
-.serenity-pricing-root {
-    font-family: 'Your Custom Font', sans-serif;
-}
-
-/* Customize the header section */
-.serenity-pricing-root h2 {
-    color: #1f2937;
-    font-size: 2.5rem;
-}
-
-/* Style the description */
-.serenity-pricing-root p {
-    color: #6b7280;
-    font-size: 1.125rem;
-}
-
-/* Customize pricing cards */
-.serenity-pricing-root section {
-    border-radius: 16px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-}
-
-/* Style CTA buttons */
-.serenity-pricing-root a {
-    transition: all 0.2s ease-in-out;
-}
-
-.serenity-pricing-root a:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
+```javascript
+serenityPricing('pricing-section', {
+    theme: 'dark'
+});
 ```
 
-## 📡 API Integration
+#### Light Theme
 
-### Pricing Data API
-
-The component automatically fetches pricing data from: `https://api.serenitystar.ai/api/v2/SubscriptionPlans`
-
-#### Expected Data Format
-
-```typescript
-interface PricingPlan {
-  title: string;        // Plan name (e.g., "Basic", "Pro", "Enterprise")
-  price: string;        // Price display (e.g., "$19/month", "Free")
-  features: string[];   // Array of feature descriptions
-  href?: string;        // Optional link for the CTA button
-  isPopular?: boolean;  // Whether to highlight this plan as popular/featured
-  description?: string; // Optional plan description
-}
+```javascript
+serenityPricing('pricing-section', {
+    theme: 'light'
+});
 ```
 
-#### Example API Response
+#### Monthly Pricing by Default
 
-```json
-[
-  {
-    "title": "Starter",
-    "price": "Free",
-    "description": "Perfect for trying out our platform",
-    "features": [
-      "Up to 3 projects",
-      "5GB storage",
-      "Email support"
-    ],
-    "href": "/signup",
-    "isPopular": false
-  },
-  {
-    "title": "Professional",
-    "price": "$29/month",
-    "description": "Best for growing businesses",
-    "features": [
-      "Unlimited projects",
-      "100GB storage",
-      "Priority support",
-      "Advanced analytics"
-    ],
-    "href": "/signup?plan=pro",
-    "isPopular": true
-  }
-]
+```javascript
+serenityPricing('pricing-section', {
+    typeOfPrice: 'monthly'
+});
+```
+
+#### Spanish Language
+
+```javascript
+serenityPricing('pricing-section', {
+    language: 'es'
+});
+```
+
+#### Custom CTA URL
+
+```javascript
+serenityPricing('pricing-section', {
+    ctaText: 'Sign Up Now',
+    ctaUrl: 'https://your-app.com/signup'
+});
+```
+
+#### Full Configuration
+
+```javascript
+serenityPricing('pricing-section', {
+    showHeader: true,
+    title: 'Enterprise Solutions',
+    description: 'Scalable pricing for growing businesses.',
+    showCTA: true,
+    ctaText: 'Contact Sales',
+    ctaUrl: 'https://your-app.com/contact',
+    typeOfPrice: 'annual',
+    theme: 'light',
+    language: 'en'
+});
 ```
 
 ## 📄 License & Credits
