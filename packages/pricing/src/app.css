@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+@theme {
+  --container-2xl: 40rem;
+  --breakpoint-2xl: 100rem;
+  --color-primary: #4862ff;
+  --color-primary-light: #98a6fe;
+  --color-serenity-deep-blue: #050a2b;
+}

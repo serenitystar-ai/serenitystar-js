@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Full Example — Serenity Pricing Demo</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #050a2b;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="pricing-section"></div>
+
+  <script src="../dist/serenity-pricing.iife.js"></script>
+  <script>
+    serenityPricing('pricing-section', {
+      title: 'Simple, Transparent Pricing',
+      description: 'No hidden fees. Cancel anytime.',
+      ctaText: 'Start Free Trial',
+      ctaUrl: 'https://hub.serenitystar.ai/signup',
+      typeOfPrice: 'annual',
+      theme: 'dark',
+    });
+  </script>
+
+</body>
+</html>
