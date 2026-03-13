@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dynamic Update — Serenity Pricing Demo</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #050a2b;
+      transition: background 0.3s;
+    }
+    body.light {
+      background: #fff;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      padding: 24px;
+      background: #f1f5f9;
+    }
+    .controls button {
+      padding: 8px 20px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .controls button:hover {
+      background: #e2e8f0;
+    }
+    .controls button.active {
+      background: #4862ff;
+      color: #fff;
+      border-color: #4862ff;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="controls">
+    <button id="btn-annual" class="active" onclick="switchPrice('annual')">Annual</button>
+    <button id="btn-monthly" onclick="switchPrice('monthly')">Monthly</button>
+    <button onclick="switchTheme()">Toggle Theme</button>
+  </div>
+
+  <div id="pricing"></div>
+
+  <script src="../dist/serenity-pricing.iife.js"></script>
+  <script>
+    const pricing = serenityPricing('pricing', {
+      typeOfPrice: 'annual',
+      theme: 'dark',
+    });
+
+    let currentTheme = 'dark';
+
+    function switchPrice(type) {
+      pricing.set('typeOfPrice', type);
+      document.getElementById('btn-annual').classList.toggle('active', type === 'annual');
+      document.getElementById('btn-monthly').classList.toggle('active', type === 'monthly');
+    }
+
+    function switchTheme() {
+      currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      pricing.set('theme', currentTheme);
+      document.body.classList.toggle('light', currentTheme === 'light');
+    }
+  </script>
+
+</body>
+</html>

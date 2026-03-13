@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ejemplo en Español — Serenity Pricing Demo</title>
+  <style>
+    body { margin: 0; background: #050a2b; }
+  </style>
+</head>
+<body>
+
+  <div id="pricing"></div>
+
+  <script src="../dist/serenity-pricing.iife.js"></script>
+  <script>
+    serenityPricing('pricing', {
+      title: 'Precios',
+      description: 'Comienza con una prueba gratuita, sin tarjeta de crédito y paga según tu uso.',
+      ctaText: 'Comenzar',
+      ctaUrl: 'https://hub.serenitystar.ai',
+      typeOfPrice: 'annual',
+      theme: 'dark',
+    });
+    // Tip: If you omit title, description, and ctaText, and the
+    // browser language is Spanish, the component will automatically
+    // use Spanish defaults.  </script>
+
+</body>
+</html>
