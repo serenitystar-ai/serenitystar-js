@@ -106,7 +106,9 @@ export class SseConnection {
     } finally {
       // Clean up the abort controller when the connection is stopped
       if (this.abortController) {
-        this.abortController.abort();
+        if (this.active) {
+            this.abortController.abort();
+        }
         this.abortController = null;
       }
     }
