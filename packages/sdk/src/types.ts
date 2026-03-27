@@ -33,6 +33,13 @@ export type AgentSetupOptions = {
    */
   channel?: string;
   /**
+   * When true, the SDK will use the agent version defined in the channel configuration
+   * (if available) instead of defaulting to the latest version.
+   * Only takes effect when a `channel` is provided and no explicit `agentVersion` is set.
+   * @default false
+   */
+  useChannelVersion?: boolean;
+  /**
    * Optional key-value pairs of input parameters specific to the agent.
    */
   inputParameters?: { [key: string]: any }

@@ -33,6 +33,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
   private userIdentifier?: string;
   private agentVersion?: number;
   private channel?: string;
+  private useChannelVersion: boolean;
   private inputParameters?: { [key: string]: any };
   public conversationId?: string;
   public info: ConversationInfoResult | null = null;
@@ -69,6 +70,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     this.agentVersion = options?.agentVersion;
     this.userIdentifier = options?.userIdentifier;
     this.channel = options?.channel;
+    this.useChannelVersion = options?.useChannelVersion ?? false;
     this.inputParameters = options?.inputParameters;
   }
 
@@ -228,9 +230,26 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
   }
 
   async getInfo(): Promise<ConversationInfoResult> {
+    const info = await this.#fetchInfo(this.#getAgentVersion());
+
+    // If the consumer opted in to channel version pinning and no explicit
+    // agentVersion was provided, re-fetch info for the channel's target version
+    // so the returned info matches the version that will be executed.
+    const targetVersion = info.channel?.targetAgentVersion;
+    if (this.useChannelVersion && !this.agentVersion && targetVersion && targetVersion !== this.#getAgentVersion()) {
+      const versionedInfo = await this.#fetchInfo(targetVersion);
+      this.info = versionedInfo;
+      return this.info;
+    }
+
+    this.info = info;
+    return this.info;
+  }
+
+  async #fetchInfo(agentVersion?: number): Promise<ConversationInfoResult> {
     let url = `${this.baseUrl}/v2/agent/${this.agentCode}`;
-    if (this.agentVersion) {
-      url += `/${this.agentVersion}`;
+    if (agentVersion) {
+      url += `/${agentVersion}`;
     }
     url += "/conversation/info";
 
@@ -267,11 +286,9 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       const error = await InternalErrorHelper.process(response, "Failed to get conversation initial info");
       throw error;
     }
-    
+
     const data = await response.json();
-    
-    this.info = data as ConversationInfoResult;
-    return this.info;
+    return data as ConversationInfoResult;
   }
 
   /**
@@ -509,8 +526,19 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
   }
 
   #getExecuteUrl(): string {
-    const version = this.agentVersion ? `/${this.agentVersion}` : "";
+    const agentVersion = this.#getAgentVersion();
+    const version = agentVersion ? `/${agentVersion}` : "";
     return `${this.baseUrl}/v2/agent/${this.agentCode}/execute${version}`;
+  }
+
+  #getAgentVersion() {
+    if(this.agentVersion) {
+      return this.agentVersion;
+    }
+    if(this.useChannelVersion && this.info?.channel?.targetAgentVersion) {
+      return this.info.channel.targetAgentVersion;
+    }
+    return undefined;
   }
 
   #createExecuteBody(options: CreateExecuteBodyOptions): ExecuteBodyParams {
