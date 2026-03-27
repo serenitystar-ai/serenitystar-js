@@ -12,6 +12,7 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
 - [Assistants / Copilots](#assistants--copilots)
   - [Start a new conversation with an Agent](#start-a-new-conversation-with-an-agent)
   - [Get conversation information](#get-conversation-information)
+  - [Use channel-pinned agent version](#use-channel-pinned-agent-version)
   - [Get conversation by id](#get-conversation-by-id)
   - [Sending messages within a conversation](#sending-messages-within-a-conversation)
     - [Stream message with SSE](#stream-message-with-sse)
@@ -113,6 +114,31 @@ console.log(
   agentInfoAdvanced.agent.version, // 2
 );
 ```
+
+## Use channel-pinned agent version
+
+By default, when no `agentVersion` is specified, the SDK executes the **latest** version of the agent. If your application uses channels that pin a specific agent version, you can opt in to that behavior with `useChannelVersion`:
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+// Opt in to using the version defined in the channel configuration
+const conversation = await client.agents.assistants.createConversation("chef-assistant", {
+  channel: "my-channel",
+  useChannelVersion: true,
+});
+
+// The conversation now targets the agent version pinned by the channel.
+// If the channel pins version 3, all messages will execute against version 3.
+const response = await conversation.sendMessage("Hello!");
+console.log(response.content);
+```
+
+> **Note:** An explicit `agentVersion` always takes priority over the channel's target version. When `useChannelVersion` is `false` (the default), the channel metadata is still available in `conversation.info` but does not affect which agent version is executed.
 
 ## Get conversation by id
 

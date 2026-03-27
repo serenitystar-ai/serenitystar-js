@@ -50,6 +50,7 @@ export type ChatWidgetRes = {
   locale: LocaleRes;
   theme: ThemeRes;
   enableFeedbackRecollection: boolean;
+  targetAgentVersion?: number;
 }
 
 type EngagementMessageRes = {
