@@ -1,6 +1,7 @@
 import "./polyfill";
 import { Conversation } from "./scopes/conversational/Conversation";
 import {
+  AttachedVolatileKnowledgeRes,
   ChatWidgetRes,
   ConnectorStatusResult,
   ConversationInfoResult,
@@ -53,5 +54,6 @@ export type {
   FileError,
   TranscribeAudioOptions,
   TranscribeAudioResult,
-  FileUploadRes
+  FileUploadRes,
+  AttachedVolatileKnowledgeRes,
 };
