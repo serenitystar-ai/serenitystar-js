@@ -189,7 +189,7 @@ export type Message = (
   completion_usage?: CompletionUsageRes;
   time_to_first_token?: number;
   executor_task_logs?: ExecutorTaskLogsRes;
-  attached_volatile_knowledges?: AttachedVolatileKnowledge[];
+  attached_volatile_knowledges?: AttachedVolatileKnowledgeRes[];
   action_results?: {
     [key: string]: PluginExecutionResult
   }
@@ -211,6 +211,15 @@ export type AttachedVolatileKnowledge = {
   fileSize: number;
   downloadUrl: string;
 };
+
+export type AttachedVolatileKnowledgeRes = {
+  id: string;
+  expiration_date: string;
+  file_id: string;
+  file_name: string;
+  file_size: number;
+  download_url: string;
+}
 
 export type CompletionUsageRes = {
   completion_tokens: number;
