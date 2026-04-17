@@ -3,33 +3,34 @@ import {
   ExecuteBodyParams,
   SystemAgentExecutionOptionsMap,
 } from "./../../types";
+import { AuthProvider } from "../../auth/AuthProvider";
 
 export class Activity extends SystemAgent<"activity"> {
   private constructor(
     agentCode: string,
-    apiKey: string,
+    authProvider: AuthProvider,
     baseUrl: string,
     options?: SystemAgentExecutionOptionsMap["activity"]
   ) {
-    super(agentCode, apiKey, baseUrl, options);
+    super(agentCode, authProvider, baseUrl, options);
   }
 
   static create(
     agentCode: string,
-    apiKey: string,
+    authProvider: AuthProvider,
     baseUrl: string,
     options?: SystemAgentExecutionOptionsMap["activity"]
   ): Activity {
-    return new Activity(agentCode, apiKey, baseUrl, options);
+    return new Activity(agentCode, authProvider, baseUrl, options);
   }
 
   static createAndExecute(
     agentCode: string,
-    apiKey: string,
+    authProvider: AuthProvider,
     baseUrl: string,
     options?: SystemAgentExecutionOptionsMap["activity"]
   ) {
-    const instance = new Activity(agentCode, apiKey, baseUrl, options);
+    const instance = new Activity(agentCode, authProvider, baseUrl, options);
     return instance.execute();
   }
 

@@ -3,16 +3,17 @@ import {
   TranscribeAudioOptions,
   TranscribeAudioResult,
 } from "../types";
+import { AuthProvider } from "../auth/AuthProvider";
 
 export class ServiceFactory {
   static createService<T extends ServiceType>(
     type: T,
-    apiKey: string,
+    authProvider: AuthProvider,
     baseUrl: string
   ): ServiceTypeMap[T] {
     switch (type) {
       case "audio": {
-        const transcribeManager = new TranscribeAudioManager(baseUrl, apiKey);
+        const transcribeManager = new TranscribeAudioManager(baseUrl, authProvider);
         return {
           /**
            * Transcribe an audio file using the Serenity API.

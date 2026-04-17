@@ -1,33 +1,34 @@
 import { ExecuteBodyParams } from "../../types";
 import { SystemAgentExecutionOptionsMap } from "./../../types";
 import { SystemAgent } from "./SystemAgent";
+import { AuthProvider } from "../../auth/AuthProvider";
 
 export class ChatCompletion extends SystemAgent<"chat-completion"> {
   private constructor(
     agentCode: string,
-    apiKey: string,
+    authProvider: AuthProvider,
     baseUrl: string,
     options?: SystemAgentExecutionOptionsMap["chat-completion"]
   ) {
-    super(agentCode, apiKey, baseUrl, options);
+    super(agentCode, authProvider, baseUrl, options);
   }
 
   static create(
     agentCode: string,
-    apiKey: string,
+    authProvider: AuthProvider,
     baseUrl: string,
     options?: SystemAgentExecutionOptionsMap["chat-completion"]
   ): ChatCompletion {
-    return new ChatCompletion(agentCode, apiKey, baseUrl, options);
+    return new ChatCompletion(agentCode, authProvider, baseUrl, options);
   }
 
   static createAndExecute(
     agentCode: string,
-    apiKey: string,
+    authProvider: AuthProvider,
     baseUrl: string,
     options?: SystemAgentExecutionOptionsMap["chat-completion"]
   ) {
-    const instance = new ChatCompletion(agentCode, apiKey, baseUrl, options);
+    const instance = new ChatCompletion(agentCode, authProvider, baseUrl, options);
     return instance.execute();
   }
 

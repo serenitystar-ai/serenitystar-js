@@ -1,5 +1,6 @@
 import { EventEmitter } from "../../../EventEmitter";
 import { AgentSetupOptions } from "../../../types";
+import { AuthProvider } from "../../../auth/AuthProvider";
 import {
   RealtimeSessionEvents,
   SerenitySessionCreateEvent,
@@ -13,7 +14,7 @@ import {
 
 export class RealtimeSession extends EventEmitter<RealtimeSessionEvents> {
   private agentCode: string;
-  private apiKey: string;
+  private authProvider: AuthProvider;
   private baseUrl: string;
 
   // Optional parameters.
@@ -36,12 +37,12 @@ export class RealtimeSession extends EventEmitter<RealtimeSessionEvents> {
 
   constructor(
     agentCode: string,
-    apiKey: string,
+    authProvider: AuthProvider,
     baseUrl: string,
     options?: AgentSetupOptions
   ) {
     super();
-    this.apiKey = apiKey;
+    this.authProvider = authProvider;
     this.agentCode = agentCode;
     this.baseUrl = baseUrl;
 
@@ -58,7 +59,7 @@ export class RealtimeSession extends EventEmitter<RealtimeSessionEvents> {
    */
   async start(): Promise<void> {
     try {
-      this.#setupWebSocketConnection();
+      await this.#setupWebSocketConnection();
     } catch (error) {
       throw new Error(`Error starting the session`);
     }
@@ -132,14 +133,15 @@ export class RealtimeSession extends EventEmitter<RealtimeSessionEvents> {
     clearTimeout(this.inactivityTimeout);
   }
 
-  #setupWebSocketConnection() {
+  async #setupWebSocketConnection() {
     let url = `${this.baseUrl}/v2/agent/${this.agentCode}/realtime`;
 
     if (this.agentVersion) {
       url += `/${this.agentVersion}`;
     }
 
-    this.socket = new WebSocket(url, ["X-API-KEY", this.apiKey]);
+    const protocols = await this.authProvider.getWebSocketProtocols();
+    this.socket = new WebSocket(url, protocols);
 
     this.socket.onopen = () => {
       const sessionCreateEvent: SerenitySessionCreateEvent = {

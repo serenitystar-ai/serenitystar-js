@@ -4,6 +4,8 @@ import {
   FileUploadRes,
 } from "../types";
 import { InternalErrorHelper } from "./ErrorHelper";
+import { AuthProvider } from "../auth/AuthProvider";
+import { fetchWithAuth } from "./fetchWithAuth";
 
 /**
  * Supported audio MIME types for Gemini API
@@ -50,7 +52,7 @@ export class TranscribeAudioManager {
   public audioFileId: string | null = null;
   constructor(
     private readonly baseUrl: string,
-    private readonly apiKey: string
+    private readonly authProvider: AuthProvider
   ) {}
 
   /**
@@ -99,12 +101,10 @@ export class TranscribeAudioManager {
     }
 
     try {
-      const response = await fetch(url, {
+      const response = await fetchWithAuth(this.authProvider, url, {
         method: "POST",
         body: formData,
-        headers: {
-          "X-API-KEY": this.apiKey,
-        },
+        headers: {},
       });
 
       if (!response.ok) {

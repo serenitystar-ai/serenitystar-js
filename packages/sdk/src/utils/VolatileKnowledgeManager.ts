@@ -3,6 +3,8 @@ import {
   VolatileKnowledgeUploadRes,
 } from "../types";
 import { InternalErrorHelper } from "./ErrorHelper";
+import { AuthProvider } from "../auth/AuthProvider";
+import { fetchWithAuth } from "./fetchWithAuth";
 
 /**
  * Manages volatile knowledge files for agent instances.
@@ -13,7 +15,7 @@ export class VolatileKnowledgeManager {
 
   constructor(
     private readonly baseUrl: string,
-    private readonly apiKey: string
+    private readonly authProvider: AuthProvider
   ) {}
 
   /**
@@ -61,12 +63,11 @@ export class VolatileKnowledgeManager {
     }
 
     try {
-      const response = await fetch(`${url}?${queryParams.toString()}`, {
+      const response = await fetchWithAuth(this.authProvider, `${url}?${queryParams.toString()}`, {
         method: "POST",
         body: formData,
         headers: {
           contentType: "multipart/form-data",
-          "X-API-KEY": this.apiKey,
         },
       });
 
@@ -176,11 +177,10 @@ export class VolatileKnowledgeManager {
   async getById(fileId: string): Promise<VolatileKnowledgeUploadRes> {
     const url = `${this.baseUrl}/v2/volatileKnowledge/${fileId}`;
 
-    const result = await fetch(url, {
+    const result = await fetchWithAuth(this.authProvider, url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        "X-API-KEY": this.apiKey,
       },
     });
 

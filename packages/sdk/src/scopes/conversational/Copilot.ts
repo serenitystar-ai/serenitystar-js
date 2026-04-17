@@ -1,22 +1,23 @@
 import { AgentSetupOptions } from "../../types";
+import { AuthProvider } from "../../auth/AuthProvider";
 import { ConversationalAgent } from "./ConversationalAgent";
 
 export class Copilot extends ConversationalAgent {
   constructor(
     agentCode: string,
-    apiKey: string,
+    authProvider: AuthProvider,
     baseUrl: string,
     options?: AgentSetupOptions
   ) {
-    super(agentCode, apiKey, baseUrl, options);
+    super(agentCode, authProvider, baseUrl, options);
   }
 
   static create(
       agentCode: string,
-      apiKey: string,
+      authProvider: AuthProvider,
       baseUrl: string,
       options?: AgentSetupOptions
     ): Copilot {
-      return new Copilot(agentCode, apiKey, baseUrl, options);
+      return new Copilot(agentCode, authProvider, baseUrl, options);
     }
 }
