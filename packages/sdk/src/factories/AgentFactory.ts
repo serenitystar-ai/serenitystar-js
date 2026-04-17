@@ -6,6 +6,7 @@ import { RealtimeSession } from "../scopes/conversational/RealtimeSession";
 import { Activity } from "../scopes/system/Activity";
 import { ChatCompletion } from "../scopes/system/ChatCompletion";
 import { Proxy } from "../scopes/system/Proxy";
+import { AuthProvider } from "../auth/AuthProvider";
 import {
   AgentSetupOptions,
   AgentResult,
@@ -17,7 +18,7 @@ import {
 export class AgentFactory {
   static createAgent<T extends AgentType>(
     type: T,
-    apiKey: string,
+    authProvider: AuthProvider,
     baseUrl: string
   ): AgentTypeMap[T] {
     switch (type) {
@@ -29,13 +30,13 @@ export class AgentFactory {
           ) => {
             const assistant = Assistant.create(
               agentCode,
-              apiKey,
+              authProvider,
               baseUrl,
               options
             );
             const conversation = await assistant.createConversation(
               agentCode,
-              apiKey,
+              authProvider,
               baseUrl,
               options
             );
@@ -47,21 +48,21 @@ export class AgentFactory {
           } = { showExecutorTaskLogs: false }): Promise<ConversationRes> => {
             const assistant = Assistant.create(
               agentCode,
-              apiKey,
+              authProvider,
               baseUrl
             );
-            const conversation = await assistant.createConversationWithoutInfo(agentCode, apiKey, baseUrl);
+            const conversation = assistant.createConversationWithoutInfo(agentCode, authProvider, baseUrl);
             return await conversation.getConversationById(conversationId, options);
           },
           getInfoByCode: async (agentCode: string, options?: AgentSetupOptions) => {
             const assistant = Assistant.create(
               agentCode,
-              apiKey,
+              authProvider,
               baseUrl,
               options);
             const conversation = await assistant.createConversation(
               agentCode,
-              apiKey,
+              authProvider,
               baseUrl,
               options
             );
@@ -73,13 +74,13 @@ export class AgentFactory {
           ) => {
             const assistant = Assistant.create(
               agentCode,
-              apiKey,
+              authProvider,
               baseUrl,
               options
             );
             return assistant.createRealtimeSession(
               agentCode,
-              apiKey,
+              authProvider,
               baseUrl,
               options
             );
@@ -92,10 +93,10 @@ export class AgentFactory {
             agentCode: string,
             options?: AgentSetupOptions
           ): Promise<Conversation> => {
-            const copilot = Copilot.create(agentCode, apiKey, baseUrl, options);
+            const copilot = Copilot.create(agentCode, authProvider, baseUrl, options);
             const conversation = await copilot.createConversation(
               agentCode,
-              apiKey,
+              authProvider,
               baseUrl,
               options
             );
@@ -106,21 +107,21 @@ export class AgentFactory {
           } = { showExecutorTaskLogs: false }): Promise<ConversationRes> => {
             const assistant = Assistant.create(
               agentCode,
-              apiKey,
+              authProvider,
               baseUrl
             );
-            const conversation = await assistant.createConversationWithoutInfo(agentCode, apiKey, baseUrl);
+            const conversation = assistant.createConversationWithoutInfo(agentCode, authProvider, baseUrl);
             return await conversation.getConversationById(conversationId, options);
           },
           getInfoByCode: async (agentCode: string, options?: AgentSetupOptions) => {
             const assistant = Assistant.create(
               agentCode,
-              apiKey,
+              authProvider,
               baseUrl,
               options);
             const conversation = await assistant.createConversation(
               agentCode,
-              apiKey,
+              authProvider,
               baseUrl,
               options
             );
@@ -130,10 +131,10 @@ export class AgentFactory {
             agentCode: string,
             options?: ConversationalAgentExecutionOptionsMap["copilot"]
           ) => {
-            const copilot = Copilot.create(agentCode, apiKey, baseUrl, options);
+            const copilot = Copilot.create(agentCode, authProvider, baseUrl, options);
             return copilot.createRealtimeSession(
               agentCode,
-              apiKey,
+              authProvider,
               baseUrl,
               options
             );
@@ -148,7 +149,7 @@ export class AgentFactory {
           ): Promise<AgentResult> => {
             return Activity["createAndExecute"](
               agentCode,
-              apiKey,
+              authProvider,
               baseUrl,
               options
             );
@@ -157,7 +158,7 @@ export class AgentFactory {
             agentCode: string,
             options?: SystemAgentExecutionOptionsMap["activity"]
           ): Activity => {
-            return Activity["create"](agentCode, apiKey, baseUrl, options);
+            return Activity["create"](agentCode, authProvider, baseUrl, options);
           },
         } as AgentTypeMap[T];
       }
@@ -169,7 +170,7 @@ export class AgentFactory {
           ): Promise<AgentResult> => {
             return ChatCompletion["createAndExecute"](
               agentCode,
-              apiKey,
+              authProvider,
               baseUrl,
               options
             );
@@ -180,7 +181,7 @@ export class AgentFactory {
           ): ChatCompletion => {
             return ChatCompletion["create"](
               agentCode,
-              apiKey,
+              authProvider,
               baseUrl,
               options
             );
@@ -195,7 +196,7 @@ export class AgentFactory {
           ): Promise<AgentResult> => {
             return Proxy["createAndExecute"](
               agentCode,
-              apiKey,
+              authProvider,
               baseUrl,
               options
             );
@@ -204,9 +205,93 @@ export class AgentFactory {
             agentCode: string,
             options?: SystemAgentExecutionOptionsMap["proxy"]
           ): Proxy => {
-            return Proxy["create"](agentCode, apiKey, baseUrl, options);
+            return Proxy["create"](agentCode, authProvider, baseUrl, options);
           },
         } as AgentTypeMap[T];
+      }
+      default:
+        throw new Error(`Agent type ${type} not supported`);
+    }
+  }
+
+  static createScopedAgent<T extends AgentType>(
+    type: T,
+    agentCode: string,
+    authProvider: AuthProvider,
+    baseUrl: string
+  ): ScopedAgentTypeMap[T] {
+    switch (type) {
+      case "assistant": {
+        return {
+          createConversation: async (options?: AgentSetupOptions) => {
+            const assistant = Assistant.create(agentCode, authProvider, baseUrl, options);
+            return await assistant.createConversation(agentCode, authProvider, baseUrl, options);
+          },
+          getConversationById: async (
+            conversationId: string,
+            options: { showExecutorTaskLogs: boolean } = { showExecutorTaskLogs: false }
+          ): Promise<ConversationRes> => {
+            const assistant = Assistant.create(agentCode, authProvider, baseUrl);
+            const conversation = assistant.createConversationWithoutInfo(agentCode, authProvider, baseUrl);
+            return await conversation.getConversationById(conversationId, options);
+          },
+          getInfo: async (options?: AgentSetupOptions) => {
+            const assistant = Assistant.create(agentCode, authProvider, baseUrl, options);
+            const conversation = await assistant.createConversation(agentCode, authProvider, baseUrl, options);
+            return conversation.info;
+          },
+        } as ScopedAgentTypeMap[T];
+      }
+      case "copilot": {
+        return {
+          createConversation: async (options?: AgentSetupOptions) => {
+            const copilot = Copilot.create(agentCode, authProvider, baseUrl, options);
+            return await copilot.createConversation(agentCode, authProvider, baseUrl, options);
+          },
+          getConversationById: async (
+            conversationId: string,
+            options: { showExecutorTaskLogs: boolean } = { showExecutorTaskLogs: false }
+          ): Promise<ConversationRes> => {
+            const assistant = Assistant.create(agentCode, authProvider, baseUrl);
+            const conversation = assistant.createConversationWithoutInfo(agentCode, authProvider, baseUrl);
+            return await conversation.getConversationById(conversationId, options);
+          },
+          getInfo: async (options?: AgentSetupOptions) => {
+            const assistant = Assistant.create(agentCode, authProvider, baseUrl, options);
+            const conversation = await assistant.createConversation(agentCode, authProvider, baseUrl, options);
+            return conversation.info;
+          },
+        } as ScopedAgentTypeMap[T];
+      }
+      case "activity": {
+        return {
+          execute: (options?: SystemAgentExecutionOptionsMap["activity"]): Promise<AgentResult> => {
+            return Activity["createAndExecute"](agentCode, authProvider, baseUrl, options);
+          },
+          create: (options?: SystemAgentExecutionOptionsMap["activity"]): Activity => {
+            return Activity["create"](agentCode, authProvider, baseUrl, options);
+          },
+        } as ScopedAgentTypeMap[T];
+      }
+      case "chat-completion": {
+        return {
+          execute: (options?: SystemAgentExecutionOptionsMap["chat-completion"]): Promise<AgentResult> => {
+            return ChatCompletion["createAndExecute"](agentCode, authProvider, baseUrl, options);
+          },
+          create: (options?: SystemAgentExecutionOptionsMap["chat-completion"]): ChatCompletion => {
+            return ChatCompletion["create"](agentCode, authProvider, baseUrl, options);
+          },
+        } as ScopedAgentTypeMap[T];
+      }
+      case "proxy": {
+        return {
+          execute: (options?: SystemAgentExecutionOptionsMap["proxy"]): Promise<AgentResult> => {
+            return Proxy["createAndExecute"](agentCode, authProvider, baseUrl, options);
+          },
+          create: (options?: SystemAgentExecutionOptionsMap["proxy"]): Proxy => {
+            return Proxy["create"](agentCode, authProvider, baseUrl, options);
+          },
+        } as ScopedAgentTypeMap[T];
       }
       default:
         throw new Error(`Agent type ${type} not supported`);
@@ -345,4 +430,44 @@ type AgentTypeMap = {
   activity: SystemAgentScope<"activity", Activity>;
   "chat-completion": SystemAgentScope<"chat-completion", ChatCompletion>;
   proxy: SystemAgentScope<"proxy", Proxy>;
+};
+
+// ─── Agent Client Credentials scopes (agentCode omitted) ───
+
+export type ScopedConversationalAgentScope<
+  T extends keyof ConversationalAgentExecutionOptionsMap,
+> = {
+  createConversation: (
+    options?: AgentSetupOptions
+  ) => Promise<Conversation>;
+
+  getInfo: (
+    options?: AgentSetupOptions
+  ) => Promise<ConversationInfoResult | null>;
+
+  getConversationById: (
+    conversationId: string,
+    options?: { showExecutorTaskLogs: boolean }
+  ) => Promise<ConversationRes>;
+};
+
+export type ScopedSystemAgentScope<
+  T extends keyof SystemAgentExecutionOptionsMap,
+  TCreateReturn,
+> = {
+  execute: (
+    options?: SystemAgentExecutionOptionsMap[T]
+  ) => Promise<AgentResult>;
+
+  create: (
+    options?: SystemAgentExecutionOptionsMap[T]
+  ) => TCreateReturn;
+};
+
+type ScopedAgentTypeMap = {
+  assistant: ScopedConversationalAgentScope<"assistant">;
+  copilot: ScopedConversationalAgentScope<"copilot">;
+  activity: ScopedSystemAgentScope<"activity", Activity>;
+  "chat-completion": ScopedSystemAgentScope<"chat-completion", ChatCompletion>;
+  proxy: ScopedSystemAgentScope<"proxy", Proxy>;
 };

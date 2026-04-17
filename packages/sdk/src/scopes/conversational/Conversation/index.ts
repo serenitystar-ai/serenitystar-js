@@ -23,10 +23,12 @@ import { AgentMapper } from "../../../utils/AgentMapper";
 import { InternalErrorHelper } from "../../../utils/ErrorHelper";
 import { VolatileKnowledgeManager } from "../../../utils/VolatileKnowledgeManager";
 import { FileManager } from "../../../utils/FileManager";
+import { AuthProvider } from "../../../auth/AuthProvider";
+import { fetchWithAuth } from "../../../utils/fetchWithAuth";
 
 export class Conversation extends EventEmitter<SSEStreamEvents> {
   private agentCode: string;
-  private apiKey: string;
+  private authProvider: AuthProvider;
   private baseUrl: string;
 
   // Optional parameters.
@@ -56,16 +58,16 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
 
   private constructor(
     agentCode: string,
-    apiKey: string,
+    authProvider: AuthProvider,
     baseUrl: string,
     options?: AgentExecutionOptions
   ) {
     super();
-    this.apiKey = apiKey;
+    this.authProvider = authProvider;
     this.agentCode = agentCode;
     this.baseUrl = baseUrl;
-    this.volatileKnowledge = new VolatileKnowledgeManager(baseUrl, apiKey);
-    this.fileManager = new FileManager(baseUrl, apiKey);
+    this.volatileKnowledge = new VolatileKnowledgeManager(baseUrl, authProvider);
+    this.fileManager = new FileManager(baseUrl, authProvider);
 
     this.agentVersion = options?.agentVersion;
     this.userIdentifier = options?.userIdentifier;
@@ -76,21 +78,21 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
 
   private static async create(
     agentCode: string,
-    apiKey: string,
+    authProvider: AuthProvider,
     baseUrl: string,
     options?: AgentExecutionOptions
   ): Promise<Conversation> {
-    const instance = new Conversation(agentCode, apiKey, baseUrl, options);
+    const instance = new Conversation(agentCode, authProvider, baseUrl, options);
     await instance.getInfo();
     return instance;
   }
 
   private static createWithoutInfo(
     agentCode: string,
-    apiKey: string,
+    authProvider: AuthProvider,
     baseUrl: string
   ): Conversation {
-    return new Conversation(agentCode, apiKey, baseUrl);
+    return new Conversation(agentCode, authProvider, baseUrl);
   }
 
   async streamMessage(
@@ -201,10 +203,9 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       url += `?${queryParams.toString()}`;
     }
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(this.authProvider, url, {
       method: "GET",
       headers: {
-        "X-API-KEY": this.apiKey,
         "Content-Type": "application/json",
       },
     });
@@ -273,10 +274,9 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       body.userIdentifier = this.userIdentifier;
     }
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(this.authProvider, url, {
       method: "POST",
       headers: {
-        "X-API-KEY": this.apiKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
@@ -317,10 +317,9 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
 
     const url = `${this.baseUrl}/agent/${this.agentCode}/conversation/${this.conversationId}/message/${options.agentMessageId}/feedback`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(this.authProvider, url, {
       method: "POST",
       headers: {
-        "X-API-KEY": this.apiKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -370,11 +369,9 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
 
     const url = `${this.baseUrl}/agent/${this.agentCode}/conversation/${this.conversationId}/message/${options.agentMessageId}/feedback`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(this.authProvider, url, {
       method: "DELETE",
-      headers: {
-        "X-API-KEY": this.apiKey,
-      },
+      headers: {},
     });
 
     if (response.status !== 200) {
@@ -411,10 +408,9 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
   async getConnectorStatus(options: GetConnectorStatusOptions): Promise<ConnectorStatusResult> {
     const url = `${this.baseUrl}/connection/agentInstance/${options.agentInstanceId}/connector/${options.connectorId}/status`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(this.authProvider, url, {
       method: "GET",
       headers: {
-        "X-API-KEY": this.apiKey,
         "Content-Type": "application/json",
       },
     });
@@ -436,11 +432,10 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     const url = this.#getExecuteUrl();
     const body = this.#createExecuteBody(bodyOptions);
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(this.authProvider, url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-API-KEY": this.apiKey,
       },
       body: JSON.stringify(body),
     });
@@ -502,11 +497,12 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
         resolve(finalMessage.result);
       });
 
+      const authHeaders = await this.authProvider.getHeaders();
       const fetchOptions: RequestInit = {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-API-KEY": this.apiKey,
+          ...authHeaders,
         },
         body: JSON.stringify(body),
       };

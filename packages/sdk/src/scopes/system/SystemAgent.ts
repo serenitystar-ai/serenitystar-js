@@ -6,6 +6,8 @@ import { VolatileKnowledgeManager } from "../../utils/VolatileKnowledgeManager";
 import { FileManager } from "../../utils/FileManager";
 import { SseConnection } from "../conversational/Conversation/SseConnection";
 import { SystemAgentExecutionOptionsMap } from "./../../types";
+import { AuthProvider } from "../../auth/AuthProvider";
+import { fetchWithAuth } from "../../utils/fetchWithAuth";
 
 export abstract class SystemAgent<
   T extends keyof SystemAgentExecutionOptionsMap,
@@ -28,13 +30,13 @@ export abstract class SystemAgent<
 
   protected constructor(
     protected readonly agentCode: string,
-    protected readonly apiKey: string,
+    protected readonly authProvider: AuthProvider,
     protected readonly baseUrl: string,
     protected readonly options?: SystemAgentExecutionOptionsMap[T]
   ) {
     super();
-    this.volatileKnowledge = new VolatileKnowledgeManager(baseUrl, apiKey);
-    this.fileManager = new FileManager(baseUrl, apiKey);
+    this.volatileKnowledge = new VolatileKnowledgeManager(baseUrl, authProvider);
+    this.fileManager = new FileManager(baseUrl, authProvider);
   }
 
   /**
@@ -158,11 +160,10 @@ export abstract class SystemAgent<
   ): Promise<AgentResult> {
     const url = this.#getExecuteUrl();
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(this.authProvider, url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-API-KEY": this.apiKey,
       },
       body: JSON.stringify(body),
     });
@@ -216,11 +217,12 @@ export abstract class SystemAgent<
         resolve(finalMessage.result);
       });
 
+      const authHeaders = await this.authProvider.getHeaders();
       const fetchOptions: RequestInit = {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-API-KEY": this.apiKey,
+          ...authHeaders,
         },
         body: JSON.stringify(body),
       };

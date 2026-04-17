@@ -1,33 +1,34 @@
 import { SystemAgent } from "./SystemAgent";
 import { ExecuteBodyParams, SystemAgentExecutionOptionsMap } from "../../types";
 import { ProxyExecutionOptions } from "./types";
+import { AuthProvider } from "../../auth/AuthProvider";
 
 export class Proxy extends SystemAgent<"proxy"> {
   private constructor(
     agentCode: string,
-    apiKey: string,
+    authProvider: AuthProvider,
     baseUrl: string,
     options?: SystemAgentExecutionOptionsMap["proxy"]
   ) {
-    super(agentCode, apiKey, baseUrl, options);
+    super(agentCode, authProvider, baseUrl, options);
   }
 
   static create(
     agentCode: string,
-    apiKey: string,
+    authProvider: AuthProvider,
     baseUrl: string,
     options?: SystemAgentExecutionOptionsMap["proxy"]
   ): Proxy {
-    return new Proxy(agentCode, apiKey, baseUrl, options);
+    return new Proxy(agentCode, authProvider, baseUrl, options);
   }
 
   static createAndExecute(
     agentCode: string,
-    apiKey: string,
+    authProvider: AuthProvider,
     baseUrl: string,
     options?: SystemAgentExecutionOptionsMap["proxy"]
   ) {
-    const instance = new Proxy(agentCode, apiKey, baseUrl, options);
+    const instance = new Proxy(agentCode, authProvider, baseUrl, options);
     return instance.execute();
   }
 

@@ -1,18 +1,49 @@
 import { ProxyExecutionOptions } from "./scopes/system/types";
 
+/** Context passed to the tokenProvider callback */
+export type TokenProviderContext = {
+  publicKey: string;
+  /** The base URL of the Serenity API */
+  baseUrl: string;
+  /** The agent code this token is scoped to */
+  agentCode: string;
+};
+
+/** The tokenProvider function signature */
+export type TokenProviderFn = (params: {
+  context: TokenProviderContext;
+}) => Promise<string>;
+
+/** Agent Client Credentials — scoped to a single agent */
+export type AgentClientCredentials = {
+  /** The agent this credential is scoped to */
+  agentCode: string;
+  /** The public key issued for this agent */
+  publicKey: string;
+  /** Callback to obtain a client token from your backend */
+  tokenProvider: TokenProviderFn;
+};
+
+/** API Key auth mode — full access */
+export type ApiKeyClientOptions = {
+  apiKey: string;
+  agentClientCredentials?: never;
+  baseUrl?: string;
+};
+
+/** Agent Client Credentials auth mode — scoped to one agent */
+export type AgentClientCredentialsOptions = {
+  apiKey?: never;
+  agentClientCredentials: AgentClientCredentials;
+  baseUrl?: string;
+};
+
 /**
  * Options for configuring the Serenity client.
  */
-export type SerenityClientOptions = {
-  /**
-   * The API key used for authenticating requests to the Serenity API.
-   */
-  apiKey: string;
-  /**
-   * The base URL of the Serenity API.
-   */
-  baseUrl?: string;
-};
+export type SerenityClientOptions =
+  | ApiKeyClientOptions
+  | AgentClientCredentialsOptions;
 
 export type AgentType = 'assistant' | 'copilot' | 'proxy' | 'activity' | 'chat-completion';
 

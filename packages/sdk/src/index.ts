@@ -14,7 +14,8 @@ import {
   SubmitFeedbackResult,
 } from "./scopes/conversational/Conversation/types";
 import { RealtimeSession } from "./scopes/conversational/RealtimeSession";
-import SerenityClient from "./SerenityClient";
+import { SerenityClient, FullSerenityClient, ScopedSerenityClient } from "./SerenityClient";
+import type { FullAgents, FullServices, ScopedAgents } from "./SerenityClient";
 import {
   AgentResult,
   BaseErrorBody,
@@ -27,11 +28,15 @@ import {
   TranscribeAudioOptions,
   TranscribeAudioResult,
   FileUploadRes,
+  TokenProviderFn,
+  TokenProviderContext,
+  AgentClientCredentials,
 } from "./types";
 import { ExternalErrorHelper } from "./utils/ErrorHelper";
 import { VolatileKnowledgeManager } from "./utils/VolatileKnowledgeManager";
+import { AuthProvider } from "./auth/AuthProvider";
 
-export { SerenityClient, RealtimeSession, ExternalErrorHelper as ErrorHelper, VolatileKnowledgeManager };
+export { SerenityClient, FullSerenityClient, ScopedSerenityClient, RealtimeSession, ExternalErrorHelper as ErrorHelper, VolatileKnowledgeManager };
 export type {
   AgentResult,
   ConversationRes,
@@ -56,4 +61,11 @@ export type {
   TranscribeAudioResult,
   FileUploadRes,
   AttachedVolatileKnowledgeRes,
+  TokenProviderFn,
+  TokenProviderContext,
+  AgentClientCredentials,
+  AuthProvider,
+  FullAgents,
+  FullServices,
+  ScopedAgents,
 };

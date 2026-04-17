@@ -8,6 +8,10 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
 - [Serenity Star JS/TS SDK](#serenity-star-jsts-sdk)
   - [Table of Contents](#table-of-contents)
 - [Installation](#installation)
+- [Authentication Modes](#authentication-modes)
+  - [API Key (Full Access)](#api-key-full-access)
+  - [Agent Client Credentials (Token Provider)](#agent-client-credentials-token-provider)
+  - [Feature Comparison](#feature-comparison)
 - [Usage](#usage)
 - [Assistants / Copilots](#assistants--copilots)
   - [Start a new conversation with an Agent](#start-a-new-conversation-with-an-agent)
@@ -45,6 +49,81 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
 npm install @serenity-star/sdk
 ```
 
+# Authentication Modes
+
+The SDK supports two authentication modes that determine how the client is instantiated and which features are available.
+
+## API Key (Full Access)
+
+Use an API key when you want full access to all agents and services. API keys can have permission restrictions configured in Serenity\* Star.
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+// agentCode is passed to each operation
+const conversation = await client.agents.assistants.createConversation("chef-assistant");
+
+// All services are available
+const transcript = await client.services.audio.transcribe(audioFile, { modelId: '<MODEL_ID>' });
+```
+
+## Agent Client Credentials (Token Provider)
+
+Use Agent Client Credentials when you want the client scoped to a **single agent** and to obtain short-lived access tokens through a callback you provide. This mode does not expose long-lived credentials in your client code.
+
+> **Setup:** Agent Client Credentials are created per-agent in the **Agent Design Studio** inside Serenity\* Star. Each credential set includes a `ClientId`, `ClientSecret`, and `publicKey`.
+> - **`ClientId` and `ClientSecret`** must be kept server-side only. Your backend uses them to issue a short-lived client token.
+> - **`publicKey`** is safe to expose in your client-side code and is passed to the `SerenityClient` constructor.
+
+The `agentCode` is fixed at construction time and is **not passed** to individual method calls. The SDK manages the full token lifecycle (acquisition, proactive refresh, retry on 401) transparently.
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  agentClientCredentials: {
+    agentCode: "chef-assistant",
+    publicKey: "<PUBLIC_KEY>",         // safe to expose client-side
+    tokenProvider: async ({ context }) => {
+      // Call your backend, which uses ClientId + ClientSecret to issue a token
+      const res = await fetch("/api/get-serenity-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          publicKey: context.publicKey,
+          agentCode: context.agentCode,
+        }),
+      });
+      return (await res.json()).token;
+    },
+  },
+});
+
+// agentCode is NOT passed — it was fixed at construction time
+const conversation = await client.agents.assistants.createConversation();
+```
+
+> **Note:** Your `tokenProvider` callback only needs to return a client token from your backend. The SDK handles the token exchange with the Serenity API automatically — calling the exchange endpoint, obtaining a short-lived access token, and refreshing it transparently.
+
+## Feature Comparison
+
+| Feature | API Key | Agent Client Credentials |
+|---|---|---|
+| `agents.assistants.createConversation(agentCode, options?)` | ✅ | ➡️ `createConversation(options?)` |
+| `agents.assistants.getInfoByCode(agentCode, options?)` | ✅ | ➡️ `getInfo(options?)` |
+| `agents.assistants.getConversationById(agentCode, id, options?)` | ✅ | ➡️ `getConversationById(id, options?)` |
+| `agents.assistants.createRealtimeSession(agentCode, options?)` | ✅ | ❌ Not available |
+| `agents.copilots.*` | ✅ Same as assistants | ➡️ Same scoping as assistants |
+| `agents.activities.execute(agentCode, options?)` | ✅ | ➡️ `execute(options?)` |
+| `agents.activities.create(agentCode, options?)` | ✅ | ➡️ `create(options?)` |
+| `agents.chatCompletions.*` | ✅ Same as activities | ➡️ Same scoping as activities |
+| `agents.proxies.*` | ✅ Same as activities | ➡️ Same scoping as activities |
+| `services.audio.transcribe(...)` | ✅ | ❌ Not available (`services` is undefined) |
+
 # Usage
 
 ```tsx
@@ -73,6 +152,13 @@ const client = new SerenityClient({
 // Create a new conversation with an assistant
 const conversation = await client.agents.assistants.createConversation("chef-assistant");
 ```
+
+> **Token Provider Auth:** Omit `agentCode` — it was fixed at construction time.
+> ```ts
+> const conversation = await client.agents.assistants.createConversation();
+> // or with options:
+> const conversation = await client.agents.assistants.createConversation({ channel: "web" });
+> ```
 
 ## Get conversation information
 
@@ -115,6 +201,13 @@ console.log(
 );
 ```
 
+> **Token Provider Auth:** Use `getInfo(options?)` instead of `getInfoByCode(agentCode, options?)`.
+> ```ts
+> const agentInfo = await client.agents.assistants.getInfo();
+> // with options:
+> const agentInfo = await client.agents.assistants.getInfo({ agentVersion: 2 });
+> ```
+
 ## Use channel-pinned agent version
 
 By default, when no `agentVersion` is specified, the SDK executes the **latest** version of the agent. If your application uses channels that pin a specific agent version, you can opt in to that behavior with `useChannelVersion`:
@@ -139,6 +232,14 @@ console.log(response.content);
 ```
 
 > **Note:** An explicit `agentVersion` always takes priority over the channel's target version. When `useChannelVersion` is `false` (the default), the channel metadata is still available in `conversation.info` but does not affect which agent version is executed.
+
+> **Token Provider Auth:** Same options, omit `agentCode`.
+> ```ts
+> const conversation = await client.agents.assistants.createConversation({
+>   channel: "my-channel",
+>   useChannelVersion: true,
+> });
+> ```
 
 ## Get conversation by id
 
@@ -167,6 +268,13 @@ console.log(
   conversationWithLogs.executorTaskLogs // Detailed task execution logs
 );
 ```
+
+> **Token Provider Auth:** Omit `agentCode`.
+> ```ts
+> const conversation = await client.agents.assistants.getConversationById("<conversation-id>");
+> // with options:
+> const conversationWithLogs = await client.agents.assistants.getConversationById("<conversation-id>", { showExecutorTaskLogs: true });
+> ```
 
 ## Sending messages within a conversation
 
@@ -262,6 +370,8 @@ session.unmuteMicrophone()
 // Stop the session
 session.stop();
 ```
+
+> **Token Provider Auth:** `createRealtimeSession` is not available with this auth mode. Realtime features require API Key authentication.
 
 ## Message Feedback
 
@@ -393,6 +503,13 @@ console.log(
 )
 ```
 
+> **Token Provider Auth:** Omit `agentCode`.
+> ```ts
+> const response = await client.agents.activities.execute();
+> // with options:
+> const response = await client.agents.activities.execute({ inputParameters: { targetLanguage: "russian", textToTranslate: "hello world" } });
+> ```
+
 ## Stream responses with SSE
 
 ```tsx
@@ -426,6 +543,11 @@ console.log(
 );
 ```
 
+> **Token Provider Auth:** Omit `agentCode` from `create()`.
+> ```ts
+> const activity = client.agents.activities.create({ inputParameters: { targetLanguage: "russian", textToTranslate: "hello world" } })
+> ```
+
 ---
 
 
@@ -455,6 +577,11 @@ console.log(
 );
 
 ```
+
+> **Token Provider Auth:** Omit `agentCode`.
+> ```ts
+> const response = await client.agents.proxies.execute({ model: "gpt-4o-mini-2024-07-18", messages: [{ role: "user", content: "What is artificial intelligence?" }] });
+> ```
 
 ## Stream responses with SSE
 
@@ -491,6 +618,11 @@ console.log(
 );
 
 ```
+
+> **Token Provider Auth:** Omit `agentCode` from `create()`.
+> ```ts
+> const proxy = client.agents.proxies.create({ model: "gpt-4o-mini-2024-07-18", messages: [{ role: "user", content: "What is artificial intelligence?" }] })
+> ```
 
 ## Proxy Execution Options
 
@@ -571,6 +703,11 @@ console.log(
 
 ```
 
+> **Token Provider Auth:** Omit `agentCode`.
+> ```ts
+> const response = await client.agents.chatCompletions.execute({ message: "Hello!!!" });
+> ```
+
 ## Stream responses with SSE
 
 ```tsx
@@ -606,6 +743,11 @@ console.log(
   response.completion_usage, // { completion_tokens: 200, prompt_tokens: 30, total_tokens: 230 }
 );
 ```
+
+> **Token Provider Auth:** Omit `agentCode` from `create()`.
+> ```ts
+> const chatCompletion = client.agents.chatCompletions.create({ message: "Hi! How can I eat healthier?" })
+> ```
 
 ---
 
@@ -874,3 +1016,5 @@ const conversation = await client.agents.assistants.createConversation("chef-ass
 const response = await conversation.sendMessage(result.transcript);
 console.log(response.content); // AI response based on the transcribed audio
 ```
+
+> **Token Provider Auth:** `client.services.audio` is not available with this auth mode. Audio transcription requires API Key authentication.

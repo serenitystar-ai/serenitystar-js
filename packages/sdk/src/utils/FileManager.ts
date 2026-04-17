@@ -1,13 +1,15 @@
 import { FileUploadOptions, FileUploadRes } from "../types";
 import { InternalErrorHelper } from "./ErrorHelper";
+import { AuthProvider } from "../auth/AuthProvider";
+import { fetchWithAuth } from "./fetchWithAuth";
 
 export class FileManager {
   baseUrl: string;
-  apiKey: string;
+  authProvider: AuthProvider;
 
-  constructor(baseUrl: string, apiKey: string) {
+  constructor(baseUrl: string, authProvider: AuthProvider) {
     this.baseUrl = baseUrl;
-    this.apiKey = apiKey;
+    this.authProvider = authProvider;
   }
 
   /**
@@ -82,12 +84,10 @@ export class FileManager {
     formData.append("formFile", fileToUpload, fileName);
 
     try {
-      const response = await fetch(url, {
+      const response = await fetchWithAuth(this.authProvider, url, {
         method: "POST",
         body: formData,
-        headers: {
-          "X-API-KEY": this.apiKey,
-        },
+        headers: {},
       });
 
       if (!response.ok) {
