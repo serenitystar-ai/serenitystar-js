@@ -107,4 +107,29 @@ export class FileManager {
       throw error;
     }
   }
+
+  /**
+   * Download a file using an authenticated request.
+   *
+   * @param downloadUrl - Absolute or relative file download URL
+   * @returns The downloaded file as a Blob
+   */
+  async download(downloadUrl: string): Promise<Blob> {
+    const normalizedUrl = downloadUrl.startsWith("http")
+      ? downloadUrl
+      : `${this.baseUrl}${downloadUrl.startsWith("/") ? "" : "/"}${downloadUrl}`;
+
+    const response = await fetchWithAuth(this.authProvider, normalizedUrl, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw await InternalErrorHelper.process(response, "Failed to download file");
+    }
+
+    return await response.blob();
+  }
 }

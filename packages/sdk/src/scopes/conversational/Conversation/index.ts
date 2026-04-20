@@ -165,6 +165,16 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
   }
 
   /**
+   * Download an attached file from a conversation message.
+   *
+   * @param downloadUrl - Attachment download URL
+   * @returns The downloaded attachment as a Blob
+   */
+  async downloadAttachment(downloadUrl: string): Promise<Blob> {
+    return await this.fileManager.download(downloadUrl);
+  }
+
+  /**
    * Stops the current streaming response, aborting the SSE connection.
    * If no stream is active, this method does nothing.
    * 

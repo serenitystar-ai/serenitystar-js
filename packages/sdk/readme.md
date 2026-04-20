@@ -753,6 +753,41 @@ console.log(
 
 # Shared Features
 
+## Download Attached Files
+
+Download files attached to assistant/copilot messages through the SDK (auth handled automatically for both API Key and Token Provider modes).
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+const conversation = await client.agents.assistants.createConversation("document-analyzer");
+
+// Example attachment URL from message.attached_volatile_knowledges[index].download_url
+const blob = await conversation.downloadAttachment("https://api.serenitystar.ai/api/file/download/<file-id>");
+
+// Trigger browser download
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+a.href = url;
+a.download = "document.pdf";
+a.click();
+URL.revokeObjectURL(url);
+```
+
+> **Token Provider Auth:** Same API.
+> ```ts
+> const client = new SerenityClient({
+>   agentClientCredentials: { agentCode: "chef-assistant", publicKey: "<PUBLIC_KEY>", tokenProvider },
+> });
+>
+> const conversation = await client.agents.assistants.createConversation();
+> const blob = await conversation.downloadAttachment("https://api.serenitystar.ai/api/file/download/<file-id>");
+> ```
+
 ## Stop Streaming Response
 
 You can stop a streaming response at any time by calling `stop()`. This works across all agent types: **Assistants**, **Copilots**, **Activities**, **Proxies**, and **Chat Completions**.
