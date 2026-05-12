@@ -580,8 +580,8 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     this.#appendInputParametersIfNeeded(
       body,
       {
-      ...(options.additionalInfo?.inputParameters ?? {}),
-      ...(this.inputParameters ?? {})
+        ...(this.inputParameters ?? {}),
+        ...(options.additionalInfo?.inputParameters ?? {})
       }
     );
     
