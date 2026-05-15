@@ -66,7 +66,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     this.authProvider = authProvider;
     this.agentCode = agentCode;
     this.baseUrl = baseUrl;
-    this.volatileKnowledge = new VolatileKnowledgeManager(baseUrl, authProvider);
+    this.volatileKnowledge = new VolatileKnowledgeManager(baseUrl, authProvider, agentCode);
     this.fileManager = new FileManager(baseUrl, authProvider);
 
     this.agentVersion = options?.agentVersion;

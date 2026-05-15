@@ -319,15 +319,42 @@ export type VolatileKnowledgeUploadRes =
       error: FileError;
     };
 
-export type VolatileKnowledgeUploadOptions = {
-  processEmbeddings?: boolean;
+export type VolatileKnowledgeExpirationOptions = {
   noExpiration?: boolean;
   expirationDays?: number;
+}
+
+export type VolatileKnowledgeProcessingOptions = {
+  callbackUrl?: string;
+  processEmbeddings?: boolean;
+}
+
+export type VolatileKnowledgeUploadOptions = VolatileKnowledgeExpirationOptions & {
+  processEmbeddings?: boolean;
   useVision?: boolean;
   locale?: {
     uploadFileErrorMessage?: string;
   }
 }
+
+export type VolatileKnowledgeUploadFromFileIdOptions =
+  VolatileKnowledgeExpirationOptions &
+  VolatileKnowledgeProcessingOptions
+
+export type VolatileKnowledgeUploadFromUrlOptions =
+  VolatileKnowledgeExpirationOptions &
+  VolatileKnowledgeProcessingOptions & {
+    fileName?: string;
+  }
+
+export type VolatileKnowledgeUploadFromBase64Options =
+  VolatileKnowledgeExpirationOptions &
+  VolatileKnowledgeProcessingOptions & {
+    fileName: string;
+    mimeType: string;
+    contentBase64: string;
+    decodedBytes?: Uint8Array;
+  }
 
 export type TranscribeAudioOptions = {
   modelId?: string;

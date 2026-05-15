@@ -35,7 +35,7 @@ export abstract class SystemAgent<
     protected readonly options?: SystemAgentExecutionOptionsMap[T]
   ) {
     super();
-    this.volatileKnowledge = new VolatileKnowledgeManager(baseUrl, authProvider);
+    this.volatileKnowledge = new VolatileKnowledgeManager(baseUrl, authProvider, agentCode);
     this.fileManager = new FileManager(baseUrl, authProvider);
   }
 
