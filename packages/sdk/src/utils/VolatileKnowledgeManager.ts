@@ -30,11 +30,7 @@ export class VolatileKnowledgeManager {
   }
 
   private get volatileKnowledgeUrl(): string {
-    return `${this.baseUrl}/v2/volatileKnowledge`;
-  }
-
-  private get agentVolatileKnowledgeUrl(): string {
-    return `${this.volatileKnowledgeUrl}/${encodeURIComponent(this.agentCode)}`;
+    return `${this.baseUrl}/v2/agent/${encodeURIComponent(this.agentCode)}/volatileKnowledge`;
   }
 
   /**
@@ -43,7 +39,7 @@ export class VolatileKnowledgeManager {
   async getSupportedMimeTypes(): Promise<string[]> {
     const response = await fetchWithAuth(
       this.authProvider,
-      `${this.agentVolatileKnowledgeUrl}/mime-types`,
+      `${this.volatileKnowledgeUrl}/mime-types`,
       {
         method: "GET",
         headers: {
@@ -120,8 +116,8 @@ export class VolatileKnowledgeManager {
 
       const queryString = queryParams.toString();
       const url = queryString
-        ? `${this.agentVolatileKnowledgeUrl}?${queryString}`
-        : this.agentVolatileKnowledgeUrl;
+        ? `${this.volatileKnowledgeUrl}?${queryString}`
+        : this.volatileKnowledgeUrl;
 
       const response = await fetchWithAuth(this.authProvider, url, {
         method: "POST",
@@ -179,7 +175,7 @@ export class VolatileKnowledgeManager {
       };
     }
 
-    return this.uploadJson(`${this.agentVolatileKnowledgeUrl}/upload/file`, {
+    return this.uploadJson(`${this.volatileKnowledgeUrl}/upload/file`, {
       fileId,
       callbackUrl: options.callbackUrl,
       noExpiration: options.noExpiration,
@@ -202,7 +198,7 @@ export class VolatileKnowledgeManager {
       };
     }
 
-    return this.uploadJson(`${this.agentVolatileKnowledgeUrl}/upload/url`, {
+    return this.uploadJson(`${this.volatileKnowledgeUrl}/upload/url`, {
       fileUrl,
       fileName: options.fileName,
       callbackUrl: options.callbackUrl,
@@ -240,7 +236,7 @@ export class VolatileKnowledgeManager {
 
     const mimeType = getMimeType(options.fileName, options.mimeType);
 
-    return this.uploadJson(`${this.agentVolatileKnowledgeUrl}/upload/base64`, {
+    return this.uploadJson(`${this.volatileKnowledgeUrl}/upload/base64`, {
       fileName: options.fileName,
       mimeType,
       contentBase64: contentBase64,
