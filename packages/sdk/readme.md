@@ -36,7 +36,9 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
   - [Execute a chat completion](#execute-a-chat-completion)
   - [Stream responses with SSE](#stream-responses-with-sse-2)
 - [Shared Features](#shared-features)
+  - [Download Attached Files](#download-attached-files)
   - [Stop Streaming Response](#stop-streaming-response)
+  - [Citations](#citations)
   - [Upload Files (Volatile Knowledge)](#upload-files-volatile-knowledge)
   - [Audio Input](#audio-input)
     - [Send Audio Messages (Assistants/Copilots)](#send-audio-messages-assistantscopilots)
@@ -312,8 +314,14 @@ const client = new SerenityClient({
 const conversation = await client.agents.assistants.createConversation("chef-assistant")
 	
 conversation
-	.on("content", (chunk) => {
+	.on("content", (chunk, citations) => {
 	  console.log(chunk) // Response chunk
+	  // `citations` is an optional array attached to some chunks.
+	  // Each citation's start_index / end_index are offsets into the FULL accumulated
+	  // message, not into this individual chunk.
+	  if (citations) {
+	    console.log(citations) // CitationRes[]
+	  }
 	})
 	.on("error", (error) => {
 	  // Handle stream errors here
@@ -327,9 +335,12 @@ console.log(
   response.content, // "Sure! Here is a recipe for parmesan chicken..."
   response.completion_usage, // { completion_tokens: 200, prompt_tokens: 30, total_tokens: 230 }
   response.executor_task_logs, // [ { description: 'Task 1', duration: 100 }, { description: 'Task 2', duration: 500 }],
+  response.citations, // CitationRes[] — full citation list for the final message
   response.instance_id, // instance id for the conversation
 )
 ```
+
+> **Citations:** When the agent grounds its answer in knowledge sources, citations are delivered both incrementally on `content` events (second argument) and as a consolidated `response.citations` array on the final result. See [Citations](#citations) for the full shape.
 
 ## Real time conversation
 
@@ -830,6 +841,85 @@ const activity = client.agents.activities.create("translator-activity", {
 });
 
 await activity.stream();
+```
+
+## Citations
+
+When an agent grounds its response in knowledge sources (knowledge files or websites), it returns **citations** that map spans of the generated message back to the source passages they came from. Citations are available across all agent types that support knowledge grounding.
+
+Citations are delivered in two places:
+
+1. **Incrementally**, as the second argument of the `content` event during streaming.
+2. **Consolidated**, as the `citations` array on the final result (`response.citations`) — available for both streamed and non-streamed executions.
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+const conversation = await client.agents.assistants.createConversation("policy-assistant");
+
+conversation.on("content", (chunk, citations) => {
+  process.stdout.write(chunk);
+
+  if (citations) {
+    for (const citation of citations) {
+      console.log(
+        citation.citation_index, // Display number rendered as the superscript (may repeat)
+        citation.start_index,    // Offset into the FULL accumulated message where the cited span starts
+        citation.end_index,      // Offset into the FULL accumulated message where the cited span ends
+        citation.relevance,      // Optional relevance score
+        citation.cited_text,     // Verbatim text of the source passage (shown in the hover card)
+        citation.source          // The cited source (see below), or null
+      );
+    }
+  }
+});
+
+const response = await conversation.streamMessage("Summarize our security and access-control requirements");
+
+// The final result carries the consolidated citation list
+for (const citation of response.citations ?? []) {
+  if (citation.source?.type === "knowledge_file") {
+    console.log(`[${citation.citation_index}] ${citation.source.file_name} (pages ${citation.source.page_range})`);
+  } else if (citation.source?.type === "knowledge_website") {
+    console.log(`[${citation.citation_index}] ${citation.source.website}`);
+  }
+}
+```
+
+> **Note:** `start_index` and `end_index` are offsets into the **full accumulated message**, not into the individual chunk delivered by a `content` event. Accumulate the chunks (or use `response.content`) before resolving these offsets.
+
+The `CitationRes` and `CitationSource` types are exported from the package:
+
+```ts
+import type { CitationRes, CitationSource } from '@serenity-star/sdk';
+
+type CitationSource =
+  | {
+      type: "knowledge_file";
+      knowledge_file_version_id?: string;
+      section_id?: string;
+      file_name?: string;
+      page_range?: string;
+    }
+  | {
+      type: "knowledge_website";
+      knowledge_file_version_id?: string;
+      section_id?: string;
+      website: string;
+    };
+
+type CitationRes = {
+  cited_text: string;      // Verbatim text of the source passage (shown in the hover card)
+  citation_index: number;  // Display number rendered as the superscript; may repeat across citations
+  start_index: number;     // Offset into the FULL accumulated message where the cited span starts
+  end_index: number;       // Offset into the FULL accumulated message where the cited span ends
+  relevance?: number;
+  source: CitationSource | null;
+};
 ```
 
 ## Upload Files (Volatile Knowledge)

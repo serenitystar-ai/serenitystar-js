@@ -18,6 +18,8 @@ import { SerenityClient, FullSerenityClient, ScopedSerenityClient } from "./Sere
 import type { FullAgents, FullServices, ScopedAgents } from "./SerenityClient";
 import {
   AgentResult,
+  CitationRes,
+  CitationSource,
   BaseErrorBody,
   FileError,
   PendingAction,
@@ -44,6 +46,8 @@ import { AuthProvider } from "./auth/AuthProvider";
 export { SerenityClient, FullSerenityClient, ScopedSerenityClient, RealtimeSession, ExternalErrorHelper as ErrorHelper, VolatileKnowledgeManager };
 export type {
   AgentResult,
+  CitationRes,
+  CitationSource,
   ConversationRes,
   ConversationInfoResult,
   ChatWidgetRes,
