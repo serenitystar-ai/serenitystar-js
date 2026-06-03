@@ -834,7 +834,7 @@ await activity.stream();
 
 ## Upload Files (Volatile Knowledge)
 
-Upload files to be used as context in your agent executions. This feature is available for all agent types: **Assistants**, **Copilots**, **Activities**, **Proxies**, and **Chat Completions**. Files are automatically included in the next message or execution.
+Upload files to be used as context in your agent executions. This feature is available for all agent types: **Assistants**, **Copilots**, **Activities**, **Proxies**, and **Chat Completions**. Files are agent-scoped automatically and are included in the next message or execution.
 
 ```tsx
 import SerenityClient from '@serenity-star/sdk';
@@ -845,6 +845,10 @@ const client = new SerenityClient({
 
 // Works with any agent type (Assistant, Copilot, Activity, Proxy, Chat Completion)
 const conversation = await client.agents.assistants.createConversation("document-analyzer");
+
+// Check the file types supported by this specific agent
+const supportedMimeTypes = await conversation.volatileKnowledge.getSupportedMimeTypes();
+console.log("Supported MIME types:", supportedMimeTypes);
 
 // Upload a file (basic example)
 const file = new File(["content"], "document.pdf", { type: "application/pdf" });
@@ -872,6 +876,7 @@ if (uploadResult.success) {
 const imageFile = new File(["image data"], "chart.png", { type: "image/png" });
 const uploadWithOptions = await conversation.volatileKnowledge.upload(imageFile, {
   useVision: true,              // Enable vision for image files (automatically skips embeddings for images)
+  processEmbeddings: false,     // Optional: explicitly control embeddings generation
   noExpiration: false,          // File will expire (default behavior)
   expirationDays: 7,           // Custom expiration in days
   locale: {
@@ -884,6 +889,28 @@ if (uploadWithOptions.success) {
   const response = await conversation.sendMessage("Describe what you see in this chart");
   console.log(response.content);
 }
+
+// Create volatile knowledge from an existing platform file ID
+const fromFileId = await conversation.volatileKnowledge.uploadFromFileId("existing-file-id", {
+  callbackUrl: "https://example.com/volatile-knowledge/callback",
+  processEmbeddings: true,
+  expirationDays: 7,
+});
+
+// Create volatile knowledge from a remote URL
+const fromUrl = await conversation.volatileKnowledge.uploadFromUrl("https://example.com/report.pdf", {
+  fileName: "report.pdf",
+  processEmbeddings: true,
+  noExpiration: false,
+});
+
+// Create volatile knowledge from base64 content
+const fromBase64 = await conversation.volatileKnowledge.uploadFromBase64(contentBase64, {
+  fileName: "report.pdf",
+  mimeType: "application/pdf",
+  processEmbeddings: true,
+  expirationDays: 7,
+});
 
 // Check file status by ID
 const fileStatus = await conversation.volatileKnowledge.getById(uploadResult.id);

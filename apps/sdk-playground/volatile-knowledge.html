@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VolatileKnowledgeManager — Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1c2330;
+      --border: #30363d;
+      --accent: #58a6ff;
+      --accent-dim: #1f3a5f;
+      --success: #3fb950;
+      --success-dim: #1a3d24;
+      --error: #f85149;
+      --error-dim: #3d1a1a;
+      --warn: #d29922;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --radius: 8px;
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+      --font-mono: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Config bar ── */
+    .config-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .config-bar h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      margin-right: 8px;
+    }
+    .config-bar label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .config-bar input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+      padding: 5px 10px;
+      width: 220px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .config-bar input:focus { border-color: var(--accent); }
+    .config-bar input#apiKey { font-family: var(--font-mono); letter-spacing: .05em; }
+    .ids-badge {
+      margin-left: auto;
+      background: var(--accent-dim);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .ids-badge span { font-weight: 700; }
+
+    /* ── Layout ── */
+    .content {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 28px 24px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── Method card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+    }
+    .method-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .method-badge.get  { background: #1b3a2a; color: #3fb950; }
+    .method-badge.post { background: #1a2d4a; color: #58a6ff; }
+    .method-badge.local { background: #2a2216; color: #d29922; }
+    .card-title {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .card-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    .card-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+    @media (max-width: 860px) {
+      .card-body { grid-template-columns: 1fr; }
+    }
+
+    .inputs-pane, .response-pane {
+      padding: 18px;
+    }
+    .inputs-pane {
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    @media (max-width: 860px) {
+      .inputs-pane { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+
+    /* ── Form controls ── */
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .field label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .field .required { color: var(--error); margin-left: 2px; }
+    .field input[type="text"],
+    .field input[type="url"],
+    .field input[type="number"],
+    .field input[type="password"],
+    .field textarea {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: var(--font);
+      padding: 7px 10px;
+      width: 100%;
+      outline: none;
+      transition: border-color .15s;
+      resize: vertical;
+    }
+    .field input:focus, .field textarea:focus { border-color: var(--accent); }
+    .field input[type="file"] {
+      background: var(--surface2);
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+      padding: 10px;
+      cursor: pointer;
+      width: 100%;
+      transition: border-color .15s;
+    }
+    .field input[type="file"]:hover { border-color: var(--accent); }
+    .field-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+      user-select: none;
+    }
+    .checkbox-label input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 18px;
+      transition: opacity .15s, background .15s;
+    }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #0d1117; }
+    .btn-primary:hover:not(:disabled) { opacity: .85; }
+    .btn-warn { background: var(--warn); color: #0d1117; }
+    .btn-warn:hover:not(:disabled) { opacity: .85; }
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+    .btn-ghost:hover:not(:disabled) { border-color: var(--text-muted); color: var(--text); }
+    .spinner {
+      display: inline-block;
+      width: 13px; height: 13px;
+      border: 2px solid rgba(0,0,0,.3);
+      border-top-color: #0d1117;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Response pane ── */
+    .response-pane {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .response-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+    .response-box {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.7;
+      overflow: auto;
+      min-height: 120px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--text-muted);
+    }
+    .response-box.empty::before { content: 'No response yet.'; opacity: .4; }
+    .response-box.success { border-color: var(--success); background: var(--success-dim); color: var(--success); }
+    .response-box.error   { border-color: var(--error);   background: var(--error-dim);   color: var(--error); }
+
+    .response-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+    .pill.id { border-color: var(--accent); color: var(--accent); }
+    .pill.status-success { border-color: var(--success); color: var(--success); }
+    .pill.status-error   { border-color: var(--error);   color: var(--error); }
+    .copy-btn {
+      margin-left: auto;
+      align-self: flex-start;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      padding: 3px 8px;
+    }
+    .copy-btn:hover { color: var(--text); border-color: var(--text-muted); }
+
+    /* ── Section divider ── */
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--text-muted);
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Config bar ── -->
+<div class="config-bar">
+  <h1>⚡ VolatileKnowledgeManager</h1>
+  <label>
+    Base URL
+    <input type="text" id="baseUrl" value="https://api.serenitystar.ai/api" placeholder="https://api.serenitystar.ai/api" />
+  </label>
+  <label>
+    API Key
+    <input type="password" id="apiKey" placeholder="sk-..." />
+  </label>
+  <label>
+    Agent Code
+    <input type="text" id="agentCode" placeholder="my-agent-code" />
+  </label>
+  <div class="ids-badge">Queue: <span id="globalIdCount">0</span> file(s) — <span id="globalIds" style="font-family:var(--font-mono);font-size:11px;">[]</span></div>
+</div>
+
+<div class="content">
+
+  <!-- ─────────────────────────── getSupportedMimeTypes ─────────────────────────── -->
+  <div class="section-title">READ</div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge get">GET</span>
+      <span class="card-title">getSupportedMimeTypes()</span>
+      <span class="card-desc">Returns the MIME types allowed for the current agent.</span>
+    </div>
+    <div class="card-body">
+      <div class="inputs-pane">
+        <p style="font-size:12px;color:var(--text-muted);">No additional parameters required.<br>Uses the Agent Code from the config bar.</p>
+        <button class="btn btn-primary" id="btn-getSupportedMimeTypes" style="align-self:flex-start;margin-top:auto;">
+          Execute
+        </button>
+      </div>
+      <div class="response-pane">
+        <div class="response-label">Response</div>
+        <div class="response-summary" id="sum-getSupportedMimeTypes"></div>
+        <div class="response-box empty" id="res-getSupportedMimeTypes"></div>
+        <button class="copy-btn" onclick="copyResponse('res-getSupportedMimeTypes')">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────── getById ─────────────────────────── -->
+
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge get">GET</span>
+      <span class="card-title">getById(fileId)</span>
+      <span class="card-desc">Fetch details of a volatile knowledge file by its ID.</span>
+    </div>
+    <div class="card-body">
+      <div class="inputs-pane">
+        <div class="field">
+          <label>File ID <span class="required">*</span></label>
+          <input type="text" id="getById-fileId" placeholder="e.g. abc123" />
+        </div>
+        <button class="btn btn-primary" id="btn-getById" style="align-self:flex-start;margin-top:auto;">
+          Execute
+        </button>
+      </div>
+      <div class="response-pane">
+        <div class="response-label">Response</div>
+        <div class="response-summary" id="sum-getById"></div>
+        <div class="response-box empty" id="res-getById"></div>
+        <button class="copy-btn" onclick="copyResponse('res-getById')">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────── UPLOAD ─────────────────────────── -->
+  <div class="section-title">UPLOAD</div>
+
+  <!-- upload() -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge post">POST</span>
+      <span class="card-title">upload(file, options?)</span>
+      <span class="card-desc">Multipart file upload. ID is added to the local queue.</span>
+    </div>
+    <div class="card-body">
+      <div class="inputs-pane">
+        <div class="field">
+          <label>File <span class="required">*</span></label>
+          <input type="file" id="upload-file" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Expiration Days</label>
+            <input type="number" id="upload-expirationDays" placeholder="e.g. 7" min="1" />
+          </div>
+        </div>
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="upload-noExpiration" />
+            No Expiration
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="upload-processEmbeddings" />
+            Process Embeddings
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="upload-useVision" />
+            Use Vision (images only)
+          </label>
+        </div>
+        <button class="btn btn-primary" id="btn-upload" style="align-self:flex-start;margin-top:auto;">
+          Execute
+        </button>
+      </div>
+      <div class="response-pane">
+        <div class="response-label">Response</div>
+        <div class="response-summary" id="sum-upload"></div>
+        <div class="response-box empty" id="res-upload"></div>
+        <button class="copy-btn" onclick="copyResponse('res-upload')">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- uploadFromFileId() -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge post">POST</span>
+      <span class="card-title">uploadFromFileId(fileId, options?)</span>
+      <span class="card-desc">Create volatile knowledge from an existing platform file ID.</span>
+    </div>
+    <div class="card-body">
+      <div class="inputs-pane">
+        <div class="field">
+          <label>File ID <span class="required">*</span></label>
+          <input type="text" id="fromFileId-fileId" placeholder="Existing file ID" />
+        </div>
+        <div class="field">
+          <label>Callback URL</label>
+          <input type="url" id="fromFileId-callbackUrl" placeholder="https://example.com/webhook" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Expiration Days</label>
+            <input type="number" id="fromFileId-expirationDays" placeholder="e.g. 7" min="1" />
+          </div>
+        </div>
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="fromFileId-noExpiration" />
+            No Expiration
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="fromFileId-processEmbeddings" />
+            Process Embeddings
+          </label>
+        </div>
+        <button class="btn btn-primary" id="btn-fromFileId" style="align-self:flex-start;margin-top:auto;">
+          Execute
+        </button>
+      </div>
+      <div class="response-pane">
+        <div class="response-label">Response</div>
+        <div class="response-summary" id="sum-fromFileId"></div>
+        <div class="response-box empty" id="res-fromFileId"></div>
+        <button class="copy-btn" onclick="copyResponse('res-fromFileId')">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- uploadFromUrl() -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge post">POST</span>
+      <span class="card-title">uploadFromUrl(fileUrl, options?)</span>
+      <span class="card-desc">Create volatile knowledge from a remote URL.</span>
+    </div>
+    <div class="card-body">
+      <div class="inputs-pane">
+        <div class="field">
+          <label>File URL <span class="required">*</span></label>
+          <input type="url" id="fromUrl-fileUrl" placeholder="https://example.com/document.pdf" />
+        </div>
+        <div class="field">
+          <label>File Name <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+          <input type="text" id="fromUrl-fileName" placeholder="document.pdf" />
+        </div>
+        <div class="field">
+          <label>Callback URL</label>
+          <input type="url" id="fromUrl-callbackUrl" placeholder="https://example.com/webhook" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Expiration Days</label>
+            <input type="number" id="fromUrl-expirationDays" placeholder="e.g. 7" min="1" />
+          </div>
+        </div>
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="fromUrl-noExpiration" />
+            No Expiration
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="fromUrl-processEmbeddings" />
+            Process Embeddings
+          </label>
+        </div>
+        <button class="btn btn-primary" id="btn-fromUrl" style="align-self:flex-start;margin-top:auto;">
+          Execute
+        </button>
+      </div>
+      <div class="response-pane">
+        <div class="response-label">Response</div>
+        <div class="response-summary" id="sum-fromUrl"></div>
+        <div class="response-box empty" id="res-fromUrl"></div>
+        <button class="copy-btn" onclick="copyResponse('res-fromUrl')">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- uploadFromBase64() -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge post">POST</span>
+      <span class="card-title">uploadFromBase64(contentBase64, options)</span>
+      <span class="card-desc">Create volatile knowledge from a base64-encoded file. Pick a file and it will be encoded automatically.</span>
+    </div>
+    <div class="card-body">
+      <div class="inputs-pane">
+        <div class="field">
+          <label>File (will be auto-converted to base64) <span class="required">*</span></label>
+          <input type="file" id="fromBase64-file" />
+          <span class="field-hint" id="fromBase64-info">Pick a file to auto-fill name and MIME type.</span>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>File Name <span class="required">*</span></label>
+            <input type="text" id="fromBase64-fileName" placeholder="document.pdf" />
+          </div>
+          <div class="field">
+            <label>MIME Type <span class="required">*</span></label>
+            <input type="text" id="fromBase64-mimeType" placeholder="application/pdf" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Callback URL</label>
+          <input type="url" id="fromBase64-callbackUrl" placeholder="https://example.com/webhook" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Expiration Days</label>
+            <input type="number" id="fromBase64-expirationDays" placeholder="e.g. 7" min="1" />
+          </div>
+        </div>
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="fromBase64-noExpiration" />
+            No Expiration
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="fromBase64-processEmbeddings" />
+            Process Embeddings
+          </label>
+        </div>
+        <button class="btn btn-primary" id="btn-fromBase64" style="align-self:flex-start;margin-top:auto;">
+          Execute
+        </button>
+      </div>
+      <div class="response-pane">
+        <div class="response-label">Response</div>
+        <div class="response-summary" id="sum-fromBase64"></div>
+        <div class="response-box empty" id="res-fromBase64"></div>
+        <button class="copy-btn" onclick="copyResponse('res-fromBase64')">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────── QUEUE MANAGEMENT ─────────────────────────── -->
+  <div class="section-title">LOCAL QUEUE MANAGEMENT</div>
+
+  <!-- getIds() -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge local">LOCAL</span>
+      <span class="card-title">getIds()</span>
+      <span class="card-desc">Returns all file IDs currently in the local queue.</span>
+    </div>
+    <div class="card-body">
+      <div class="inputs-pane">
+        <p style="font-size:12px;color:var(--text-muted);">Returns a copy of the local queue — no API call is made.</p>
+        <button class="btn btn-warn" id="btn-getIds" style="align-self:flex-start;margin-top:auto;">
+          Execute
+        </button>
+      </div>
+      <div class="response-pane">
+        <div class="response-label">Response</div>
+        <div class="response-summary" id="sum-getIds"></div>
+        <div class="response-box empty" id="res-getIds"></div>
+        <button class="copy-btn" onclick="copyResponse('res-getIds')">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- removeById() -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge local">LOCAL</span>
+      <span class="card-title">removeById(fileId)</span>
+      <span class="card-desc">Remove a specific file ID from the local queue.</span>
+    </div>
+    <div class="card-body">
+      <div class="inputs-pane">
+        <div class="field">
+          <label>File ID <span class="required">*</span></label>
+          <input type="text" id="removeById-fileId" placeholder="ID to remove from queue" />
+          <span class="field-hint">This removes the ID from the local queue only — it does not delete the file on the server.</span>
+        </div>
+        <button class="btn btn-warn" id="btn-removeById" style="align-self:flex-start;margin-top:auto;">
+          Execute
+        </button>
+      </div>
+      <div class="response-pane">
+        <div class="response-label">Response</div>
+        <div class="response-summary" id="sum-removeById"></div>
+        <div class="response-box empty" id="res-removeById"></div>
+        <button class="copy-btn" onclick="copyResponse('res-removeById')">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- clear() -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge local">LOCAL</span>
+      <span class="card-title">clear()</span>
+      <span class="card-desc">Clear all file IDs from the local queue.</span>
+    </div>
+    <div class="card-body">
+      <div class="inputs-pane">
+        <p style="font-size:12px;color:var(--text-muted);">Clears the in-memory ID list — no API call is made.</p>
+        <button class="btn btn-warn" id="btn-clear" style="align-self:flex-start;margin-top:auto;">
+          Execute
+        </button>
+      </div>
+      <div class="response-pane">
+        <div class="response-label">Response</div>
+        <div class="response-summary" id="sum-clear"></div>
+        <div class="response-box empty" id="res-clear"></div>
+        <button class="copy-btn" onclick="copyResponse('res-clear')">Copy</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // copyResponse must be global so inline onclick attributes can reach it
+  function copyResponse(boxId) {
+    const text = document.getElementById(boxId).textContent;
+    navigator.clipboard.writeText(text).catch(() => {});
+  }
+</script>
+<script type="module" src="/src/volatile-knowledge.js"></script>
+</body>
+</html>

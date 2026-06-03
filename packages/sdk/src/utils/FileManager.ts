@@ -2,6 +2,7 @@ import { FileUploadOptions, FileUploadRes } from "../types";
 import { InternalErrorHelper } from "./ErrorHelper";
 import { AuthProvider } from "../auth/AuthProvider";
 import { fetchWithAuth } from "./fetchWithAuth";
+import { getMimeType } from "./mime";
 
 export class FileManager {
   baseUrl: string;
@@ -10,49 +11,6 @@ export class FileManager {
   constructor(baseUrl: string, authProvider: AuthProvider) {
     this.baseUrl = baseUrl;
     this.authProvider = authProvider;
-  }
-
-  /**
-   * Detects the MIME type from a file name or uses a default.
-   * @param fileName - The name of the file
-   * @param currentType - The current MIME type of the blob
-   * @returns The appropriate MIME type
-   */
-  private getMimeType(fileName: string, currentType: string): string {
-    // Strip codec information from MIME type (e.g., "audio/webm;codecs=opus" -> "audio/webm")
-    const cleanType = currentType.split(';')[0].trim();
-    
-    // If we already have a specific type (not generic), use it
-    if (cleanType && cleanType !== 'application/octet-stream') {
-      return cleanType;
-    }
-
-    // Map common file extensions to MIME types
-    const extension = fileName.toLowerCase().split('.').pop() || '';
-    const mimeTypeMap: Record<string, string> = {
-      // Images
-      'jpg': 'image/jpeg',
-      'jpeg': 'image/jpeg',
-      'png': 'image/png',
-      'webp': 'image/webp',
-
-      // Audio
-      'mp3': 'audio/mp3',
-      'wav': 'audio/wav',
-      'ogg': 'audio/ogg',
-      'aac': 'audio/aac',
-      'flac': 'audio/flac',
-      'aiff': 'audio/aiff',
-      'm4a': 'audio/mp4',
-      
-      // Documents
-      'pdf': 'application/pdf',
-      'txt': 'text/plain',
-      'csv': 'text/csv',
-      'json': 'application/json',
-    };
-
-    return mimeTypeMap[extension] || 'application/octet-stream';
   }
 
   /**
@@ -76,7 +34,7 @@ export class FileManager {
     const fileName = options?.fileName || `file_${Date.now()}`;
     
     // Ensure proper MIME type is set
-    const mimeType = this.getMimeType(fileName, fileBlob.type);
+    const mimeType = getMimeType(fileName, fileBlob.type);
     const fileToUpload = mimeType !== fileBlob.type 
       ? new Blob([fileBlob], { type: mimeType })
       : fileBlob;
