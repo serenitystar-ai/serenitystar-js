@@ -39,6 +39,7 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
   - [Download Attached Files](#download-attached-files)
   - [Stop Streaming Response](#stop-streaming-response)
   - [Citations](#citations)
+    - [Citations on stored messages](#citations-on-stored-messages)
   - [Upload Files (Volatile Knowledge)](#upload-files-volatile-knowledge)
   - [Audio Input](#audio-input)
     - [Send Audio Messages (Assistants/Copilots)](#send-audio-messages-assistantscopilots)
@@ -257,7 +258,7 @@ const conversation = await client.agents.assistants.getConversationById("<agent-
 
 console.log(
   conversation.id, // "<conversation-id>"
-  conversation.messages, // Array of messages
+  conversation.messages, // Array of messages (each may include a `citations` array — see Citations)
   conversation.open // Boolean that indicates if the conversation was closed or not
 );
 
@@ -847,10 +848,11 @@ await activity.stream();
 
 When an agent grounds its response in knowledge sources (knowledge files or websites), it returns **citations** that map spans of the generated message back to the source passages they came from. Citations are available across all agent types that support knowledge grounding.
 
-Citations are delivered in two places:
+Citations are delivered in three places:
 
 1. **Incrementally**, as the second argument of the `content` event during streaming.
 2. **Consolidated**, as the `citations` array on the final result (`response.citations`) — available for both streamed and non-streamed executions.
+3. **Persisted**, on each `Message` loaded from conversation history (`message.citations`) — see [Citations on stored messages](#citations-on-stored-messages) below.
 
 ```tsx
 import SerenityClient from '@serenity-star/sdk';
@@ -892,10 +894,10 @@ for (const citation of response.citations ?? []) {
 
 > **Note:** `start_index` and `end_index` are offsets into the **full accumulated message**, not into the individual chunk delivered by a `content` event. Accumulate the chunks (or use `response.content`) before resolving these offsets.
 
-The `CitationRes` and `CitationSource` types are exported from the package:
+The `CitationRes`, `CitationResWithoutText`, and `CitationSource` types are exported from the package:
 
 ```ts
-import type { CitationRes, CitationSource } from '@serenity-star/sdk';
+import type { CitationRes, CitationResWithoutText, CitationSource } from '@serenity-star/sdk';
 
 type CitationSource =
   | {
@@ -920,6 +922,36 @@ type CitationRes = {
   relevance?: number;
   source: CitationSource | null;
 };
+
+// Same shape as CitationRes but without `cited_text`. Used for citations on
+// messages loaded from conversation history (see "Get conversation by id").
+type CitationResWithoutText = {
+  citation_index: number;
+  start_index: number;
+  end_index: number;
+  relevance?: number;
+  source: CitationSource | null;
+};
+```
+
+### Citations on stored messages
+
+Citations are also persisted on the conversation history. When you load past messages via [Get conversation by id](#get-conversation-by-id) (or read `conversation.messages`), each `Message` may carry a `citations` array of type `CitationResWithoutText[]` — the same shape as `CitationRes` but **without** the `cited_text` field (the verbatim passage is not stored alongside historical messages).
+
+```tsx
+const conversation = await client.agents.assistants.getConversationById("policy-assistant", "<conversation-id>");
+
+for (const message of conversation.messages) {
+  for (const citation of message.citations ?? []) {
+    console.log(
+      citation.citation_index, // Display number rendered as the superscript (may repeat)
+      citation.start_index,    // Offset into the message `value` where the cited span starts
+      citation.end_index,      // Offset into the message `value` where the cited span ends
+      citation.relevance,      // Optional relevance score
+      citation.source          // The cited source (knowledge_file / knowledge_website), or null
+    );
+  }
+}
 ```
 
 ## Upload Files (Volatile Knowledge)
