@@ -493,7 +493,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
 
       this.connection.on("content", (data) => {
         const chunk = JSON.parse(data);
-        this.emit("content", chunk.text);
+        this.emit("content", chunk.text, chunk.citations);
       });
 
       this.connection.on("stop", (data) => {

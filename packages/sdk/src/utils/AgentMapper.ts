@@ -13,6 +13,7 @@ export class AgentMapper {
       json_content: data.jsonContent,
       meta_analysis: data.metaAnalysis,
       time_to_first_token: data.timeToFirstToken,
+      citations: data.citations,
     };
 
     return result;

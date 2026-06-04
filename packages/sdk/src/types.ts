@@ -125,6 +125,30 @@ export type PendingAction = {
   connector_id?: string;
 }
 
+export type CitationSource =
+  | {
+      type: "knowledge_file";
+      knowledge_file_version_id?: string;
+      section_id?: string;
+      file_name?: string;
+      page_range?: string;
+    }
+  | {
+      type: "knowledge_website";
+      knowledge_file_version_id?: string;
+      section_id?: string;
+      website: string;
+    };
+
+export type CitationRes = {
+  cited_text: string;
+  citation_index: number;
+  start_index: number;
+  end_index: number;
+  relevance?: number;
+  source: CitationSource | null;
+};
+
 export type AgentResult = {
   content: string;
   instance_id: string;
@@ -139,6 +163,7 @@ export type AgentResult = {
   agent_message_id?: string;
   user_message_id?: string;
   pending_actions?: PendingAction[];
+  citations?: CitationRes[];
 }
 
 /**
@@ -178,9 +203,11 @@ export type SSEStreamEvents = {
 
   /**
    * Event triggered when there is a new chunk of data available.
-   * @param data - The data chunk.
+   * @param data - The text of the chunk.
+   * @param citations - Optional citations attached to this chunk. Each citation's
+   * `start_index`/`end_index` are offsets into the full accumulated message, not this chunk.
    */
-  content: (data: string) => void;
+  content: (data: string, citations?: CitationRes[]) => void;
 
   /**
    * Event triggered when the server stops streaming a response.
