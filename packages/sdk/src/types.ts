@@ -149,6 +149,14 @@ export type CitationRes = {
   source: CitationSource | null;
 };
 
+export type CitationResWithoutText = {
+  citation_index: number;
+  start_index: number;
+  end_index: number;
+  relevance?: number;
+  source: CitationSource | null;
+};
+
 export type AgentResult = {
   content: string;
   instance_id: string;

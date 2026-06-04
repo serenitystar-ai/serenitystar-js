@@ -1,4 +1,4 @@
-import { ExecuteBodyParams, VolatileKnowledgeUploadRes } from "../../../types";
+import { CitationResWithoutText, VolatileKnowledgeUploadRes } from "../../../types";
 
 export type MessageAdditionalInfo = {
   inputParameters?: { [key: string]: any }
@@ -193,6 +193,7 @@ export type Message = (
   action_results?: {
     [key: string]: PluginExecutionResult
   }
+  citations?: CitationResWithoutText[];
 };
 
 type PluginExecutionResult = SpeechGenerationResult
