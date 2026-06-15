@@ -33,6 +33,10 @@ export class VolatileKnowledgeManager {
     return `${this.baseUrl}/v2/agent/${encodeURIComponent(this.agentCode)}/volatileKnowledge`;
   }
 
+  private get oldVolatileKnowledgeUrl(): string {
+    return `${this.baseUrl}/v2/volatileKnowledge`;
+  }
+
   /**
    * Get the MIME types supported by the current agent for volatile knowledge uploads.
    */
@@ -302,7 +306,7 @@ export class VolatileKnowledgeManager {
    * @returns The file details or an error
    */
   async getById(fileId: string): Promise<VolatileKnowledgeUploadRes> {
-    const url = `${this.volatileKnowledgeUrl}/${fileId}`;
+    const url = `${this.oldVolatileKnowledgeUrl}/${fileId}`;
 
     const result = await fetchWithAuth(this.authProvider, url, {
       method: "GET",
