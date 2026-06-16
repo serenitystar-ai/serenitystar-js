@@ -138,6 +138,11 @@ export type CitationSource =
       knowledge_file_version_id?: string;
       section_id?: string;
       website: string;
+    }
+  | {
+      type: "web_search";
+      url: string;
+      title?: string;
     };
 
 export type CitationRes = {
