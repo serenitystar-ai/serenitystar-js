@@ -38,6 +38,7 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
 - [Shared Features](#shared-features)
   - [Download Attached Files](#download-attached-files)
   - [Stop Streaming Response](#stop-streaming-response)
+  - [Reasoning (Chain-of-Thought)](#reasoning-chain-of-thought)
   - [Citations](#citations)
     - [Citations on stored messages](#citations-on-stored-messages)
   - [Upload Files (Volatile Knowledge)](#upload-files-volatile-knowledge)
@@ -842,6 +843,30 @@ const activity = client.agents.activities.create("translator-activity", {
 });
 
 await activity.stream();
+```
+
+## Reasoning (Chain-of-Thought)
+
+When an agent is configured with a reasoning-capable model, its chain-of-thought is streamed incrementally through the `reasoning` event, separate from the final answer delivered on `content`. This works across all streaming agent types: **Assistants**, **Copilots**, **Activities**, **Proxies**, and **Chat Completions**.
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+const conversation = await client.agents.assistants.createConversation("chef-assistant");
+
+conversation
+  .on("reasoning", (chunk) => {
+    process.stdout.write(chunk); // Stream the model's thinking as it happens
+  })
+  .on("content", (chunk) => {
+    process.stdout.write(chunk); // The final answer
+  });
+
+await conversation.streamMessage("Plan a three-course vegetarian dinner");
 ```
 
 ## Citations

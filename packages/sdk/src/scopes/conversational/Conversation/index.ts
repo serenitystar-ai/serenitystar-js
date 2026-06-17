@@ -496,9 +496,14 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
         this.emit("content", chunk.text, chunk.citations);
       });
 
+      this.connection.on("reasoning", (data) => {
+        const chunk = JSON.parse(data);
+        this.emit("reasoning", chunk.text);
+      });
+
       this.connection.on("stop", (data) => {
         const finalMessage = JSON.parse(data) as { result: AgentResult };
-        
+
         if (!this.conversationId) {
           this.conversationId = finalMessage.result.instance_id;
         }
