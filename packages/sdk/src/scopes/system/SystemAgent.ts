@@ -209,9 +209,14 @@ export abstract class SystemAgent<
         this.emit("content", chunk.text, chunk.citations);
       });
 
+      this.connection.on("reasoning", (data) => {
+        const chunk = JSON.parse(data);
+        this.emit("reasoning", chunk.text);
+      });
+
       this.connection.on("stop", (data) => {
         const finalMessage = JSON.parse(data) as { result: AgentResult };
-        
+
         this.volatileKnowledge.clear();
         this.emit("stop", finalMessage.result);
         resolve(finalMessage.result);

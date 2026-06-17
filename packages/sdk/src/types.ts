@@ -223,6 +223,13 @@ export type SSEStreamEvents = {
   content: (data: string, citations?: CitationRes[]) => void;
 
   /**
+   * Event triggered when there is a new chunk of chain-of-thought / reasoning text.
+   * Streamed alongside `content` while the agent produces its response.
+   * @param data - The text of the reasoning chunk.
+   */
+  reasoning: (data: string) => void;
+
+  /**
    * Event triggered when the server stops streaming a response.
    * @param message - The final message object.
    * @param message.sender - The sender of the message, either "user" or "bot".
