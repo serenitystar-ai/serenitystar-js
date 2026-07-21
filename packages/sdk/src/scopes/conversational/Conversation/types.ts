@@ -16,11 +16,13 @@ export type CreateExecuteBodyOptions = {
 
 export type ConversationInfoResult = {
   agent: {
+    audioInputEnabled: boolean;
+    description: string;
     isRealtime: boolean;
+    name: string;
+    photoUrl: string;
     version: number;
     visionEnabled: boolean;
-    audioInputEnabled: boolean;
-    imageId: string;
   }
   conversation: {
     initialMessage: string;
