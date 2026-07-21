@@ -53,6 +53,8 @@ export type ChatWidgetRes = {
   theme: ThemeRes;
   enableFeedbackRecollection: boolean;
   targetAgentVersion?: number;
+  fabPhotoURL?: string;
+  closeFabOnOpen: boolean;
 }
 
 type EngagementMessageRes = {
