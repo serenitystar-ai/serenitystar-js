@@ -183,7 +183,7 @@ console.log(
   agentInfo.agent.visionEnabled, // true/false
   agentInfo.agent.isRealtime, // true/false
   agentInfo.channel, // Optional chat widget configuration
-  agentInfo.agent.imageId // Agent's profile image ID
+  agentInfo.agent.photoUrl // Agent's profile image URL
 );
 
 // Get information about an assistant agent conversation (advanced example with options)
