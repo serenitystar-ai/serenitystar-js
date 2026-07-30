@@ -19,7 +19,7 @@ export function defineElement(tagName = 'serenity-pricing') {
 }
 
 // Export types
-export type { PricingPlan, PricingHeader } from './types.js';
+export type { PricingPlan, PricingHeader, PricingFeature, PricingFeatureType } from './types.js';
 
 // Export utility functions
 export { fetchPricingData } from './utils/api.js';

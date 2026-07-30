@@ -1,6 +1,6 @@
 {
   "name": "@serenity-star/pricing",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A web component pricing section built with Svelte 5",
   "main": "dist/pricing.iife.js",
   "module": "dist/index.js",

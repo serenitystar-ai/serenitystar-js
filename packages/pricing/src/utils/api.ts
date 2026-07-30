@@ -2,7 +2,7 @@ import type { PricingPlan } from '../types.js';
 
 export async function fetchPricingData(): Promise<PricingPlan[]> {
   try {
-    const response = await fetch('https://api.serenitystar.ai/api/SubscriptionPlan');
+    const response = await fetch('https://localhost:5002/api/SubscriptionPlan');
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
