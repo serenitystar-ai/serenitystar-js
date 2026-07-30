@@ -145,9 +145,6 @@
         <p class="{isDark ? 'text-slate-400' : 'text-slate-600'}">{i18n.noPlans}</p>
       </div>
     {:else}
-      <!-- row-gap must stay 0: the cards are row subgrids, so any row gap here is
-           applied between every internal row of every card. Cards space themselves
-           with mb-10 when they wrap onto more than one row band. -->
       <div class="-mx-4 mt-8 grid max-w-2xl grid-cols-1 gap-y-4 sm:mx-auto md:grid-cols-2 md:gap-x-8 lg:-mx-8 lg:max-w-none xl:mx-0 xl:grid-cols-3 xl:gap-x-4 2xl:grid-cols-5">
         {#each sortedPlans as plan}
           <Plan
