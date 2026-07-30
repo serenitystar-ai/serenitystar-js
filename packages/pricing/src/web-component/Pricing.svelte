@@ -47,6 +47,14 @@
   
   // State for pricing data
   let plans = $state<PricingPlan[]>([]);
+
+  // The API assigns each plan a display order.
+  const sortedPlans = $derived([...plans].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+
+  // Drives how many grid rows every card spans, so all plans share the same tracks.
+  const maxFeatureCount = $derived(
+    plans.reduce((max, plan) => Math.max(max, plan.features?.length ?? 0), 0)
+  );
   let loading = $state(true);
   let error = $state<string | null>(null);
   
@@ -137,8 +145,8 @@
         <p class="{isDark ? 'text-slate-400' : 'text-slate-600'}">{i18n.noPlans}</p>
       </div>
     {:else}
-      <div class="-mx-4 mt-8 grid max-w-2xl grid-cols-1 gap-y-10 sm:mx-auto md:grid-cols-2 md:gap-x-8 lg:-mx-8 lg:max-w-none xl:mx-0 xl:grid-cols-3 xl:gap-x-4 2xl:grid-cols-5">
-        {#each plans as plan}
+      <div class="-mx-4 mt-8 grid max-w-2xl grid-cols-1 gap-y-4 sm:mx-auto md:grid-cols-2 md:gap-x-8 lg:-mx-8 lg:max-w-none xl:mx-0 xl:grid-cols-3 xl:gap-x-4 2xl:grid-cols-5">
+        {#each sortedPlans as plan}
           <Plan
             title={plan.title}
             monthlyPrice={plan.monthlyPrice}
@@ -149,6 +157,7 @@
             isPopular={plan.isPopular}
             showPrice={plan.showPrice}
             typeOfPrice={selectedPrice}
+            featureRowCount={maxFeatureCount}
             {showCTA}
             ctaText={resolvedCtaText}
             {ctaUrl}
