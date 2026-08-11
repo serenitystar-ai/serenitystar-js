@@ -5,6 +5,7 @@ import {
   ExecuteBodyParams,
   FileUploadRes,
   SSEStreamEvents,
+  ToolApprovalDecision,
 } from "../../../types";
 import {
   ConversationInfoResult,
@@ -119,6 +120,81 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       isNewConversation: !this.conversationId,
     };
     return this.#executeRequest(bodyOptions, "Failed to send message");
+  }
+
+  /**
+   * Resolve pending tool (skill) approvals on this conversation and stream the continuation.
+   *
+   * The request carries no user message — the decision is the whole turn. The paused run is
+   * replayed server-side from its cache and the model continues (running the skill if approved).
+   *
+   * @param decisions - One decision per pending request, keyed by its `request_id`
+   * @param options - Optional additional info (input parameters, volatile knowledge ids)
+   * @throws Error if there is no conversation yet, or if `decisions` is empty
+   *
+   * @example
+   * ```typescript
+   * const result = await conversation.streamMessage("What is the weather in Paris?");
+   * const approval = result.pending_actions?.find((a) => a.type === "approval");
+   * if (approval) {
+   *   await conversation.streamToolApprovals([
+   *     { requestId: approval.request_id, approved: true },
+   *   ]);
+   * }
+   * ```
+   */
+  async streamToolApprovals(
+    decisions: ToolApprovalDecision[],
+    options?: MessageAdditionalInfo
+  ): Promise<AgentResult> {
+    const bodyOptions = this.#createToolApprovalsBodyOptions(decisions, true, options);
+    return this.#streamRequest(bodyOptions, "Failed to resolve tool approvals");
+  }
+
+  /**
+   * Resolve pending tool (skill) approvals on this conversation and return the continuation.
+   *
+   * Non-streaming counterpart of {@link Conversation.streamToolApprovals}.
+   *
+   * @param decisions - One decision per pending request, keyed by its `request_id`
+   * @param options - Optional additional info (input parameters, volatile knowledge ids)
+   * @throws Error if there is no conversation yet, or if `decisions` is empty
+   */
+  async sendToolApprovals(
+    decisions: ToolApprovalDecision[],
+    options?: MessageAdditionalInfo
+  ): Promise<AgentResult> {
+    const bodyOptions = this.#createToolApprovalsBodyOptions(decisions, false, options);
+    return this.#executeRequest(bodyOptions, "Failed to resolve tool approvals");
+  }
+
+  #createToolApprovalsBodyOptions(
+    decisions: ToolApprovalDecision[],
+    stream: boolean,
+    options?: MessageAdditionalInfo
+  ): CreateExecuteBodyOptions {
+    if (!this.conversationId) {
+      throw new Error(
+        "Conversation ID is not set. Tool approvals can only be resolved on an existing conversation."
+      );
+    }
+    if (!decisions || decisions.length === 0) {
+      throw new Error("At least one tool approval decision is required.");
+    }
+
+    return {
+      stream,
+      isNewConversation: false,
+      additionalInfo: options,
+      toolApprovals: decisions.map((decision) => {
+        const reason = decision.reason?.trim();
+        return {
+          requestId: decision.requestId,
+          approved: decision.approved,
+          ...(reason ? { reason } : {}),
+        };
+      }),
+    };
   }
 
   async sendAudioMessage(
@@ -560,7 +636,9 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       },
     ];
 
-    // Add either message or audioInput
+    // Add either message or audioInput. An approval-resume turn has neither: the
+    // server's conversational input validator accepts a message-less execution
+    // when `toolApprovals` is present, so the key must be absent (not empty).
     if (options.message) {
       body.push({
         Key: "message",
@@ -570,6 +648,13 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       body.push({
         Key: "audioInput",
         Value: options.audio,
+      });
+    }
+
+    if (options.toolApprovals && options.toolApprovals.length > 0) {
+      body.push({
+        Key: "toolApprovals",
+        Value: options.toolApprovals,
       });
     }
 
