@@ -116,13 +116,48 @@ export type SystemAgentExecutionOptionsMap = {
   "proxy": AgentExecutionOptions & ProxyExecutionOptions
 }
 
-export type PendingAction = {
-  type: string;
+export type ConnectionPendingAction = {
+  type: "connection";
   auth_type: string;
   url: string;
   connector_name: string;
   connector_img_url?: string;
   connector_id?: string;
+}
+
+export type ToolApprovalPendingAction = {
+  type: "approval";
+  /** The only value that must be echoed back to resolve the request. */
+  request_id: string;
+  /** Id of the underlying function call. Informational. */
+  call_id?: string;
+  /** User-defined skill code. */
+  skill_code?: string;
+  /** Plugin/skill type. */
+  skill_type?: string;
+  /** Tool name — only present when the skill exposes several tools. */
+  tool?: string;
+  /** Free-form arguments the model wants to call the skill with. */
+  arguments?: { [key: string]: unknown };
+}
+
+/**
+ * A pending action attached to an agent result. Discriminated by `type`:
+ * `"connection"` requires the user to sign in to a connector, `"approval"`
+ * requires the user to approve a gated skill invocation.
+ */
+export type PendingAction = ConnectionPendingAction | ToolApprovalPendingAction;
+
+/**
+ * A user's decision about a single pending tool (skill) approval request.
+ * Members are camelCase — they are sent as-is to the execute endpoint.
+ */
+export type ToolApprovalDecision = {
+  /** Must match a pending request's `request_id`. */
+  requestId: string;
+  approved: boolean;
+  /** Optional free text. Omitted entirely when empty. */
+  reason?: string;
 }
 
 export type CitationSource =

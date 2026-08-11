@@ -485,6 +485,53 @@ const newResponse = await conversation.sendMessage("I need a summary of my lates
 console.log(newResponse.content); // Summary of the meeting notes
 ```
 
+## Tool approvals
+
+When a skill is configured as *Requires approval*, the run pauses instead of invoking it. The result
+carries an `approval` pending action, and the conversation stays blocked until you send a decision:
+any further message on it returns HTTP 400 with `errors["tool_approval_pending"]`.
+
+Detect the request on the result (or on the `stop` payload when streaming) and resolve it with
+`streamToolApprovals` / `sendToolApprovals`. The resume turn carries **no user message** — the
+decision is the whole turn — and continues the same conversation, so the answer arrives as the rest
+of the same assistant response.
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+const conversation = await client.agents.assistants.createConversation("chef-assistant");
+
+const response = await conversation.streamMessage("What are the trending recipes this week?");
+
+const approval = response.pending_actions?.find((action) => action.type === "approval");
+
+if (approval) {
+  console.log(approval.skill_code); // "web-search" — the skill awaiting approval
+
+  // Ask the user, then echo the request id back with their decision.
+  const continuation = await conversation.streamToolApprovals([
+    { requestId: approval.request_id, approved: true },
+  ]);
+
+  console.log(continuation.content); // the rest of the answer
+}
+```
+
+Notes:
+
+- `request_id` is the only value that must be echoed back. `call_id`, `skill_type`, `tool` and
+  `arguments` are informational.
+- Decision members are camelCase (`requestId`, `approved`, `reason?`). `reason` is optional and
+  omitted from the request when empty.
+- Approvals can only be resolved on an existing conversation — both methods throw when
+  `conversation.conversationId` is not set yet. It is populated as soon as the first execution
+  finishes, so an approval raised on the very first turn is resolvable.
+- A resumed turn can itself raise another approval; keep handling `pending_actions` until it is empty.
+
 ---
 
 # Activities
