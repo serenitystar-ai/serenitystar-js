@@ -1,8 +1,25 @@
 <svelte:options customElement={{
-    shadow: "none",
+    // The component renders inside a shadow root so that host-page CSS
+    // (WordPress themes and page builders) cannot reach its internals.
+    // Its stylesheet is injected into that root, and the font is registered on
+    // the document — see ./styles.ts and ./font.ts.
+    shadow: "open",
+    extend: (Base) =>
+      class extends Base {
+        constructor() {
+          // Svelte attaches the shadow root in its constructor and mounts a
+          // tick later in connectedCallback, so adopting styles here means the
+          // first paint is already styled.
+          super();
+          if (this.shadowRoot) adoptStyles(this.shadowRoot);
+          loadFont();
+        }
+      },
 }} />
 
 <script lang="ts">
+  import { adoptStyles } from './styles.js';
+  import { loadFont } from './font.js';
   import { fetchPricingData } from '../utils/api.js';
   import Container from '../Container.svelte';
   import SwirlyDoodle from '../SwirlyDoodle.svelte';
@@ -77,10 +94,15 @@
   });
 </script>
 
+<!--
+  The root also sets a default text colour: the `:host` reset zeroes inherited
+  colour at the boundary, so anything inside without an explicit colour utility
+  inherits from here instead of from the page.
+-->
 <section
   id="pricing"
   aria-label="Pricing"
-  class="{isDark ? 'bg-serenity-deep-blue' : 'bg-white'} py-20 sm:py-32 serenity-pricing-root"
+  class="{isDark ? 'bg-serenity-deep-blue text-white' : 'bg-white text-slate-900'} py-20 sm:py-32"
 >
   <Container divProps={{ class: "max-w-[80%]"}}>
     {#if showHeader}

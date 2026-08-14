@@ -6,4 +6,72 @@
   --color-primary: #4862ff;
   --color-primary-light: #98a6fe;
   --color-serenity-deep-blue: #050a2b;
+  /* Defined here rather than in a JS config: Tailwind v4 ignores
+     tailwind.config.js unless it is referenced with @config, which is why the
+     `font-display` utility used to compile to nothing at all. */
+  --font-display: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  /*
+    The shadow boundary stops page CSS from matching our internals, but two
+    things still cross it, and both are handled here.
+
+    (1) Inherited properties. The host element lives in the light DOM, so the
+        page's `body { font-family; font-size; color; line-height }` would
+        otherwise inherit straight into the component. `all: initial` cuts
+        every inherited property at the boundary; the longhands after it
+        re-establish our own defaults (later declarations in the same block
+        beat the shorthand).
+
+    (2) The host element itself, which page CSS *can* target. Per CSS Scoping,
+        a normal declaration from the outer tree beats a normal `:host` rule,
+        while an important declaration from the inner tree beats the outer tree
+        even if that one is important too. Hence `!important` throughout — it
+        is load-bearing, not defensive habit.
+
+    Note: `all: initial` forces `direction: ltr`. RTL is out of scope; add
+    `direction: inherit !important` here if that changes.
+  */
+  :host {
+    all: initial !important;
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    /* Literal stack, not var(--font-display): a var() here would read whatever
+       the page managed to declare on the host element. */
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif !important;
+    line-height: 1.5 !important;
+    text-align: left !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+  }
+
+  :host([hidden]) {
+    display: none !important;
+  }
+
+  /*
+    `all` does not reset custom properties — the spec excludes them — so a page
+    rule that matches the host element and declares one of our token names
+    (`* { --color-primary: red }`, `#pricing { --font-display: … }`) would win
+    and repaint or re-typeset the whole component.
+
+    Only rules matching the *host element itself* can do this. Tokens the page
+    declares on `:root`/`body` merely inherit, and inheritance loses to a
+    matching `:host` declaration, so those need no hardening.
+
+    Hardened below: the brand tokens plus the two structural ones with names
+    generic enough to collide (`--spacing` drives every p-/m-/gap- utility,
+    `--font-*` every font-family utility). Keep in sync with @theme above.
+  */
+  :host {
+    --color-primary: #4862ff !important;
+    --color-primary-light: #98a6fe !important;
+    --color-serenity-deep-blue: #050a2b !important;
+    --font-display: Inter, ui-sans-serif, system-ui, sans-serif !important;
+    --font-sans: ui-sans-serif, system-ui, sans-serif !important;
+    --default-font-family: var(--font-sans) !important;
+    --spacing: 0.25rem !important;
+  }
 }

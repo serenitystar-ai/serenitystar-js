@@ -21,7 +21,6 @@ export default defineConfig({
       name: "SerenityPricing",
       formats: ["iife"],
       fileName: "serenity-pricing",
-      cssFileName: "serenity-pricing",
     },
     emptyOutDir: false,
     sourcemap: false,

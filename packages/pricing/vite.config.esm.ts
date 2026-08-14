@@ -29,7 +29,6 @@ export default defineConfig({
       name: "SerenityPricing",
       formats: ["es"],
       fileName: "index",
-      cssFileName: "index"
     },
     emptyOutDir: false,
     sourcemap: false,
