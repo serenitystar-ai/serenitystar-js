@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hostile Page CSS — Serenity Pricing Demo</title>
+
+  <!--
+    Style-isolation harness. hostile-theme.css is Divi 4.27.6's real reset and
+    base stylesheet plus the override patterns that break light-DOM widgets on
+    WordPress: element selectors with !important, `*` rules clobbering the
+    design tokens by name, `#pricing` rules landing on the host element, and
+    page-root typography pushed down by inheritance.
+
+    Expected result: the component renders identically to 01-basic.html.
+    The only page CSS that should still show through is ancestor layout
+    (see docs/shadow-dom-migration-plan.md §7) — the .container wrapper below
+    still boxes the component to 80%/1080px, by design.
+  -->
+  <link rel="stylesheet" href="./hostile-theme.css">
+  <style>
+    body { margin: 0; background: #050a2b; }
+    .harness-note {
+      font: 14px/1.5 system-ui, sans-serif;
+      color: #fff;
+      background: #b30000;
+      padding: 12px 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <p class="harness-note">
+    Divi + hostile overrides are loaded. The pricing section below should look
+    exactly like <code>01-basic.html</code>.
+  </p>
+
+  <div class="et_pb_section">
+    <div id="pricing"></div>
+  </div>
+
+  <script src="../dist/serenity-pricing.iife.js"></script>
+  <script>
+    serenityPricing('pricing');
+  </script>
+
+</body>
+</html>

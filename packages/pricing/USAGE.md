@@ -230,3 +230,47 @@ A complete landing page section with all options configured:
 </body>
 </html>
 ```
+
+---
+
+## Styling & Isolation
+
+The component renders inside a **shadow root**, and its stylesheet is loaded
+into that root rather than into the page. This is what makes it safe to drop
+into WordPress installs (Divi, Elementor, and friends) whose themes and plugins
+ship aggressive global CSS.
+
+**Your page's CSS cannot restyle the component's internals.** That is
+deliberate — element selectors, `!important` declarations, `#id` rules and
+inherited typography from the host page are all stopped at the boundary,
+including page rules that try to redefine the component's design tokens.
+
+Practical consequences:
+
+- No CSS override hook is exposed today. If you need one, open an issue rather
+  than reaching in — a `::part()` / custom-property theming API is the intended
+  path (see `docs/shadow-dom-migration-plan.md` §4.7).
+- Use the `theme` option for dark/light, which covers most of what page CSS was
+  previously used for.
+- **Inter** is fetched from Google Fonts and registered on the document, because
+  Chrome ignores `@font-face` declared inside a shadow root. It loads once per
+  page with `display=swap`, and the component falls back to the system sans
+  stack if the request is blocked.
+- Nothing else is added to `document.head`.
+
+Sizes are emitted in `px` rather than `rem`, so a theme that sets
+`html { font-size: 62.5% }` — a common WordPress idiom — no longer shrinks the
+component. Responsive breakpoints are the one exception and stay in `rem`, which
+in a media condition resolves against the browser's default font size and is
+already immune to the page's root font size. Browser zoom scales the component
+normally.
+
+What the page **can** still affect, by design:
+
+- **Layout of the surrounding box** — ancestor `width`, `max-width`,
+  `overflow`, `transform`, `display: flex` and `z-index` all still apply. If the
+  section looks too narrow, look at the wrapper you mounted it into (Divi's
+  `.container` caps content at `1080px`, for example).
+
+`demos/11-hostile-css.html` renders the component under a deliberately hostile
+stylesheet and is the regression check for all of the above.

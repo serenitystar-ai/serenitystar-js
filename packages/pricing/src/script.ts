@@ -1,19 +1,13 @@
 //@ts-ignore
 import WebComponent from "./web-component/Pricing.svelte";
 
-import styles from "./styles.css?raw";
 import { SerenityPricing, serenityPricing } from "./SerenityPricing";
 import type { SerenityPricingProps } from "./types";
 export { SerenityPricing, serenityPricing } from "./SerenityPricing";
 
+// Styles are adopted into the element's shadow root (see
+// ./web-component/styles.ts), not injected into document.head.
 if (!customElements.get("serenity-pricing")) {
-  if (!document.getElementById("serenity-pricing-style")) {
-    const style = document.createElement("style");
-    style.id = "serenity-pricing-style";
-    style.textContent = styles;
-    document.head.appendChild(style);
-  }
-
   //@ts-ignore
   customElements.define("serenity-pricing", WebComponent.element!);
 }
