@@ -215,6 +215,50 @@ export type AgentResult = {
 }
 
 /**
+ * Fields shared by both task lifecycle events emitted while the agent executes internal
+ * tasks such as skills.
+ */
+export type TaskEventBase = {
+  /** The event name, mirroring the SSE event: `task_start` or `task_stop`. */
+  type: string;
+  /** Human-readable description of the task, e.g. `Executing Skill: GetProductInfo`. */
+  task: string;
+  /**
+   * Identifier of the task being executed, e.g. `skills_GetProductInfo_execute`.
+   * Skill executions follow the `skills_<SkillCode>_execute` convention.
+   */
+  task_key: string;
+  start_time_utc?: string;
+  /** Details about the executed task. For skills, `skill.code` is the skill code. */
+  metadata?: {
+    skill?: { type?: string; code?: string };
+    [key: string]: any;
+  };
+  /** Additional fields the server may include are preserved. */
+  [key: string]: any;
+};
+
+/**
+ * Payload of the `task_start` event.
+ */
+export type TaskStartEvent = TaskEventBase & {
+  /** The arguments the task was invoked with. Shape depends on the task. */
+  input?: { [key: string]: any };
+};
+
+/**
+ * Payload of the `task_stop` event.
+ */
+export type TaskStopEvent = TaskEventBase & {
+  end_time_utc?: string;
+  /** Elapsed time as a .NET timespan string, e.g. `00:00:00.0002104`. */
+  duration?: string;
+  /** The task's result. Shape depends on the task. */
+  output?: any;
+  success?: boolean;
+};
+
+/**
  * Represents the events that can occur during a realtime session.
  * 
  * @remarks
@@ -229,6 +273,8 @@ export type AgentResult = {
  *   start: () => console.log('Stream started'),
  *   content: (chunk) => console.log('Received chunk:', chunk),
  *   error: (error) => console.error('Stream error:', error?.message),
+ *   task_start: (task) => console.log('Task started:', task.task_key),
+ *   task_stop: (task) => console.log('Task finished:', task.task_key),
  *   stop: (message) => console.log('Stream completed:', message)
  * };
  * 
@@ -279,6 +325,20 @@ export type SSEStreamEvents = {
    * @param message.action_results - Optional action results.
    */
   stop: (message: AgentResult) => void;
+
+  /**
+   * Event triggered when the agent starts executing an internal task, such as a skill.
+   * Only emitted on streamed executions.
+   * @param data - The task payload. `task_key` identifies the task.
+   */
+  task_start: (data: TaskStartEvent) => void;
+
+  /**
+   * Event triggered when the agent finishes executing an internal task, such as a skill.
+   * Only emitted on streamed executions.
+   * @param data - The task payload. `task_key` identifies the task.
+   */
+  task_stop: (data: TaskStopEvent) => void;
 };
 
 export type ExecuteBodyParams = Array<{

@@ -39,6 +39,7 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
   - [Download Attached Files](#download-attached-files)
   - [Stop Streaming Response](#stop-streaming-response)
   - [Reasoning (Chain-of-Thought)](#reasoning-chain-of-thought)
+  - [Task events](#task-events)
   - [Citations](#citations)
     - [Citations on stored messages](#citations-on-stored-messages)
   - [Upload Files (Volatile Knowledge)](#upload-files-volatile-knowledge)
@@ -914,6 +915,83 @@ conversation
   });
 
 await conversation.streamMessage("Plan a three-course vegetarian dinner");
+```
+
+## Task events
+
+While an agent streams, it reports the internal work it performs through the `task_start` / `task_stop` event pair. A **task** is any discrete step the agent runs on its way to an answer — a skill execution, a tool call, and whatever step types the platform adds later. The SDK forwards every task frame it receives without filtering, so new task types reach your handlers as soon as the platform starts emitting them.
+
+Use them to reflect the agent's progress in your UI while it works, or to time, trace and log what the agent actually did.
+
+These events only exist on **streamed** executions (`streamMessage` / `stream`). A non-streamed call returns the final result only.
+
+Each task carries a `task_key` identifying what ran and a `metadata` object describing it. Both are task-type specific: match on `task_key` for the types you care about and ignore the rest, rather than assuming a single shape.
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+const conversation = await client.agents.assistants.createConversation("sales-assistant");
+
+conversation
+  .on("task_start", (task) => console.log("started", task.task, task.task_key))
+  .on("task_stop", (task) =>
+    console.log("finished", task.task_key, task.duration, task.success)
+  )
+  .on("content", (chunk) => process.stdout.write(chunk));
+
+await conversation.streamMessage("What do we have in stock for vintage guitars?");
+```
+
+### `task_start` payload
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `type` | `string` | The event name, `task_start`. |
+| `task` | `string` | Human-readable description of the task, safe to show in a UI. |
+| `task_key` | `string` | Identifier of what ran. Its format depends on the task type. |
+| `metadata` | `object` | Extra details about the task. Contents depend on the task type. |
+| `start_time_utc` | `string` | When the task started (UTC). |
+| `input` | `object` | The arguments the task was invoked with. Shape depends on the task. |
+
+### `task_stop` payload
+
+Same envelope as `task_start`, plus:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `end_time_utc` | `string` | When the task finished (UTC). |
+| `duration` | `string` | Elapsed time as a timespan string, e.g. `00:00:00.0002104`. |
+| `success` | `boolean` | Whether the task completed successfully. |
+| `output` | `any` | The task's result. Shape depends on the task. |
+
+Unknown fields the server may add in the future are preserved on the payload — both types carry an index signature.
+
+### Recognising a task type
+
+Skill executions are one task type. Their `task_key` follows the `skills_<SkillCode>_execute` convention, and the skill is described under `metadata.skill`:
+
+```json
+{
+  "type": "task_start",
+  "task": "Executing Skill: GetProductInfo",
+  "task_key": "skills_GetProductInfo_execute",
+  "metadata": { "skill": { "type": "Prompt", "code": "GetProductInfo" } },
+  "start_time_utc": "2026-08-24T10:22:54.1822224Z",
+  "input": { "categoryName": "Music instruments from the 1960s" }
+}
+```
+
+```tsx
+conversation.on("task_start", (task) => {
+  const skillCode = task.metadata?.skill?.code;
+  if (skillCode) {
+    showSpinner(`Running ${skillCode}…`);
+  }
+});
 ```
 
 ## Citations
