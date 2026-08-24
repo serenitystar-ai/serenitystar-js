@@ -5,6 +5,8 @@ import {
   ExecuteBodyParams,
   FileUploadRes,
   SSEStreamEvents,
+  TaskStartEvent,
+  TaskStopEvent,
   ToolApprovalDecision,
 } from "../../../types";
 import {
@@ -575,6 +577,23 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       this.connection.on("reasoning", (data) => {
         const chunk = JSON.parse(data);
         this.emit("reasoning", chunk.text);
+      });
+
+      // Task events are informational: a malformed frame must never reject the stream.
+      this.connection.on("task_start", (data) => {
+        try {
+          this.emit("task_start", JSON.parse(data) as TaskStartEvent);
+        } catch {
+          // Ignore unparseable task frames.
+        }
+      });
+
+      this.connection.on("task_stop", (data) => {
+        try {
+          this.emit("task_stop", JSON.parse(data) as TaskStopEvent);
+        } catch {
+          // Ignore unparseable task frames.
+        }
       });
 
       this.connection.on("stop", (data) => {
