@@ -141,12 +141,43 @@ export type ToolApprovalPendingAction = {
   arguments?: { [key: string]: unknown };
 }
 
+export type UserChoiceOption = {
+  id: string;
+  title: string;
+  description?: string;
+}
+
+export type UserChoiceQuestion = {
+  id: string;
+  /** Short model-authored label, shown as the question's title. Frequently absent. */
+  header?: string;
+  text: string;
+  is_multiselect: boolean;
+  options?: UserChoiceOption[];
+}
+
+/**
+ * A set of questions the agent asked before it can continue.
+ *
+ * No correlation id, in either direction: the server sends none and mints none. Identity is
+ * whatever the client assigns, and the answers are folded into the text of the next user
+ * message — so an unanswered set never expires and can be answered on any later turn.
+ */
+export type UserChoicePendingAction = {
+  type: "user_choice";
+  questions: UserChoiceQuestion[];
+}
+
 /**
  * A pending action attached to an agent result. Discriminated by `type`:
  * `"connection"` requires the user to sign in to a connector, `"approval"`
- * requires the user to approve a gated skill invocation.
+ * requires the user to approve a gated skill invocation, `"user_choice"` asks
+ * the user one or more questions.
  */
-export type PendingAction = ConnectionPendingAction | ToolApprovalPendingAction;
+export type PendingAction =
+  | ConnectionPendingAction
+  | ToolApprovalPendingAction
+  | UserChoicePendingAction;
 
 /**
  * A user's decision about a single pending tool (skill) approval request.
@@ -158,6 +189,18 @@ export type ToolApprovalDecision = {
   approved: boolean;
   /** Optional free text. Omitted entirely when empty. */
   reason?: string;
+}
+
+/**
+ * The user's answer to one user-choice question, as the execute endpoint expects it.
+ * Members are camelCase — they are sent as-is.
+ */
+export type UserChoiceAnswer = {
+  /** Must match a question's `id`. */
+  questionId: string;
+  selectedOptionIds: string[];
+  /** Free text for when no option fits. Omitted entirely when empty. */
+  other?: string;
 }
 
 export type CitationSource =

@@ -56,6 +56,26 @@ export class AgentMapper {
               action.connectorImgUrl ?? action.connector_img_url,
             connector_id: action.connectorId ?? action.connector_id,
           };
+        case "user_choice":
+          return {
+            type: "user_choice",
+            questions: (action.questions ?? []).map((question: {
+              [key: string]: any;
+            }) => ({
+              id: question.id,
+              header: question.header,
+              text: question.text,
+              is_multiselect:
+                question.isMultiselect ?? question.is_multiselect ?? false,
+              options: (question.options ?? []).map((option: {
+                [key: string]: any;
+              }) => ({
+                id: option.id,
+                title: option.title,
+                description: option.description,
+              })),
+            })),
+          };
         default:
           // Unknown variant — pass through untouched so it is not swallowed.
           return action;
