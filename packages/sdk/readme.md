@@ -25,6 +25,8 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
     - [Submit feedback](#submit-feedback)
     - [Remove feedback](#remove-feedback)
   - [Connector Status](#connector-status)
+  - [Tool approvals](#tool-approvals)
+  - [User choices](#user-choices)
 - [Activities](#activities)
   - [Execute an activity](#execute-an-activity)
   - [Stream responses with SSE](#stream-responses-with-sse)
@@ -532,6 +534,75 @@ Notes:
   `conversation.conversationId` is not set yet. It is populated as soon as the first execution
   finishes, so an approval raised on the very first turn is resolvable.
 - A resumed turn can itself raise another approval; keep handling `pending_actions` until it is empty.
+
+## User choices
+
+When the agent needs input before it can continue, it stops and asks. The result carries a
+`user_choice` pending action holding one or more questions, each with the options the agent
+proposes.
+
+Detect it on the result (or on the `stop` payload when streaming) and answer with
+`streamUserChoices` / `sendUserChoices`. The resume turn carries **no user message** — the answers
+are the whole turn — and continues the same conversation, so the answer arrives as the rest of the
+same assistant response.
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+const conversation = await client.agents.assistants.createConversation("chef-assistant");
+
+const response = await conversation.streamMessage("Plan dinner for me tonight.");
+
+const choice = response.pending_actions?.find((action) => action.type === "user_choice");
+
+if (choice) {
+  for (const question of choice.questions) {
+    console.log(question.header);        // "Cuisine" — short label, frequently absent
+    console.log(question.text);          // "What kind of food are you in the mood for?"
+    console.log(question.is_multiselect) // false — pick one, or many when true
+    console.log(question.options);       // [{ id, title, description? }, ...]
+  }
+
+  // Ask the user, then echo each question id back with the option ids they picked.
+  const continuation = await conversation.streamUserChoices(
+    choice.questions.map((question) => ({
+      questionId: question.id,
+      selectedOptionIds: [question.options![0].id],
+    })),
+  );
+
+  console.log(continuation.content); // the rest of the answer
+}
+```
+
+When none of the options fit, send the user's own words in `other` instead — with or without
+selected options:
+
+```tsx
+await conversation.sendUserChoices([
+  { questionId: question.id, selectedOptionIds: [], other: "Something vegetarian" },
+]);
+```
+
+Notes:
+
+- `questionId` must match a question's `id`, and every id in `selectedOptionIds` must match one of
+  that question's `options`. `header`, `text` and `description` are informational.
+- Answer members are camelCase (`questionId`, `selectedOptionIds`, `other?`). `other` is optional,
+  trimmed, and omitted from the request when empty.
+- Answer every question in the set. `selectedOptionIds` may be empty only when `other` carries the
+  answer instead.
+- Unlike approvals, nothing is held server-side: the answers are folded into the text of the next
+  user message. An unanswered set never expires, so it can be answered on a later turn, and a plain
+  `sendMessage` / `streamMessage` also works if the user would rather just reply in their own words.
+- User choices can only be answered on an existing conversation — both methods throw when
+  `conversation.conversationId` is not set yet. It is populated as soon as the first execution
+  finishes, so a question raised on the very first turn is answerable.
+- A resumed turn can itself raise another question; keep handling `pending_actions` until it is empty.
 
 ---
 

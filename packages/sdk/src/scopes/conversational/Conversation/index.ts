@@ -8,6 +8,7 @@ import {
   TaskStartEvent,
   TaskStopEvent,
   ToolApprovalDecision,
+  UserChoiceAnswer,
 } from "../../../types";
 import {
   ConversationInfoResult,
@@ -194,6 +195,86 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
           requestId: decision.requestId,
           approved: decision.approved,
           ...(reason ? { reason } : {}),
+        };
+      }),
+    };
+  }
+
+  /**
+   * Answer the questions the agent asked (a `user_choice` pending action) and stream the
+   * continuation.
+   *
+   * The request carries no user message — the answers are the whole turn. Unlike an
+   * approval, nothing is cached server-side: the answers are folded into the text of the
+   * user message, so a set can be answered on any later turn and never goes stale.
+   *
+   * @param answers - One answer per question, keyed by its `questionId`
+   * @param options - Optional additional info (input parameters, volatile knowledge ids)
+   * @throws Error if there is no conversation yet, or if `answers` is empty
+   *
+   * @example
+   * ```typescript
+   * const result = await conversation.streamMessage("Help me pick a plan.");
+   * const choice = result.pending_actions?.find((a) => a.type === "user_choice");
+   * if (choice) {
+   *   await conversation.streamUserChoices(
+   *     choice.questions.map((question) => ({
+   *       questionId: question.id,
+   *       selectedOptionIds: [question.options![0].id],
+   *     })),
+   *   );
+   * }
+   * ```
+   */
+  async streamUserChoices(
+    answers: UserChoiceAnswer[],
+    options?: MessageAdditionalInfo
+  ): Promise<AgentResult> {
+    const bodyOptions = this.#createUserChoicesBodyOptions(answers, true, options);
+    return this.#streamRequest(bodyOptions, "Failed to submit user choices");
+  }
+
+  /**
+   * Answer the questions the agent asked and return the continuation.
+   *
+   * Non-streaming counterpart of {@link Conversation.streamUserChoices}.
+   *
+   * @param answers - One answer per question, keyed by its `questionId`
+   * @param options - Optional additional info (input parameters, volatile knowledge ids)
+   * @throws Error if there is no conversation yet, or if `answers` is empty
+   */
+  async sendUserChoices(
+    answers: UserChoiceAnswer[],
+    options?: MessageAdditionalInfo
+  ): Promise<AgentResult> {
+    const bodyOptions = this.#createUserChoicesBodyOptions(answers, false, options);
+    return this.#executeRequest(bodyOptions, "Failed to submit user choices");
+  }
+
+  #createUserChoicesBodyOptions(
+    answers: UserChoiceAnswer[],
+    stream: boolean,
+    options?: MessageAdditionalInfo
+  ): CreateExecuteBodyOptions {
+    if (!this.conversationId) {
+      throw new Error(
+        "Conversation ID is not set. User choices can only be answered on an existing conversation."
+      );
+    }
+    if (!answers || answers.length === 0) {
+      throw new Error("At least one user choice answer is required.");
+    }
+
+    return {
+      stream,
+      isNewConversation: false,
+      additionalInfo: options,
+      userChoices: answers.map((answer) => {
+        const other = answer.other?.trim();
+        return {
+          questionId: answer.questionId,
+          selectedOptionIds: answer.selectedOptionIds ?? [],
+          ...(other ? { other } : {}),
         };
       }),
     };
@@ -655,9 +736,10 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       },
     ];
 
-    // Add either message or audioInput. An approval-resume turn has neither: the
+    // Add either message or audioInput. An interruption-resume turn has neither: the
     // server's conversational input validator accepts a message-less execution
-    // when `toolApprovals` is present, so the key must be absent (not empty).
+    // when `toolApprovals` or `userChoiceResponses` is present, so the key must be
+    // absent (not empty).
     if (options.message) {
       body.push({
         Key: "message",
@@ -674,6 +756,13 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       body.push({
         Key: "toolApprovals",
         Value: options.toolApprovals,
+      });
+    }
+
+    if (options.userChoices && options.userChoices.length > 0) {
+      body.push({
+        Key: "userChoiceResponses",
+        Value: options.userChoices,
       });
     }
 

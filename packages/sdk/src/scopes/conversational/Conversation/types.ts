@@ -1,4 +1,4 @@
-import { CitationResWithoutText, ToolApprovalDecision, VolatileKnowledgeUploadRes } from "../../../types";
+import { CitationResWithoutText, ToolApprovalDecision, UserChoiceAnswer, VolatileKnowledgeUploadRes } from "../../../types";
 
 export type MessageAdditionalInfo = {
   inputParameters?: { [key: string]: any }
@@ -10,10 +10,11 @@ export type CreateExecuteBodyOptions = {
   isNewConversation: boolean;
   additionalInfo?: MessageAdditionalInfo;
   toolApprovals?: ToolApprovalDecision[];
+  userChoices?: UserChoiceAnswer[];
 } & (
   | { message: string; audio?: never }
   | { audio: { fileId: string }; message?: never }
-  // Approval-resume turn: the decision is the whole turn, no user input.
+  // Interruption-resume turn: the answer is the whole turn, no user input.
   | { message?: never; audio?: never }
 )
 
