@@ -44,6 +44,7 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
   - [Task events](#task-events)
   - [Citations](#citations)
     - [Citations on stored messages](#citations-on-stored-messages)
+    - [Downloading a cited knowledge file](#downloading-a-cited-knowledge-file)
   - [Upload Files (Volatile Knowledge)](#upload-files-volatile-knowledge)
   - [Audio Input](#audio-input)
     - [Send Audio Messages (Assistants/Copilots)](#send-audio-messages-assistantscopilots)
@@ -1127,6 +1128,8 @@ type CitationSource =
       section_id?: string;
       file_name?: string;
       page_range?: string;
+      is_downloadable?: boolean; // Whether the cited file can be downloaded by authorized users
+      download_url?: string;     // Absolute download endpoint, or absent when not downloadable
     }
   | {
       type: "knowledge_website";
@@ -1174,6 +1177,40 @@ for (const message of conversation.messages) {
   }
 }
 ```
+
+### Downloading a cited knowledge file
+
+When an agent's knowledge file is configured as available for download, its citations carry a
+`download_url` alongside `is_downloadable`. The URL points at the platform's download endpoint but
+**carries no credentials** — a plain `<a href>` will not work. Use `downloadKnowledgeFile` so the
+SDK attaches the client's API key or bearer token:
+
+```tsx
+for (const citation of response.citations ?? []) {
+  const source = citation.source;
+  if (source?.type !== "knowledge_file" || !source.download_url) continue;
+
+  const blob = await conversation.downloadKnowledgeFile(source.download_url);
+
+  // In the browser, hand the blob to the user
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = source.file_name ?? "download";
+  link.click();
+  URL.revokeObjectURL(objectUrl);
+}
+```
+
+Notes:
+
+- Branch on `download_url` alone. The server derives `is_downloadable` from the URL, so the two
+  can never disagree, and a missing URL already covers non-downloadable files and draft versions.
+- The URL's origin must match the client's `baseUrl`. A mismatch throws before any request is
+  made, so the credential never reaches an origin you did not configure.
+- Private, deleted, or missing files all answer `404` — deliberately indistinguishable.
+- Citations loaded from history via [Get conversation by id](#get-conversation-by-id) do **not**
+  currently include `download_url`.
 
 ## Upload Files (Volatile Knowledge)
 

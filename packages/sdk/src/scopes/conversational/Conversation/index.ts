@@ -334,6 +334,16 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
   }
 
   /**
+   * Download a knowledge file cited in a conversation message.
+   *
+   * @param downloadUrl - The `download_url` from a citation's `knowledge_file` source
+   * @returns The file as a Blob
+   */
+  async downloadKnowledgeFile(downloadUrl: string): Promise<Blob> {
+    return await this.fileManager.downloadFromApi(downloadUrl);
+  }
+
+  /**
    * Stops the current streaming response, aborting the SSE connection.
    * If no stream is active, this method does nothing.
    * 
