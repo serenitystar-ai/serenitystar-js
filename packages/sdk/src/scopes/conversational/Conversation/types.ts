@@ -308,6 +308,11 @@ export type SubmitFeedbackOptions = {
    * The feedback value - true for positive, false for negative
    */
   feedback: boolean;
+  /**
+   * Optional free-text comment explaining the rating. Submitting feedback without
+   * a comment clears any comment previously stored for the message.
+   */
+  comment?: string;
 };
 
 export type SubmitFeedbackResult = {

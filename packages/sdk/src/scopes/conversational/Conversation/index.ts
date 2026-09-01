@@ -487,6 +487,13 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
    *   agentMessageId: response.agent_message_id!,
    *   feedback: true
    * });
+   *
+   * // Submit negative feedback with a comment
+   * await conversation.submitFeedback({
+   *   agentMessageId: response.agent_message_id!,
+   *   feedback: false,
+   *   comment: "The answer missed the pricing details."
+   * });
    * ```
    */
   async submitFeedback(options: SubmitFeedbackOptions): Promise<SubmitFeedbackResult> {
@@ -502,7 +509,8 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        feedback: options.feedback
+        feedback: options.feedback,
+        comment: options.comment
       }),
     });
 
