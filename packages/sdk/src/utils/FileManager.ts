@@ -90,38 +90,4 @@ export class FileManager {
 
     return await response.blob();
   }
-
-  /**
-   * Download a file from a URL the API itself handed us (e.g. a citation's `download_url`),
-   * with the client's credentials attached.
-   *
-   * Unlike `download`, the URL's origin must match `baseUrl`. These URLs arrive inside response
-   * bodies, so attaching the API key to an arbitrary origin would hand the credential to whoever
-   * controls that host.
-   *
-   * @param downloadUrl - Absolute or relative download URL returned by the API
-   * @returns The downloaded file as a Blob
-   */
-  async downloadFromApi(downloadUrl: string): Promise<Blob> {
-    const normalizedUrl = downloadUrl.startsWith("http")
-      ? downloadUrl
-      : `${this.baseUrl}${downloadUrl.startsWith("/") ? "" : "/"}${downloadUrl}`;
-
-    // Throws on a malformed URL — same outcome as a rejected origin.
-    if (new URL(normalizedUrl).origin !== new URL(this.baseUrl).origin) {
-      throw new Error(
-        "Refusing to send credentials to an origin that does not match the client baseUrl"
-      );
-    }
-
-    const response = await fetchWithAuth(this.authProvider, normalizedUrl, {
-      method: "GET",
-    });
-
-    if (!response.ok) {
-      throw await InternalErrorHelper.process(response, "Failed to download file");
-    }
-
-    return await response.blob();
-  }
 }

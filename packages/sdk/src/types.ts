@@ -210,14 +210,12 @@ export type CitationSource =
       section_id?: string;
       file_name?: string;
       page_range?: string;
-      /** Whether the cited file can be downloaded by authorized users of the agent. */
-      is_downloadable?: boolean;
       /**
-       * Absolute URL of the download endpoint for the cited file, or absent when it isn't
-       * downloadable. Carries no credentials — the caller must authenticate.
+       * Whether the cited file can be downloaded by authorized users of the agent. Pass
+       * `knowledge_file_version_id` to `conversation.downloadKnowledgeFile` to fetch it.
        * Only present on live citations; historical ones (`getConversationById`) omit it.
        */
-      download_url?: string;
+      is_downloadable?: boolean;
     }
   | {
       type: "knowledge_website";
