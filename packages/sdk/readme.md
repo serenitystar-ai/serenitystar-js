@@ -1129,7 +1129,6 @@ type CitationSource =
       file_name?: string;
       page_range?: string;
       is_downloadable?: boolean; // Whether the cited file can be downloaded by authorized users
-      download_url?: string;     // Absolute download endpoint, or absent when not downloadable
     }
   | {
       type: "knowledge_website";
@@ -1180,17 +1179,18 @@ for (const message of conversation.messages) {
 
 ### Downloading a cited knowledge file
 
-When an agent's knowledge file is configured as available for download, its citations carry a
-`download_url` alongside `is_downloadable`. The URL points at the platform's download endpoint but
-**carries no credentials** — a plain `<a href>` will not work. Use `downloadKnowledgeFile` so the
-SDK attaches the client's API key or bearer token:
+When an agent's knowledge file is configured as available for download, its citations carry
+`is_downloadable`. The download endpoint requires authentication, so a plain `<a href>` will not
+work. Use `downloadKnowledgeFile` with the citation's `knowledge_file_version_id`: it addresses the
+conversation's own agent and version, and attaches the client's API key or bearer token.
 
 ```tsx
 for (const citation of response.citations ?? []) {
   const source = citation.source;
-  if (source?.type !== "knowledge_file" || !source.download_url) continue;
+  if (source?.type !== "knowledge_file" || !source.is_downloadable) continue;
+  if (!source.knowledge_file_version_id) continue;
 
-  const blob = await conversation.downloadKnowledgeFile(source.download_url);
+  const blob = await conversation.downloadKnowledgeFile(source.knowledge_file_version_id);
 
   // In the browser, hand the blob to the user
   const objectUrl = URL.createObjectURL(blob);
@@ -1204,13 +1204,11 @@ for (const citation of response.citations ?? []) {
 
 Notes:
 
-- Branch on `download_url` alone. The server derives `is_downloadable` from the URL, so the two
-  can never disagree, and a missing URL already covers non-downloadable files and draft versions.
-- The URL's origin must match the client's `baseUrl`. A mismatch throws before any request is
-  made, so the credential never reaches an origin you did not configure.
+- Branch on `is_downloadable`. It already covers non-downloadable files and draft versions, and a
+  file that stops being downloadable answers `404` on the next attempt.
 - Private, deleted, or missing files all answer `404` — deliberately indistinguishable.
 - Citations loaded from history via [Get conversation by id](#get-conversation-by-id) do **not**
-  currently include `download_url`.
+  currently include `is_downloadable`.
 
 ## Upload Files (Volatile Knowledge)
 
