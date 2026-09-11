@@ -10,6 +10,7 @@ import {
   SerenitySessionErrorEvent,
   SDPConfiguration,
   SerenityResponseProcessedEvent,
+  RealtimeErrorDetails,
 } from "./types";
 
 export class RealtimeSession extends EventEmitter<RealtimeSessionEvents> {
@@ -34,6 +35,12 @@ export class RealtimeSession extends EventEmitter<RealtimeSessionEvents> {
 
   // WebSockets configuration.
   private socket?: WebSocket;
+  /**
+   * `#stop` runs twice for a server-initiated close: once from the close-frame handler and
+   * again from `socket.onclose`, which it triggers itself. Guard so `session.stopped` is
+   * emitted once, with the reason of whichever call came first.
+   */
+  private hasStopped = false;
 
   constructor(
     agentCode: string,
@@ -58,6 +65,7 @@ export class RealtimeSession extends EventEmitter<RealtimeSessionEvents> {
    * Starts the real-time session.
    */
   async start(): Promise<void> {
+    this.hasStopped = false;
     try {
       await this.#setupWebSocketConnection();
     } catch (error) {
@@ -105,6 +113,9 @@ export class RealtimeSession extends EventEmitter<RealtimeSessionEvents> {
    * @param details Additional details about the stop event.
    */
   #stop(reason?: string, details?: any): void {
+    if (this.hasStopped) return;
+    this.hasStopped = true;
+
     // Send a closure message to the server if socket is connected
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       try {
@@ -154,12 +165,18 @@ export class RealtimeSession extends EventEmitter<RealtimeSessionEvents> {
       this.socket!.send(JSON.stringify(sessionCreateEvent));
     };
 
-    this.socket.onclose = () => {
-      this.#stop();
+    this.socket.onclose = (event) => {
+      // The close frame is the only diagnostic for an abnormal termination, so carry its
+      // code and reason into `session.stopped` rather than dropping them.
+      this.#stop(event.reason || undefined, {
+        closeCode: event.code,
+        closeReason: event.reason || undefined,
+        wasClean: event.wasClean,
+      });
     };
 
     this.socket.onerror = (event) => {
-      this.emit("error", "Error connecting to the server");
+      this.emit("error", "Error connecting to the server", { source: "client" });
       this.#stop();
     };
 
@@ -191,9 +208,14 @@ export class RealtimeSession extends EventEmitter<RealtimeSessionEvents> {
       }
       case "serenity.session.close": {
         const eventData = obj as SerenitySessionCloseEvent;
-        const errorDetails = this.#extractErrorMessageFromEvent(eventData);
-        this.emit("error", errorDetails);
-        this.#stop(eventData.reason, errorDetails);
+        const errorMessage = this.#extractErrorMessageFromEvent(eventData);
+        const details: RealtimeErrorDetails = {
+          source: eventData.reason === "VendorException" ? "vendor" : "session",
+          reason: eventData.reason,
+          errors: eventData.errors,
+        };
+        this.emit("error", errorMessage, details);
+        this.#stop(eventData.reason, errorMessage);
         break;
       }
       case "serenity.response.processed": {
@@ -245,12 +267,16 @@ export class RealtimeSession extends EventEmitter<RealtimeSessionEvents> {
             break;
           }
           case "error": {
-            this.emit("error", "There was an error processing your request");
+            this.emit("error", "There was an error processing your request", {
+              source: "vendor",
+            });
             break;
           }
         }
       } catch (error) {
-        this.emit("error", "Error processing incoming messages from vendor");
+        this.emit("error", "Error processing incoming messages from vendor", {
+          source: "client",
+        });
       } finally {
         // Forward the message to the server
         if (this.socket) {
@@ -331,7 +357,7 @@ export class RealtimeSession extends EventEmitter<RealtimeSessionEvents> {
       this.emit("session.created");
       this.#resetInactivityTimeout();
     } catch (error) {
-      this.emit("error", "Error starting the session");
+      this.emit("error", "Error starting the session", { source: "client" });
       this.#stop();
     }
   }
@@ -343,18 +369,28 @@ export class RealtimeSession extends EventEmitter<RealtimeSessionEvents> {
     }, this.timeout);
   }
 
-  #extractErrorMessageFromEvent(eventData: SerenitySessionErrorEvent) {
-    switch (eventData.reason) {
-      case "Exception":
-        return eventData.message;
-      case "ValidationException": {
-        if (!eventData.errors) return eventData.message;
+  /**
+   * Flatten a close frame into a single displayable message.
+   *
+   * `"VendorException"` replaced `"ValidationException"` as the reason for provider faults;
+   * both are handled, and the `errors` dictionary is joined for **any** reason — including
+   * one this SDK version does not recognise — so a server-side rename can never silently
+   * discard the detail again.
+   */
+  #extractErrorMessageFromEvent(eventData: SerenitySessionErrorEvent): string {
+    const details = eventData.errors
+      ? Object.values(eventData.errors)
+          .filter((value) => typeof value === "string" && value.trim().length > 0)
+          .join(". ")
+      : "";
 
-        return Object.values(eventData.errors).join(". ");
-      }
-      default:
-        return eventData.message;
-    }
+    if (!details) return eventData.message;
+    if (!eventData.message) return details;
+    // `Exception` carries a self-contained message; every other reason pairs a generic
+    // message with the dictionary that explains it.
+    return eventData.reason === "Exception"
+      ? eventData.message
+      : details;
   }
   // #endregion
 }

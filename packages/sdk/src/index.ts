@@ -14,6 +14,11 @@ import {
   SubmitFeedbackResult,
 } from "./scopes/conversational/Conversation/types";
 import { RealtimeSession } from "./scopes/conversational/RealtimeSession";
+import type {
+  RealtimeErrorDetails,
+  RealtimeErrorSource,
+  SerenitySessionCloseReason,
+} from "./scopes/conversational/RealtimeSession/types";
 import { SerenityClient, FullSerenityClient, ScopedSerenityClient } from "./SerenityClient";
 import type { FullAgents, FullServices, ScopedAgents } from "./SerenityClient";
 import {
@@ -32,6 +37,20 @@ import {
   UserChoiceAnswer,
   RateLimitErrorBody,
   ValidationErrorBody,
+  AgentRunAttempt,
+  AgentRunFailedErrorBody,
+  BusinessValidationErrorBody,
+  ErrorDetails,
+  NotFoundErrorBody,
+  NotFoundErrorKey,
+  SerenityErrorBody,
+  SerenityErrorCode,
+  StreamAgentRunAttempt,
+  StreamErrorEvent,
+  ValidationErrorKey,
+  VendorErrorBody,
+  VendorFaultCode,
+  VendorValidationErrorBody,
   VolatileKnowledgeExpirationOptions,
   VolatileKnowledgeProcessingOptions,
   VolatileKnowledgeUploadFromBase64Options,
@@ -47,10 +66,22 @@ import {
   AgentClientCredentials,
 } from "./types";
 import { ExternalErrorHelper } from "./utils/ErrorHelper";
+import type { SerenityErrorType } from "./utils/ErrorHelper";
 import { VolatileKnowledgeManager } from "./utils/VolatileKnowledgeManager";
 import { AuthProvider } from "./auth/AuthProvider";
+import { SerenityApiError } from "./errors";
+import { VENDOR_FAULT_CODES } from "./types";
 
-export { SerenityClient, FullSerenityClient, ScopedSerenityClient, RealtimeSession, ExternalErrorHelper as ErrorHelper, VolatileKnowledgeManager };
+export {
+  SerenityClient,
+  FullSerenityClient,
+  ScopedSerenityClient,
+  RealtimeSession,
+  ExternalErrorHelper as ErrorHelper,
+  VolatileKnowledgeManager,
+  SerenityApiError,
+  VENDOR_FAULT_CODES,
+};
 export type {
   AgentResult,
   CitationRes,
@@ -61,6 +92,24 @@ export type {
   BaseErrorBody,
   RateLimitErrorBody,
   ValidationErrorBody,
+  BusinessValidationErrorBody,
+  VendorValidationErrorBody,
+  NotFoundErrorBody,
+  VendorErrorBody,
+  AgentRunFailedErrorBody,
+  AgentRunAttempt,
+  SerenityErrorBody,
+  SerenityErrorCode,
+  SerenityErrorType,
+  VendorFaultCode,
+  NotFoundErrorKey,
+  ValidationErrorKey,
+  ErrorDetails,
+  StreamErrorEvent,
+  StreamAgentRunAttempt,
+  SerenitySessionCloseReason,
+  RealtimeErrorDetails,
+  RealtimeErrorSource,
   Conversation,
   Message,
   SubmitFeedbackOptions,
