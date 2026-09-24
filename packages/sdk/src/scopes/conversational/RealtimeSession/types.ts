@@ -39,9 +39,12 @@ export type RealtimeSessionEvents = {
 
   /**
    * Triggered when any error occurs during the session
-   * @param message - Optional error message
+   * @param message - Optional error message, already flattened for display
+   * @param details - Structured detail about the failure: where it came from, the server's
+   * close-frame `reason`, and the raw `errors` dictionary. Use `details.source` to tell a
+   * client-side problem from an upstream vendor fault.
    */
-  error: (message?: string) => void;
+  error: (message?: string, details?: RealtimeErrorDetails) => void;
 
   /**
    * Triggered when the session is terminated
@@ -84,9 +87,45 @@ export type SerenitySessionCreatedEvent = SDPConfiguration & {
   type: "serenity.session.created";
 };
 
+/**
+ * `reason` values the server sends on a close frame.
+ *
+ * @remarks
+ * `"VendorException"` replaced `"ValidationException"` for upstream provider faults;
+ * `"ValidationException"` is kept for older servers. Whether the server-side set is closed
+ * is not documented, so the union stays open and the handler keeps a `default` branch.
+ */
+export type SerenitySessionCloseReason =
+  | "Exception"
+  | "ValidationException"
+  | "VendorException"
+  | (string & {});
+
 export type SerenitySessionErrorEvent = {
-  reason: string;
+  reason: SerenitySessionCloseReason;
   message: string;
+  /**
+   * Detail dictionary. On a `VendorException` this is the **vendor** error dictionary —
+   * the upstream provider's own reason for the failure.
+   */
+  errors?: { [key: string]: string };
+}
+
+/** Where a realtime failure came from. */
+export type RealtimeErrorSource =
+  /** The browser/client side: microphone, WebRTC setup, message handling. */
+  | "client"
+  /** The Serenity session itself, reported on a close frame. */
+  | "session"
+  /** The upstream AI provider, reported on a `VendorException` close frame. */
+  | "vendor";
+
+/** Structured payload accompanying the realtime `error` event. */
+export type RealtimeErrorDetails = {
+  source: RealtimeErrorSource;
+  /** The server's close-frame reason, when the failure arrived on one. */
+  reason?: SerenitySessionCloseReason;
+  /** The server's detail dictionary, verbatim. Vendor detail on a `VendorException`. */
   errors?: { [key: string]: string };
 }
 

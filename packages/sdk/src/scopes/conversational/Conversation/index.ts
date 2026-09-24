@@ -664,7 +664,9 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       });
 
       this.connection.on("error", (data) => {
-        const error = JSON.parse(data);
+        // Emit and reject with the same normalized frame, so a streamed failure exposes
+        // the same `code` / `message` / `errors` as a buffered one.
+        const error = InternalErrorHelper.parseStreamError(data, errorMessage);
         this.emit("error", error);
         reject(error);
       });

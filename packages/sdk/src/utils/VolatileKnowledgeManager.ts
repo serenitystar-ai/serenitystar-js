@@ -6,6 +6,7 @@ import {
   VolatileKnowledgeUploadRes,
 } from "../types";
 import { InternalErrorHelper } from "./ErrorHelper";
+import { SerenityApiError } from "../errors";
 import { AuthProvider } from "../auth/AuthProvider";
 import { fetchWithAuth } from "./fetchWithAuth";
 import { getMimeType, normalizeMimeType } from "./mime";
@@ -94,6 +95,26 @@ export class VolatileKnowledgeManager {
   ): Promise<VolatileKnowledgeUploadRes> {
     const mimeType = getMimeType(file.name, file.type);
 
+    const failure = (
+      statusCode: number,
+      body: unknown,
+      retryAfterHeader?: string | null,
+    ): VolatileKnowledgeUploadRes => ({
+      success: false,
+      error: {
+        file,
+        error: SerenityApiError.from(
+          InternalErrorHelper.processFileError(
+            statusCode,
+            file,
+            body,
+            options.locale?.uploadFileErrorMessage,
+            retryAfterHeader,
+          ),
+        ),
+      },
+    });
+
     try {
       const fileToUpload =
         normalizeMimeType(file.type) === mimeType
@@ -129,17 +150,15 @@ export class VolatileKnowledgeManager {
         headers: {},
       });
 
-      const data = await response.json();
+      // Read defensively: an empty or non-JSON body must not become a thrown TypeError
+      // that hides the real status.
+      const data = await response.json().catch(() => null);
       if (!response.ok) {
-        return {
-          success: false,
-          error: {
-            file,
-            error: new Error(
-              InternalErrorHelper.processFile(response.status, file, data),
-            ),
-          },
-        };
+        return failure(response.status, data, response.headers.get("Retry-After"));
+      }
+      if (data === null) {
+        // 2xx with an unreadable body: there is no id to register, so this is a failure.
+        return failure(response.status, null);
       }
 
       if (data.id && !this.ids.includes(data.id)) {
@@ -155,13 +174,9 @@ export class VolatileKnowledgeManager {
         fileSize: data.fileSize ?? file.size,
       };
     } catch (error) {
-      return {
-        success: false,
-        error: {
-          file,
-          error: new Error(InternalErrorHelper.processFile(500, file, {})),
-        },
-      };
+      // A local failure (network fault, unreadable blob). There is no response to
+      // normalize, but the thrown error's own message is the most specific thing we have.
+      return failure(500, error);
     }
   }
 
@@ -315,18 +330,20 @@ export class VolatileKnowledgeManager {
       },
     });
 
-    const data = await result.json();
-
     if (!result.ok) {
+      // Normalize before reading the body, so `code`, `errors` and the real status survive
+      // (a 404 here is `resource_not_found`, not an unexplained failure).
+      const error = await InternalErrorHelper.process(
+        result,
+        "Failed to fetch volatile knowledge file.",
+      );
       return {
         success: false,
-        error: {
-          error: new Error(
-            data.message || "Failed to fetch volatile knowledge file.",
-          ),
-        },
+        error: { error: SerenityApiError.from(error) },
       };
     }
+
+    const data = await result.json();
 
     return {
       success: true,
@@ -349,20 +366,18 @@ export class VolatileKnowledgeManager {
         body: JSON.stringify(body),
       });
 
-      const data = await response.json().catch(() => ({}));
-
       if (!response.ok) {
+        const error = await InternalErrorHelper.process(
+          response,
+          "An unknown error occurred while uploading the file.",
+        );
         return {
           success: false,
-          error: {
-            error: new Error(
-              data?.message ||
-                "An unknown error occurred while uploading the file.",
-            ),
-          },
+          error: { error: SerenityApiError.from(error) },
         };
       }
 
+      const data = await response.json().catch(() => ({}));
       return data;
     } catch (error) {
       return {

@@ -50,6 +50,23 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
     - [Send Audio Messages (Assistants/Copilots)](#send-audio-messages-assistantscopilots)
     - [Execute with Audio (Activities/Proxies/Chat Completions)](#execute-with-audio-activitiesproxieschat-completions)
     - [Audio Transcription Service](#audio-transcription-service)
+- [Error handling](#error-handling)
+  - [The error envelope](#the-error-envelope)
+  - [Branch on `code`, never on `message`](#branch-on-code-never-on-message)
+  - [Error code reference](#error-code-reference)
+  - [Validation errors](#validation-errors)
+  - [Not found errors](#not-found-errors)
+  - [Failed executions and `attempts[]`](#failed-executions-and-attempts)
+  - [Rate limiting](#rate-limiting)
+  - [Streaming vs. buffered errors](#streaming-vs-buffered-errors)
+  - [File upload errors](#file-upload-errors)
+  - [Realtime sessions](#realtime-sessions)
+  - [Working with `Error` instances](#working-with-error-instances)
+  - [Security notes](#security-notes)
+- [Migrating from 2.x](#migrating-from-2x)
+  - [Breaking changes](#breaking-changes)
+  - [Status code changes](#status-code-changes)
+  - [Additive changes and fixes](#additive-changes-and-fixes)
 
 # Installation
 
@@ -307,6 +324,9 @@ console.log(
 )
 ```
 
+> **Errors:** A failing call rejects with a normalized error body. Branch on `error.code`, never
+> on `error.message`. See [Error handling](#error-handling).
+
 ### Stream message with SSE
 
 ```tsx
@@ -330,7 +350,8 @@ conversation
 	  }
 	})
 	.on("error", (error) => {
-	  // Handle stream errors here
+	  // In-band failure: `error.code` is set, `statusCode` is not.
+	  // See "Streaming vs. buffered errors" under Error handling.
 	})
 
 // Streaming response with Server Sent Events (SSE)
@@ -348,10 +369,13 @@ console.log(
 
 > **Citations:** When the agent grounds its answer in knowledge sources, citations are delivered both incrementally on `content` events (second argument) and as a consolidated `response.citations` array on the final result. See [Citations](#citations) for the full shape.
 
+> **Stream errors:** A streamed run that fails still completes with HTTP 200 — the failure arrives as an in-band `error` event **and** rejects the promise with the same object, which carries no `statusCode`. See [Streaming vs. buffered errors](#streaming-vs-buffered-errors).
+
 ## Real time conversation
 
 ```tsx
 import SerenityClient from '@serenity-star/sdk';
+import type { RealtimeErrorDetails } from '@serenity-star/sdk';
 
 const client = new SerenityClient({
   apiKey: '<SERENITY_API_KEY>',
@@ -371,10 +395,10 @@ const session = await client.agents.assistants.createRealtimeSession("chef-assis
 	.on("response.done", () => {
 	  // Update UI if you want to show the assistant is talking 
 	})
-	.on("error", (message?: string) => {
-	  // Show error message in the UI?
+	.on("error", (message?: string, details?: RealtimeErrorDetails) => {
+	  // `details.source` separates a client-side problem from an upstream vendor fault
 	})
-	.on("session.stopped", (reason: string, details?: any) => {
+	.on("session.stopped", (reason?: string, details?: any) => {
 	  // Update UI to let the user start a new session, or show the transcript of the entire session
 	})
 	
@@ -389,6 +413,10 @@ session.stop();
 ```
 
 > **Token Provider Auth:** `createRealtimeSession` is not available with this auth mode. Realtime features require API Key authentication.
+
+> **Errors:** A realtime session reports failures on the WebSocket close frame, not over HTTP. The
+> `error` event's second argument carries the source, the close `reason` and the server's `errors`
+> dictionary. See [Realtime sessions](#realtime-sessions).
 
 ## Message Feedback
 
@@ -493,7 +521,8 @@ console.log(newResponse.content); // Summary of the meeting notes
 
 When a skill is configured as *Requires approval*, the run pauses instead of invoking it. The result
 carries an `approval` pending action, and the conversation stays blocked until you send a decision:
-any further message on it returns HTTP 400 with `errors["tool_approval_pending"]`.
+any further message on it returns HTTP 400 with `errors["tool_approval_pending"]` (see
+[Validation errors](#validation-errors)).
 
 Detect the request on the result (or on the `stop` payload when streaming) and resolve it with
 `streamToolApprovals` / `sendToolApprovals`. The resume turn carries **no user message** — the
@@ -636,6 +665,10 @@ console.log(
 )
 ```
 
+> **Errors:** A failing execution rejects with a normalized error body — including
+> `agent_execution_failed`, which carries every model attempt in `attempts[]`. See
+> [Error handling](#error-handling).
+
 > **Token Provider Auth:** Omit `agentCode`.
 > ```ts
 > const response = await client.agents.activities.execute();
@@ -663,7 +696,8 @@ const activity = client.agents.activities.create("translator-activity", {
   console.log(data.text); // Response chunk
 })
 .on("error", (error) => {
-  // Handle stream errors here
+  // In-band failure: `error.code` is set, `statusCode` is not.
+  // See "Streaming vs. buffered errors" under Error handling.
 });
 
 const response = await activity.stream()
@@ -675,6 +709,8 @@ console.log(
   response.executor_task_logs, // [ { description: 'Task 1', duration: 100 }, { description: 'Task 2', duration: 500 }]
 );
 ```
+
+> **Stream errors:** A streamed run that fails still completes with HTTP 200 — the failure arrives as an in-band `error` event **and** rejects the promise with the same object, which carries no `statusCode`. See [Streaming vs. buffered errors](#streaming-vs-buffered-errors).
 
 > **Token Provider Auth:** Omit `agentCode` from `create()`.
 > ```ts
@@ -751,6 +787,8 @@ console.log(
 );
 
 ```
+
+> **Stream errors:** A streamed run that fails still completes with HTTP 200 — the failure arrives as an in-band `error` event **and** rejects the promise with the same object, which carries no `statusCode`. See [Streaming vs. buffered errors](#streaming-vs-buffered-errors).
 
 > **Token Provider Auth:** Omit `agentCode` from `create()`.
 > ```ts
@@ -876,6 +914,8 @@ console.log(
   response.completion_usage, // { completion_tokens: 200, prompt_tokens: 30, total_tokens: 230 }
 );
 ```
+
+> **Stream errors:** A streamed run that fails still completes with HTTP 200 — the failure arrives as an in-band `error` event **and** rejects the promise with the same object, which carries no `statusCode`. See [Streaming vs. buffered errors](#streaming-vs-buffered-errors).
 
 > **Token Provider Auth:** Omit `agentCode` from `create()`.
 > ```ts
@@ -1331,6 +1371,11 @@ conversation.volatileKnowledge.clear();
 const response = await conversation.sendMessage("Hello");
 ```
 
+> **Errors:** Uploads **return** failures instead of throwing, and `result.error.error` is a
+> `SerenityApiError` only when the request reached the API — a local failure is a plain `Error`.
+> See [File upload errors](#file-upload-errors) for the narrowing pattern and for what differs
+> between `upload` and the `uploadFrom*` helpers.
+
 ## Audio Input
 
 The SDK provides audio input capabilities across different agent types, allowing you to send audio messages and transcribe audio files.
@@ -1458,3 +1503,561 @@ console.log(response.content); // AI response based on the transcribed audio
 ```
 
 > **Token Provider Auth:** `client.services.audio` is not available with this auth mode. Audio transcription requires API Key authentication.
+
+# Error handling
+
+Every failing request rejects with a normalized **error body**. The SDK reads it once and keeps
+everything the server sent.
+
+> **The one rule:** branch on `code`. Not on `message` (localized, server-authored prose that
+> changes without notice), and not on the HTTP status alone (a `429` is either the API's own
+> rate limit *or* an execution whose every attempt the AI provider throttled).
+
+## The error envelope
+
+```ts
+type BaseErrorBody = {
+  message: string;              // localized, human-readable. Display it; never branch on it.
+  statusCode: number;           // the HTTP status
+  code?: SerenityErrorCode;     // stable, machine-readable discriminator
+  documentationUrl?: string;    // server-supplied doc link, sent on every coded error
+  errors?: { [key: string]: string | string[] }; // field / detail breakdown
+};
+```
+
+```tsx
+try {
+  const response = await conversation.sendMessage("Hello!");
+  console.log(response.content);
+} catch (error) {
+  const err = error as BaseErrorBody;
+
+  switch (err.code) {
+    case "resource_not_found":
+      // The agent, version or conversation does not exist — see `errors` for which.
+      break;
+    case "rate_limit_exceeded":
+      // The API's own throttle. `retryAfter` is set when the server sent `Retry-After`.
+      break;
+    case "agent_execution_failed":
+      // Every model attempt failed — see `attempts[]` for why, and
+      // `ErrorHelper.isVendorFault(err)` for whether a retry can help.
+      break;
+    default:
+      showToast(err.message);
+  }
+}
+```
+
+`code` is optional so the SDK keeps working against an API instance that does not send it: when
+it is absent, the error is mapped from the HTTP status alone.
+
+Every narrowed shape extends `BaseErrorBody`, so `message` and `statusCode` are always readable
+without narrowing. Cast to a narrowed type when you want the extra fields typed:
+
+| Type | `code` | Adds |
+| --- | --- | --- |
+| `ValidationErrorBody` | — | `errors`, declared required — the legacy 400 shape |
+| `BusinessValidationErrorBody` | `validation_error` | `errors` keyed by [`ValidationErrorKey`](#validation-errors) |
+| `NotFoundErrorBody` | `resource_not_found` | `errors` keyed by [`NotFoundErrorKey`](#not-found-errors) |
+| `AgentExecutionFailedErrorBody` | `agent_execution_failed` | `attempts[]` (`ExecutionAttempt`), `retryAfter` on a 429 |
+| `AIServiceExecutionFailedErrorBody` | `aiservice_execution_failed` | `attempts[]` (`ExecutionAttempt`, no `modelType`), `retryAfter` on a 429 |
+| `RateLimitErrorBody` | `rate_limit_exceeded` | `retryAfter` |
+| `SerenityErrorBody` | — | the union of every shape above |
+
+> **⚠️ `ValidationErrorBody.errors` is declared required, but a coded 400 can arrive with no
+> `errors` map at all.** The type does not protect you — read it optionally (`err.errors?.…`)
+> even after casting. See [Validation errors](#validation-errors).
+
+## Branch on `code`, never on `message`
+
+Two details that are easy to get wrong:
+
+1. **An `errors` key does not imply a status.** `agent_code_invalid` is a
+   [`validation_error`](#validation-errors) key on a **400** (the agent exists but is not usable)
+   *and* a [`resource_not_found`](#not-found-errors) key on a **404** (no such agent). Read `code`
+   or `statusCode` first, the key second.
+2. **Never detect provider faults with a `"vendor_"` prefix check.** `vendor_validation_error`
+   and `vendor_context_length_error` are rejections the caller has to fix — retrying them will
+   fail forever. Use `ErrorHelper.isVendorFault(error)`, or the exported `VENDOR_FAULT_CODES`
+   list it reads.
+
+`vendor_*` codes are never a response's top-level `code`: they only appear on
+[`attempts[].code`](#failed-executions-and-attempts).
+
+```tsx
+import { ErrorHelper, VENDOR_FAULT_CODES } from "@serenity-star/sdk";
+import type { AgentExecutionFailedErrorBody } from "@serenity-star/sdk";
+
+const err = error as AgentExecutionFailedErrorBody;
+
+// ✅ the helper: true when every attempt failed at the provider
+if (ErrorHelper.isVendorFault(err)) await retryWithBackoff();
+
+// ✅ …or the exported list it reads, when you want the check inline
+const allVendor = (err.attempts ?? []).every((a) =>
+  (VENDOR_FAULT_CODES as readonly string[]).includes(a.code ?? "")
+);
+
+// ❌ classifies `vendor_validation_error` (a 400) as retryable
+if (err.attempts?.some((a) => a.code?.startsWith("vendor_"))) await retryWithBackoff();
+```
+
+A caught value is `unknown` under `strict`, so every example here casts it before reading
+`code`. Cast once, at the top of the `catch`.
+
+`ErrorHelper.determineErrorType(error)` classifies a thrown value when you want one branch per
+family:
+
+```tsx
+import type { SerenityErrorType } from "@serenity-star/sdk";
+
+const { type, error: body } = ErrorHelper.determineErrorType(error);
+// SerenityErrorType:
+// "RateLimitError" | "ValidationError" | "NotFoundError"
+// | "AgentExecutionFailedError" | "AIServiceExecutionFailedError"
+// | "BaseError" | "UnknownError"
+```
+
+Annotate your own handlers with the exported `SerenityErrorType` rather than re-listing the
+members.
+
+> **Upgrading from 2.x:** the returned `type` values changed — a `429` from the AI provider is no
+> longer `"RateLimitError"`, and three members were added. See
+> [Migrating from 2.x](#migrating-from-2x).
+
+## Error code reference
+
+| `code` | HTTP | Meaning | What to do |
+| --- | --- | --- | --- |
+| `unauthorized` | 401 | Missing or invalid credentials | Check the API key / token provider. Do not retry unchanged |
+| `forbidden` | 403 | Authenticated, but not allowed | Do not retry |
+| `input_validation_error` | 400 | Request binding / shape is wrong | Fix the request. `errors` is keyed by **request field**, values are arrays |
+| `validation_error` | 400 | A business rule rejected the request | Fix the request or the agent state. `errors` may be absent |
+| `agent_execution_failed` | 400 / 500 / 429 / 502 | Every model attempt (main plus fallbacks) failed | Read `attempts[]`. See [Failed executions](#failed-executions-and-attempts) |
+| `aiservice_execution_failed` | 400 / 500 / 429 / 502 | An AI service call (embeddings, transcription, speech…) failed at the provider | Read `attempts[]`. See [Failed executions](#failed-executions-and-attempts) |
+| `request_too_large` | 413 | Payload over the limit | Send less |
+| `method_not_allowed` | 405 | Wrong HTTP method | Fix the call |
+| `unsupported_media_type` | 415 | Wrong `Content-Type` | Fix the call |
+| `resource_not_found` | 404 | Agent, version, conversation or model does not exist | Read `errors` for which one |
+| `rate_limit_exceeded` | 429 | The **API's own** rate limit | Back off; use `retryAfter` when present |
+| `server_error` | 500 | Catch-all. Never exposes internal detail | Retry once, then escalate |
+
+The `vendor_*` codes are not in this table because they are never a top-level `code` — see
+[Attempt codes](#attempt-codes).
+
+The `SerenityErrorCode` type keeps an open tail, so a code added server-side is a runtime value
+you can handle rather than a compile error.
+
+## Validation errors
+
+A **400** is usually one of two codes: `input_validation_error` (the request shape is wrong) or
+`validation_error` (a business rule rejected it). A 400 can also be an
+[execution failure](#failed-executions-and-attempts) with a client-fixable attempt — for example
+the provider rejecting a prompt that exceeds the model's context window.
+
+The two validation codes key `errors` differently:
+
+- **`input_validation_error`** — keys are **request field names**, values are **arrays**.
+- **`validation_error`** — keys come from the vocabulary below, values are **single strings**.
+
+⚠️ **`errors` can be absent on a 400.** Some business rules return a message only, so read it
+optionally even when the type declares it required:
+
+```tsx
+try {
+  await conversation.sendMessage("Hello!");
+} catch (error) {
+  const err = error as BusinessValidationErrorBody;
+  if (err.code !== "validation_error") throw error;
+
+  if (err.errors?.insufficient_balance) return showBillingDialog();
+  if (err.errors?.conversation_closed) return startNewConversation();
+  showToast(err.message);
+}
+```
+
+| Group | `errors` keys |
+| --- | --- |
+| Request input | `message_required`, `invalid_request_body`, `input_keys_duplicated`, `multiple_inputs`, `required_parameters_missing`, `required_parameters_null`, `required_parameters_empty`, `parameter_type_mismatch`, `missing_variables`, `invalid_messages`, `audio_input_not_supported` |
+| Agent state | `agent_inactive`, `agent_code_invalid`, `agent_version_inactive`, `ai_model_not_allowed`, `invalid_model` |
+| Conversation | `conversation_closed`, `conversation_context_not_found` |
+| Response format & reasoning | `invalid_response_format_type`, `invalid_response_format_schema`, `response_format_not_supported_by_model`, `invalid_reasoning_effort`, `invalid_reasoning_detail`, `reasoning_effort_not_supported_by_model`, `reasoning_detail_not_supported_by_model` |
+| Skills & tools | `invalid_skills_options`, `conflicting_skills_options`, `tool_approval_pending` (see [Tool approvals](#tool-approvals)), `tool_approval_skill_not_found`, `tool_approval_ambiguous_tool` |
+| Quota & balance | `insufficient_balance`, `monthly_quota_exceeded`, `user_quota_exceeded`, `organization_quota_exceeded`, `model_quota_exceeded`, `excluded_bonified_execution_insufficient_balance` |
+
+`ValidationErrorKey` keeps an open tail — the agent-designer endpoints add namespaced,
+feature-specific keys, so keep a `default` branch.
+
+⚠️ **A key does not imply a status.** `agent_code_invalid` is an *agent state* key on this 400
+*and* a [`resource_not_found`](#not-found-errors) key on a 404. Read `code` or `statusCode` first.
+
+> **Upgrading from 2.x:** 2.x always set `errors` on a 400, defaulting it to `{}`. A coded 400 now
+> omits it when the server sent none. See [Migrating from 2.x](#migrating-from-2x).
+
+## Not found errors
+
+A missing agent, version, conversation or model comes back as a **404** with
+`code: "resource_not_found"` and an `errors` key naming what is missing:
+
+```json
+{
+  "code": "resource_not_found",
+  "message": "The resource you're trying to see was not found (Code 0040)",
+  "errors": { "agent_code_invalid": "Agent 'chef-assistant' does not exist." }
+}
+```
+
+| `errors` key | What is missing |
+| --- | --- |
+| `agent_code_invalid` | No agent with that code |
+| `agent_version_not_found` | The agent exists, that version does not |
+| `conversation_not_found` | No conversation with that id |
+| `aimodel_not_found` | The requested model does not exist |
+
+`errors` is **absent** on an unspecified miss — the reason is then in `message`.
+
+⚠️ `agent_code_invalid` is also a 400 key — see [Validation errors](#validation-errors).
+
+```tsx
+try {
+  await conversation.getInfo();
+} catch (error) {
+  const err = error as NotFoundErrorBody;
+  if (err.code === "resource_not_found") {
+    if (err.errors?.agent_code_invalid) return showAgentPicker();
+    if (err.errors?.agent_version_not_found) return showVersionPicker();
+    showToast(err.message);
+  }
+}
+```
+
+## Failed executions and `attempts[]`
+
+A failed call to an AI provider comes back as one of two codes, with every try listed in
+`attempts[]`. The top-level `errors` mirrors only the **last** attempt, so read `attempts[]` for
+the full picture.
+
+| `code` | Returned by | `attempts[]` |
+| --- | --- | --- |
+| `agent_execution_failed` | Agent executions and conversation messages | One per model tried (main, then fallbacks). Each has `modelType` |
+| `aiservice_execution_failed` | AI services — audio transcription, embeddings on `volatileKnowledge` uploads, speech generation, vision, image generation | Always at least one. **No** `modelType` |
+
+```tsx
+try {
+  await activity.execute();
+} catch (error) {
+  const err = error as AgentExecutionFailedErrorBody;
+  if (err.code !== "agent_execution_failed") throw error;
+
+  for (const attempt of err.attempts ?? []) {
+    console.log(attempt.index, attempt.modelType, attempt.code, attempt.statusCode);
+    // 1 "main"     "vendor_service_error"    503
+    // 2 "fallback" "vendor_rate_limit_error" 429
+  }
+
+  if (ErrorHelper.isVendorFault(err)) await retryWithBackoff();
+}
+```
+
+Each attempt renders exactly as the same error would on its own — the same `code`, `message`
+and `errors` — so an attempt can also read `resource_not_found` or `server_error`. A provider
+attempt keys its `errors` by `vendor_error`, which holds the provider's raw detail.
+
+`index` is 1-based. `modelType` is `"main"` or `"fallback"` — never a model name. `statusCode` on
+an attempt is the **provider's** raw status (400, 429, 503, 529…) and is informational: it does
+not drive the response status.
+
+### Response status
+
+The status is resolved from every attempt together, in this order:
+
+| Status | When |
+| --- | --- |
+| **400** | Any attempt was client-fixable (`vendor_validation_error`, `vendor_context_length_error`) |
+| **500** | Otherwise, any attempt was a server-side fault — neither yours nor the provider's |
+| **429** | Otherwise, every attempt was a provider rate limit. `retryAfter` is set — see [Rate limiting](#rate-limiting) |
+| **502** | Any other set of provider faults |
+
+A context-length overflow is not retried, so it arrives as a **single** attempt and the run is a
+400.
+
+### Attempt codes
+
+These classify an upstream provider failure. They only ever appear as `attempts[].code`
+(`VendorAttemptCode`).
+
+| `attempts[].code` | Provider status | Counts as |
+| --- | --- | --- |
+| `vendor_validation_error` | 400 / 413 / 415 / 422 | Client-fixable — change the request |
+| `vendor_context_length_error` | none (no `statusCode`) | Client-fixable — shorten the input |
+| `vendor_authentication_error` | 401 / 403 | Provider fault — a configuration problem; escalate |
+| `vendor_rate_limit_error` | 429 | Provider fault — back off |
+| `vendor_service_error` | any other status, or none | Provider fault — retry later |
+| `vendor_timeout_error` | none (`statusCode: 504`) | Provider fault — timed out; retry |
+| `vendor_cancellation_error` | none (`statusCode: 504`) | Provider fault — cancelled; retry |
+| `vendor_error` | — | Reserved. Also the fixed `errors` key for the provider's raw detail |
+
+The provider faults are exported as `VENDOR_FAULT_CODES` (`VendorFaultCode`).
+
+## Rate limiting
+
+A `429` is either the API's own limit or an execution whose every attempt the AI provider
+throttled, so check `code`. Both carry `retryAfter` when the server sent `Retry-After`:
+
+```tsx
+const err = error as RateLimitErrorBody | AgentExecutionFailedErrorBody;
+
+if (err.statusCode === 429) {
+  // The API's own limit (`rate_limit_exceeded`), or every attempt was rate-limited by the
+  // provider (`agent_execution_failed` / `aiservice_execution_failed`): the longest wait any
+  // attempt reported, or a 30-second default. Cap it — the value can come from the provider.
+  const seconds = Math.min(err.retryAfter ?? 30, 120);
+  await sleep(seconds * 1000);
+}
+```
+
+> **Upgrading from 2.x:** `retryAfter` is no longer defaulted to `60`, and the `429` message is
+> no longer the hardcoded string `"Rate limit exceeded"`. See
+> [Migrating from 2.x](#migrating-from-2x).
+
+## Streaming vs. buffered errors
+
+A streamed run that fails still completes with **HTTP 200** — the failure arrives as an in-band
+`error` event. The SDK normalizes that frame, so a streamed and a buffered failure expose the
+same fields:
+
+| | Buffered (`sendMessage`, `execute`) | Streamed (`streamMessage`, `stream`) |
+| --- | --- | --- |
+| Delivery | promise rejection | `error` event **and** promise rejection, same object |
+| `code` | ✅ | ✅ |
+| `message` | always set | optional in the type — the SDK backfills a fallback |
+| `errors` | ✅ | ✅ |
+| `statusCode` | ✅ | **absent** — the transport reported 200 |
+| Documentation link | `documentationUrl` | `documentation_url` (snake_case) |
+| Attempts | `attempts[]`, camelCase (`modelType`, `statusCode`) | `attempts[]`, snake_case (`model_type`, `status_code`) |
+| Retry hint on a rate-limited run | `retryAfter`, from the `Retry-After` header | `retry_after_seconds` — a stream can't set a header |
+| Partial output | — | `agent_result`, `pending_actions`, `generated_json` |
+
+```tsx
+conversation.on("error", (error) => {
+  // error: StreamErrorEvent
+  if (error?.code === "agent_execution_failed") {
+    error.attempts?.forEach((a) => console.log(a.model_type, a.status_code));
+    if (error.retry_after_seconds !== undefined) scheduleRetry(error.retry_after_seconds);
+  }
+  showToast(error?.message ?? "Something went wrong");
+});
+
+try {
+  await conversation.streamMessage("Hello!");
+} catch (error) {
+  // The same object the `error` event received.
+}
+```
+
+Streaming omits null fields, so every field on `StreamErrorEvent` is optional, `message`
+included. In practice the SDK backfills a **hardcoded English** fallback when the frame carries
+none (`"Failed to send message"`, `"Failed to resolve tool approvals"`, …), so `message` is
+nearly always set but is not necessarily localized — supply your own copy wherever the wording is
+user-facing.
+
+A pre-stream failure — a 404 or 429 raised before the stream opens — rejects with a normal
+buffered error body, `statusCode` included. When the connection cannot be initialized at all —
+no HTTP response to read — the rejection is a plain `Error`
+(`"Failed to initialize SSE connection"`) with no `code`.
+
+## File upload errors
+
+`volatileKnowledge.upload` and the `uploadFrom*` helpers **return** a result object instead of
+throwing. `result.error.error` is typed as a plain `Error`, because it is one of two things:
+
+- a [`SerenityApiError`](#working-with-error-instances) when the request reached the API, so
+  `code`, `statusCode` and `errors` are readable off it;
+- a plain `Error` for a local failure — a missing argument (`"fileId is required."`) or a network
+  fault. No `code`, no `statusCode`.
+
+Narrow with `instanceof` before reading the envelope fields:
+
+```tsx
+import { SerenityApiError } from "@serenity-star/sdk";
+
+const result = await conversation.volatileKnowledge.upload(file);
+
+if (!result.success) {
+  const { error, file: failedFile } = result.error;
+  console.log(failedFile?.name);          // set on this path only
+
+  if (error instanceof SerenityApiError) {
+    console.log(error.message);           // "report.pdf: The file exceeds the maximum size."
+    console.log(error.code);              // "input_validation_error"
+    console.log(error.statusCode);        // 400
+    console.log(error.errors?.file);      // ["The file exceeds the maximum size."]
+  } else {
+    showToast(error.message);             // local failure — envelope fields are absent
+  }
+}
+```
+
+**Only `upload(file)` prefixes `message` with the file name** and honours
+`locale.uploadFileErrorMessage`. The prefixed text comes from the `errors` map when the server
+sent one, otherwise from the top-level message.
+
+An upload that generates embeddings can fail with
+[`aiservice_execution_failed`](#failed-executions-and-attempts). Its `errors` holds the
+provider's raw detail, so the prefixed text uses the localized top-level message instead, and
+`error.attempts` / `error.retryAfter` are readable off the `SerenityApiError`.
+
+The `uploadFromFileId` / `uploadFromUrl` / `uploadFromBase64` helpers differ: they report the
+server's message **unprefixed**, they accept **no `locale` option** (their last-resort wording is
+fixed), and `result.error.file` is absent because no `File` was involved.
+
+```tsx
+const result = await conversation.volatileKnowledge.uploadFromUrl("https://example.com/report.pdf");
+
+if (!result.success) {
+  // The server's message, with no "report.pdf: " prefix
+  showToast(result.error.error.message);
+}
+```
+
+> **Upgrading from 2.x:** an upload failure used to be a generic `500` with a generic message. It
+> now carries the real status, `code` and `errors`. See [Migrating from 2.x](#migrating-from-2x).
+
+## Realtime sessions
+
+A realtime session reports failures on the WebSocket **close frame**, not over HTTP. The `error`
+event carries structured detail alongside the display message:
+
+```tsx
+session.on("error", (message, details) => {
+  showToast(message);
+
+  switch (details?.source) {
+    case "vendor":  // upstream provider fault
+      offerRetry();
+      break;
+    case "session": // the Serenity session rejected the request
+      console.log(details.reason, details.errors);
+      break;
+    case "client":  // microphone / WebRTC / local handling
+      checkMicrophonePermissions();
+      break;
+  }
+});
+
+session.on("session.stopped", (reason, details) => {
+  // `details` carries the raw close frame for an abnormal termination:
+  // { closeCode: 1011, closeReason: "…", wasClean: false }
+  console.log(reason, details);
+});
+```
+
+`details.reason` is the server's close-frame reason, so it is only set when the failure arrived
+on one: a `"vendor"` source reported from the live data channel carries **no `reason`**. Branch on
+`details.source` and treat `reason` as extra detail.
+
+The `errors` dictionary is surfaced for **any** close `reason`, including one this SDK version
+does not recognise.
+
+> **Upgrading from 2.x:** the `error` event gained the second `details` argument (existing
+> one-argument handlers still work), and the provider-fault close `reason` was renamed
+> `"ValidationException"` → `"VendorException"`. See [Migrating from 2.x](#migrating-from-2x).
+
+## Working with `Error` instances
+
+Agent-execution and conversation methods reject with **plain objects**, not `Error` instances.
+Wrap a **buffered** error body when you need a real `Error` — for a stack trace, or for an
+error-reporting tool that ignores non-`Error` values:
+
+```tsx
+import { SerenityApiError } from "@serenity-star/sdk";
+
+try {
+  await conversation.sendMessage("Hello!");
+} catch (error) {
+  const err = SerenityApiError.from(error as BaseErrorBody);
+  err instanceof Error; // true
+  Sentry.captureException(err);
+}
+```
+
+Every envelope field is an own enumerable property, so `{ ...err }` and `JSON.stringify(err)`
+produce exactly the plain error body.
+
+Two cases it is **not** for:
+
+- **A streamed error.** A `StreamErrorEvent` has no `statusCode` — the transport already reported
+  200 — so wrapping one produces a `SerenityApiError` whose `statusCode` is `undefined` behind a
+  `number` type. Report the frame as-is, or add a status of your own.
+- **A failure that is already an `Error`.** A stream that never opens, an unparseable stored-message
+  payload, and the local argument checks on the [upload helpers](#file-upload-errors) all reject
+  with a plain `Error`. `SerenityApiError.from` expects a normalized body, so check
+  `error instanceof Error` first when one `catch` handles both.
+
+## Security notes
+
+- **`message` and `errors` are server-authored, localized text.** They can embed resource names
+  and, on vendor faults, upstream provider detail. Escape them before rendering into the DOM,
+  and do not log them by default — the `console.log` calls in this section are debugging
+  illustrations, not a recommended default.
+- **`attempts[].message` and `attempts[].errors` carry the upstream provider's own wording** and
+  inherit the same escaping and logging caveat as the top-level fields.
+- **`documentationUrl` / `documentation_url` is a server-supplied URL.** Treat it as display
+  text, not a navigation target, unless you validate the origin.
+- **`retryAfter` / `retry_after_seconds` can come from the AI provider.** On an execution
+  failure it is the longest wait any attempt reported. Cap it before sleeping on it, so one
+  large value cannot stall your client.
+- **An execution failure's top-level `errors` is raw provider detail** (`errors.vendor_error`).
+  Show the localized `message` to end users instead.
+- **`agent_result` on a streamed error frame is diagnostic payload, not UI content.** It carries
+  raw tool output and cost/usage. Do not render it verbatim.
+
+---
+
+# Migrating from 2.x
+
+`3.0.0` is a major release because the shape of what is *thrown* changed. Nothing was removed
+from `BaseErrorBody`, so most code keeps compiling — but two runtime behaviours changed, and they
+are the first two rows below.
+
+## Breaking changes
+
+| Change | What to do |
+| --- | --- |
+| **`errors` is no longer guaranteed on a 400** | **The most likely runtime break.** 2.x set `errors` on every 400, defaulting it to `{}`; a coded 400 now omits it when the server sent none, so `Object.keys(err.errors)` and `err.errors.field` throw. Read it as `err.errors?.…`. Note `ValidationErrorBody` still declares the field **required**, so the type will not catch this for you. Against an API instance that sends no `code`, the legacy `{}` default still applies — the two behave differently |
+| **A `429` message is the server's, not `"Rate limit exceeded"`** | 2.x ignored the body and hardcoded that English string. Any comparison against it now fails. Display `error.message` and branch on `code` |
+| `RateLimitErrorBody.retryAfter` is optional | **Breaking for TypeScript.** 2.x defaulted it to `60` when the header was missing; it is now set only when the server sent `Retry-After`. Use `error.retryAfter ?? yourDefault` |
+| A provider `429` is no longer a `RateLimitError` | It arrives as `agent_execution_failed` / `aiservice_execution_failed`, which `determineErrorType` reports as `"AgentExecutionFailedError"` / `"AIServiceExecutionFailedError"`. Branch on `code` rather than on the returned type |
+| `determineErrorType` gained `"NotFoundError"`, `"AgentExecutionFailedError"` and `"AIServiceExecutionFailedError"` | Exhaustive `switch` statements over the returned `type` no longer compile. Add the new branches, or a `default`. The union is now exported as `SerenityErrorType` — annotate with it instead of re-listing the members |
+| The SSE `error` event payload is `StreamErrorEvent` | **Breaking for TypeScript** if you typed the handler as `{ message?: string }`. `message` is still there |
+| The realtime close `reason` for a provider fault is `"VendorException"` | Renamed from `"ValidationException"`. The SDK handles both; update your own comparisons on `reason` |
+
+## Status code changes
+
+These come from the API, so they affect any branching on `statusCode`. Branching on `code`
+instead is stable across all of them.
+
+| Change | What to do |
+| --- | --- |
+| A missing agent, version or conversation is a **404** | Was a 400. Add 404 to status-based branching, or move to `code: "resource_not_found"` |
+| A failed provider call is **400 / 500 / 429 / 502**, resolved from its attempts | Was always 500. See [Response status](#response-status) |
+| A 429 can be a provider throttle | Every attempt rate-limited reads 429 with `code: "agent_execution_failed"` or `"aiservice_execution_failed"`. A 429 no longer implies the API's own rate limit |
+
+## Additive changes and fixes
+
+| Change | Kind | Notes |
+| --- | --- | --- |
+| `code`, `documentationUrl` and `errors` on `BaseErrorBody` | Additive | `errors` is preserved on **every** status, not just 400 |
+| The realtime `error` event gained a second `details` argument | Additive | Existing one-argument handlers are unaffected |
+| `volatileKnowledge` failures return a `SerenityApiError` | Additive | For API failures only — a local failure (missing argument, network fault) stays a plain `Error`. Both are `Error` instances with the same `message` as before |
+| A streamed error rejects with the normalized frame | Fixed | Was the raw frame. Same fields, plus `code` and normalized `pending_actions` |
+| `session.stopped` is emitted once per session | Fixed | Was emitted twice for a server-initiated close |
+| A non-JSON or empty error body keeps its real status | Fixed | Was forced to `500` |
+| `FileManager.upload` reports the real status and message | Fixed | Was always `500` with a generic message |
+| A 400 request-validation error carries a real `message` | Fixed | The API renamed the field (`title` → `message`), which 2.x could not read — it rendered `"Validation error"` instead |
+| The upload `errors` key is `file`, not `File` | Fixed | Both casings are accepted, so an older API instance still resolves |
+
+If you only read `message` and `statusCode`, two things need a look: any access to `errors` on a
+**400** (row 1), and any comparison against the old hardcoded `429` message (row 2). Everything
+else is additive, or affects only `switch` statements over `determineErrorType`.

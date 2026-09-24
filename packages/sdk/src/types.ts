@@ -308,6 +308,64 @@ export type TaskStopEvent = TaskEventBase & {
 };
 
 /**
+ * One attempt of a failed execution, as it arrives on a **streamed** request.
+ *
+ * Streaming keeps the wire's snake_case naming (`model_type`, `status_code`) and omits null
+ * fields, so every field is optional. {@link ExecutionAttempt} is the buffered equivalent.
+ */
+export type StreamExecutionAttempt = {
+  index?: number;
+  /**
+   * snake_case on the wire; `model_type`, not `modelType`. Agent attempts only — AI service
+   * attempts have no main/fallback distinction and omit it.
+   */
+  model_type?: "main" | "fallback";
+  /** Raw upstream status (429, 503, 529…). Informational. */
+  status_code?: number;
+  code?: AttemptErrorCode;
+  message?: string;
+  errors?: ErrorDetails;
+};
+
+/**
+ * Payload of the SSE `error` event, and the value a streamed execution rejects with.
+ *
+ * @remarks
+ * A streamed run that fails stays HTTP 200 — the failure arrives as an in-band `error`
+ * frame — so there is no `statusCode` to report. Branch on `code`, exactly as you would on
+ * a buffered {@link BaseErrorBody}. Every field is optional because streaming payloads omit
+ * null fields.
+ *
+ * `agent_result`, `pending_actions` and `generated_json` are whatever the agent had produced
+ * before it failed. `agent_result` is **diagnostic payload**, not UI content: it carries
+ * server-authored strings and raw tool output. Do not render it verbatim.
+ */
+export type StreamErrorEvent = {
+  message?: string;
+  code?: SerenityErrorCode;
+  /**
+   * snake_case on the wire, unlike the buffered `documentationUrl`. Omitted when the server
+   * had no deep link to give. Treat it as display text, not a navigation target, unless you
+   * validate the origin.
+   */
+  documentation_url?: string;
+  errors?: ErrorDetails;
+  /** Present on `agent_execution_failed` and `aiservice_execution_failed`. */
+  attempts?: StreamExecutionAttempt[];
+  /**
+   * Seconds to wait, when every attempt was rate-limited by the provider. The in-band
+   * counterpart of the `Retry-After` header an open stream cannot set. Server-supplied: cap
+   * it before sleeping on it.
+   */
+  retry_after_seconds?: number;
+  /** Partial result produced before the failure. Diagnostic — do not render verbatim. */
+  agent_result?: AgentResult;
+  /** Normalized to snake_case by the SDK, like the non-error path. */
+  pending_actions?: PendingAction[];
+  generated_json?: string;
+};
+
+/**
  * Represents the events that can occur during a realtime session.
  * 
  * @remarks
@@ -340,9 +398,16 @@ export type SSEStreamEvents = {
 
   /**
    * Event triggered when an error occurs.
-   * @param error - The error object. May contain a message.
+   *
+   * The frame is normalized by the SDK before it is emitted, so it carries the same
+   * `code` / `message` / `errors` fields a buffered execution rejects with, and the
+   * promise returned by `streamMessage` rejects with this exact object. `statusCode` is
+   * deliberately absent — the stream itself completed with HTTP 200.
+   *
+   * @param error - The normalized error frame. Every field is optional: streaming
+   * payloads omit null fields.
    */
-  error: (error?: { message?: string }) => void;
+  error: (error?: StreamErrorEvent) => void;
 
   /**
    * Event triggered when there is a new chunk of data available.
@@ -478,21 +543,247 @@ export type SpeechGenerationResult = {
 
 type PluginExecutionResult = SpeechGenerationResult;
 
+/**
+ * Stable, machine-readable discriminators returned by the API.
+ * Grouped by category, with the HTTP status each is served with.
+ *
+ * @remarks
+ * Branch on `code`, never on `message` — messages are localized, server-authored text.
+ * The `(string & {})` tail keeps the union open so a code added server-side does not
+ * become a compile error for consumers.
+ */
+export type SerenityErrorCode =
+  // Authentication & authorisation
+  | "unauthorized"                  // 401
+  | "forbidden"                     // 403
+  // Validation — client-side, do not retry unchanged
+  | "input_validation_error"        // 400  request binding/shape
+  | "validation_error"              // 400  business rule
+  | "request_too_large"             // 413
+  | "method_not_allowed"            // 405
+  | "unsupported_media_type"        // 415
+  // Execution failed — the AI provider call failed; every try is listed in `attempts`
+  | "agent_execution_failed"        // 400 / 500 / 429 / 502, resolved from the attempts
+  | "aiservice_execution_failed"    // 400 / 500 / 429 / 502, resolved from the attempts
+  // Not found
+  | "resource_not_found"            // 404  every 404 shares this code
+  // Rate limiting
+  | "rate_limit_exceeded"           // 429  the API's own limit, not the provider's
+  // Unexpected
+  | "server_error"                  // 500  catch-all, never exposes internal detail
+  | (string & {}); // forward-compatible with codes added server-side
+
+/**
+ * Upstream AI provider codes. They are **never** a response's top-level `code`: they only
+ * appear as `attempts[].code` inside `agent_execution_failed` / `aiservice_execution_failed`.
+ * They carry no HTTP status of their own; the provider's raw status is on
+ * `attempts[].statusCode`.
+ */
+export type VendorAttemptCode =
+  // Client-fixable — any such attempt makes the run a 400
+  | "vendor_validation_error"       // provider returned 400 / 413 / 415 / 422
+  | "vendor_context_length_error"   // prompt exceeded the context window; not retried
+  // Vendor faults — see VENDOR_FAULT_CODES
+  | "vendor_authentication_error"   // provider returned 401 / 403
+  | "vendor_rate_limit_error"       // provider returned 429
+  | "vendor_service_error"          // any other provider status, or none
+  | "vendor_timeout_error"          // no response: timed out (statusCode 504)
+  | "vendor_cancellation_error"     // no response: cancelled (statusCode 504)
+  | "vendor_error";                 // reserved; today reported as vendor_service_error
+
+/**
+ * An attempt's `code`: usually a {@link VendorAttemptCode}, but an attempt renders exactly as
+ * the same error would standalone, so it can also be e.g. `resource_not_found` or
+ * `server_error`.
+ */
+export type AttemptErrorCode = VendorAttemptCode | SerenityErrorCode;
+
+/**
+ * The attempt codes that represent a fault in the upstream AI provider — retry or escalate.
+ *
+ * ⚠️ `vendor_validation_error` and `vendor_context_length_error` are deliberately absent:
+ * they are client-fixable rejections that make the run a **400**. Never classify vendor
+ * faults with a `"vendor_"` prefix check, or a request that will always fail gets
+ * reported as retryable.
+ */
+export const VENDOR_FAULT_CODES = [
+  "vendor_authentication_error",
+  "vendor_rate_limit_error",
+  "vendor_service_error",
+  "vendor_timeout_error",
+  "vendor_cancellation_error",
+  "vendor_error",
+] as const;
+
+export type VendorFaultCode = (typeof VENDOR_FAULT_CODES)[number];
+
+/** Keys that appear in `errors` on a 404 `resource_not_found` (exactly one entry, when present). */
+export type NotFoundErrorKey =
+  | "agent_code_invalid"
+  | "agent_version_not_found"
+  | "conversation_not_found"
+  | "aimodel_not_found";
+
+/**
+ * Keys that appear in `errors` on a 400 `validation_error`, for the execution and conversation
+ * endpoints. Open-ended: agent-designer endpoints add namespaced, feature-specific keys.
+ *
+ * ⚠️ `agent_code_invalid` appears BOTH here (400, agent state) and in {@link NotFoundErrorKey}
+ * (404) — the key alone does not tell you the status. Read `code` / the status first.
+ */
+export type ValidationErrorKey =
+  // Request input
+  | "message_required" | "invalid_request_body" | "input_keys_duplicated" | "multiple_inputs"
+  | "required_parameters_missing" | "required_parameters_null" | "required_parameters_empty"
+  | "parameter_type_mismatch" | "missing_variables" | "invalid_messages"
+  | "audio_input_not_supported"
+  // Agent state
+  | "agent_inactive" | "agent_code_invalid" | "agent_version_inactive"
+  | "ai_model_not_allowed" | "invalid_model"
+  // Conversation
+  | "conversation_closed" | "conversation_context_not_found"
+  // Response format & reasoning
+  | "invalid_response_format_type" | "invalid_response_format_schema"
+  | "response_format_not_supported_by_model" | "invalid_reasoning_effort"
+  | "invalid_reasoning_detail" | "reasoning_effort_not_supported_by_model"
+  | "reasoning_detail_not_supported_by_model"
+  // Skills & tools
+  | "invalid_skills_options" | "conflicting_skills_options" | "tool_approval_pending"
+  | "tool_approval_skill_not_found" | "tool_approval_ambiguous_tool"
+  // Quota & balance
+  | "insufficient_balance" | "monthly_quota_exceeded" | "user_quota_exceeded"
+  | "organization_quota_exceeded" | "model_quota_exceeded"
+  | "excluded_bonified_execution_insufficient_balance"
+  | (string & {});
+
+/** A field/detail breakdown. Values are a single string, or an array on `input_validation_error`. */
+export type ErrorDetails = { [key: string]: string | string[] };
+
 export type BaseErrorBody = {
+  /**
+   * Localized, server-authored text. Safe to show a user, but do not branch on it and do
+   * not render it as HTML without escaping — it can embed resource names and, on vendor
+   * faults, upstream provider detail.
+   */
   message: string;
   statusCode: number;
+  /** Stable discriminator. Branch on this, not on `message`. Absent on legacy responses. */
+  code?: SerenityErrorCode;
+  /**
+   * Server-supplied documentation link. The current API sends it on every coded error; it is
+   * optional for older servers. Treat it as display text, not a navigation target, unless
+   * you validate the origin.
+   */
+  documentationUrl?: string;
+  /** Present whenever the response carried a field or detail breakdown. */
+  errors?: ErrorDetails;
 };
 
 export type ValidationErrorBody = BaseErrorBody & {
-  errors: { [key: string]: string | string[] };
+  errors: ErrorDetails;
+};
+
+/**
+ * 400 business-rule failure. `errors` may be absent entirely — some conditions return a
+ * message only. Values are single strings here, `string[]` on `input_validation_error`,
+ * where the keys are request field names instead.
+ */
+export type BusinessValidationErrorBody = BaseErrorBody & {
+  code: "validation_error";
+  errors?: Partial<Record<ValidationErrorKey, string>> & ErrorDetails;
+};
+
+export type NotFoundErrorBody = BaseErrorBody & {
+  code: "resource_not_found";
+  /** Absent on an "unspecified miss" — the reason is then in `message`. */
+  errors?: Partial<Record<NotFoundErrorKey, string>> & ErrorDetails;
+};
+
+/**
+ * One attempt of a failed execution, as returned on a buffered (non-streamed) response.
+ *
+ * An attempt renders exactly as the same error would standalone: the same `code`, `message`
+ * and `errors`. A vendor attempt keys its `errors` by `vendor_error` (the raw provider
+ * detail); the category is the `code`.
+ */
+export type ExecutionAttempt = {
+  /** 1-based, in attempt order. */
+  index: number;
+  /**
+   * `main` or `fallback` — never a model name. Agent attempts only: AI service attempts
+   * have no main/fallback distinction and omit it.
+   */
+  modelType?: "main" | "fallback";
+  code?: AttemptErrorCode;
+  /**
+   * Raw upstream status (400, 429, 503, 529…). Informational — it does not drive the
+   * response status. `504` on `vendor_timeout_error` / `vendor_cancellation_error` even
+   * though the provider never answered. Omitted when the provider returned no status, and
+   * for non-vendor attempts.
+   */
+  statusCode?: number;
+  message?: string;
+  errors?: ErrorDetails & { vendor_error?: string };
+};
+
+/**
+ * A call to an AI provider failed. The status is resolved from every attempt together:
+ * **400** if any attempt was client-fixable, else **500** if any was a server-side fault,
+ * else **429** if all were provider rate limits (with `retryAfter`), else **502**.
+ */
+type ExecutionFailedErrorBody = BaseErrorBody & {
+  /** Every attempt, in order. Top-level `errors` mirrors only the LAST attempt. */
+  attempts?: ExecutionAttempt[];
+  /**
+   * Seconds, from the `Retry-After` header. Set on the 429 case: the longest wait any attempt
+   * reported, or the API's 30-second default. Provider-derived — cap it before sleeping on it.
+   */
+  retryAfter?: number;
+};
+
+/** An agent execution failed after exhausting its attempts (the main model plus any fallbacks). */
+export type AgentExecutionFailedErrorBody = ExecutionFailedErrorBody & {
+  code: "agent_execution_failed";
+};
+
+/**
+ * An AI service call (embeddings, audio transcription, speech generation, vision, image
+ * generation) failed at the provider. Always carries at least one attempt, even when the
+ * service made a single call. Attempts have no `modelType`.
+ */
+export type AIServiceExecutionFailedErrorBody = ExecutionFailedErrorBody & {
+  code: "aiservice_execution_failed";
 };
 
 export type RateLimitErrorBody = BaseErrorBody & {
-  retryAfter: number; // seconds
+  code?: "rate_limit_exceeded";
+  /**
+   * Seconds, from the `Retry-After` header. Only set when the header was present — the SDK
+   * never fabricates a value, so `undefined` means "the server did not say".
+   */
+  retryAfter?: number;
 };
+
+/**
+ * Every shape {@link BaseErrorBody} can be narrowed to. All members extend `BaseErrorBody`,
+ * so `message` and `statusCode` are always readable without narrowing.
+ */
+export type SerenityErrorBody =
+  | BaseErrorBody
+  | ValidationErrorBody
+  | BusinessValidationErrorBody
+  | NotFoundErrorBody
+  | AgentExecutionFailedErrorBody
+  | AIServiceExecutionFailedErrorBody
+  | RateLimitErrorBody;
 
 export type FileError = {
   file?: File;
+  /**
+   * A {@link SerenityApiError} whenever the failure came from the API, so `code`,
+   * `statusCode` and `errors` are readable off it. A plain `Error` for local failures
+   * (missing argument, network fault).
+   */
   error: Error;
 };
 

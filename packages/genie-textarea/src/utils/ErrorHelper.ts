@@ -1,63 +1,96 @@
 import type { GenieTextareaProps } from "../types";
 
-type ValidationErrorBody = {
-  errors: { [key: string]: string };
-  message: string;
-  statusCode: number;
+/**
+ * The fields this widget reads off any Serenity failure.
+ *
+ * @remarks
+ * Deliberately structural: the SDK rejects with a normalized error body for buffered calls,
+ * with an in-band frame (no `statusCode`) for streamed ones, and a consumer-supplied
+ * `handleRequestCompletion` may throw a raw `Response`. All three are handled.
+ */
+type SerenityErrorLike = {
+  message?: string;
+  statusCode?: number;
+  code?: string;
+  errors?: { [key: string]: string | string[] };
 };
 
-type ErrorBody = {
-  message: string;
-  statusCode: number;
-};
+/**
+ * Quota and balance failures are the account's problem, not the user's — show the generic
+ * message rather than the server's wording.
+ */
+const QUOTA_ERROR_KEYS = [
+  "insufficient_balance",
+  "monthly_quota_exceeded",
+  "model_quota_exceeded",
+  "organization_quota_exceeded",
+  "user_quota_exceeded",
+  "excluded_bonified_execution_insufficient_balance",
+];
+
+/** Codes whose body lists every provider attempt under `attempts`. */
+const EXECUTION_FAILED_CODES = ["agent_execution_failed", "aiservice_execution_failed"];
+
+const isRecord = (value: unknown): value is Record<string, any> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === "string" && value.trim().length > 0;
 
 export class ErrorHelper {
   static async extractErrorMessage(
     error: unknown,
     locale: GenieTextareaProps["locale"]
   ): Promise<string> {
-    // check if error is a response
-    if (error instanceof Response) {
-      // check 400 status code
-      if (error.status === 400) {
-        const validationError: ValidationErrorBody = await error.json();
-        return this.extractValidationErrors(validationError, locale);
-      }
-    }
-    return (
+    const fallback =
       locale?.completionErrorMessage ||
-      "An error occurred while processing your request."
-    );
+      "An error occurred while processing your request.";
+
+    const body = await this.#toErrorBody(error);
+    if (!body) return fallback;
+
+    // A failed provider call's `errors` mirrors its last attempt: raw provider detail under
+    // `vendor_error`, not something to show a user. The localized `message` is the summary.
+    if (body.code && EXECUTION_FAILED_CODES.includes(body.code)) {
+      return isNonEmptyString(body.message) ? body.message : fallback;
+    }
+
+    const errors = body.errors;
+    if (isRecord(errors) && Object.keys(errors).length > 0) {
+      if (Object.keys(errors).some((key) => QUOTA_ERROR_KEYS.includes(key))) {
+        return fallback;
+      }
+
+      // Never join blindly: an empty or absent map used to produce a blank message, which
+      // read as "something went wrong and we won't say what".
+      const joined = Object.values(errors)
+        .flat()
+        .filter(isNonEmptyString)
+        .join("\n\n")
+        .trim();
+      if (joined) return joined;
+    }
+
+    // Business-rule failures may carry no breakdown at all — the reason is in `message`.
+    return isNonEmptyString(body.message) ? body.message : fallback;
   }
 
-  private static extractValidationErrors(
-    error: ValidationErrorBody,
-    locale: GenieTextareaProps["locale"]
-  ): string {
-    // Check for specific quota or balance error keys
-    const quotaErrorKeys = [
-      "insufficient_balance",
-      "monthly_quota_exceeded",
-      "model_quota_exceeded",
-      "organization_quota_exceeded",
-    ];
-
-    // If any of the specific error keys are present, return the generic message
-    if (
-      error.errors &&
-      Object.keys(error.errors).some((key) => quotaErrorKeys.includes(key)) &&
-      locale
-    ) {
-      return locale.completionErrorMessage!;
+  /** Coerce whatever was thrown into the fields above, or `null` when there is nothing. */
+  static async #toErrorBody(error: unknown): Promise<SerenityErrorLike | null> {
+    if (error instanceof Response) {
+      const body = await error.json().catch(() => null);
+      return {
+        statusCode: error.status,
+        ...(isRecord(body) ? body : {}),
+      };
     }
 
-    // Otherwise, process errors
-    let errorMessage = "";
-    for (const key in error.errors) {
-      if (error.errors.hasOwnProperty(key)) {
-        errorMessage += `${error.errors[key]}\n\n`;
-      }
+    // Covers both the normalized error body and the streamed error frame. `Error`
+    // instances match too: `message` is readable even though it is not enumerable.
+    if (isRecord(error) || error instanceof Error) {
+      return error as SerenityErrorLike;
     }
-    return errorMessage.trim();
+
+    return null;
   }
 }

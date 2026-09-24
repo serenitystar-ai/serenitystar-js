@@ -41,29 +41,23 @@ export class FileManager {
     
     formData.append("formFile", fileToUpload, fileName);
 
-    try {
-      const response = await fetchWithAuth(this.authProvider, url, {
-        method: "POST",
-        body: formData,
-        headers: {},
-      });
+    const response = await fetchWithAuth(this.authProvider, url, {
+      method: "POST",
+      body: formData,
+      headers: {},
+    });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw await InternalErrorHelper.process(
-          response,
-          "Failed to upload file"
-        );
-      }
-
-      const data = await response.json();
-      return {
-        id: data.id,
-        downloadUrl: data.downloadUrl,
-      };
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      // Never read the body before this point: `process()` needs it to recover the real
+      // status, message and `code`.
+      throw await InternalErrorHelper.process(response, "Failed to upload file");
     }
+
+    const data = await response.json();
+    return {
+      id: data.id,
+      downloadUrl: data.downloadUrl,
+    };
   }
 
   /**
