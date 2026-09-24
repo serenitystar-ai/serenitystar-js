@@ -88,9 +88,7 @@ describe("processFile — changes 1, 2, 10: statuses with no dedicated branch", 
   it.each([
     [404, "resource_not_found", "The agent was not found."],
     [429, "rate_limit_exceeded", "Too many requests."],
-    [502, "vendor_authentication_error", "The AI provider rejected our credentials."],
-    [503, "vendor_service_error", "The AI provider is unavailable."],
-    [504, "vendor_timeout_error", "The AI provider timed out."],
+    [500, "server_error", "An unexpected error occurred."],
   ])("surfaces the real message on a %i %s", (status, code, message) => {
     expect(
       InternalErrorHelper.processFile(status, file, { code, message })
@@ -148,5 +146,41 @@ describe("processFileError — the full envelope, not just a string", () => {
       agent_code_invalid: "Agent 'nope' does not exist.",
     });
     expect(body.message).toBe("report.pdf: Agent 'nope' does not exist.");
+  });
+});
+
+describe("processFileError — aiservice_execution_failed (embeddings on upload)", () => {
+  const body = {
+    code: "aiservice_execution_failed",
+    message: "The embeddings couldn't be generated. Please try again.",
+    errors: { vendor_error: "raw provider detail: upstream 503" },
+    attempts: [
+      {
+        index: 1,
+        code: "vendor_service_error",
+        statusCode: 503,
+        message: "The AI provider returned a server error (HTTP 503) (Code 0086)",
+        errors: { vendor_error: "raw provider detail: upstream 503" },
+      },
+    ],
+  };
+
+  it("uses the localized message, not the raw provider detail in errors", () => {
+    expect(InternalErrorHelper.processFile(502, file, body)).toBe(
+      "report.pdf: The embeddings couldn't be generated. Please try again."
+    );
+  });
+
+  it("keeps attempts and reads Retry-After when the caller passes it", () => {
+    const result = InternalErrorHelper.processFileError(
+      429,
+      file,
+      body,
+      undefined,
+      "20"
+    ) as { attempts?: unknown[]; retryAfter?: number };
+
+    expect(result.attempts).toHaveLength(1);
+    expect(result.retryAfter).toBe(20);
   });
 });

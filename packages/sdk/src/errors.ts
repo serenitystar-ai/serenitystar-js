@@ -1,6 +1,6 @@
 import type {
-  AgentRunAttempt,
   ErrorDetails,
+  ExecutionAttempt,
   SerenityErrorBody,
   SerenityErrorCode,
 } from "./types";
@@ -25,12 +25,12 @@ export class SerenityApiError extends Error {
   code?: SerenityErrorCode;
   documentationUrl?: string;
   errors?: ErrorDetails;
-  /** Present on `agent_run_failed`. */
-  attempts?: AgentRunAttempt[];
+  /** Present on `agent_execution_failed` and `aiservice_execution_failed`. */
+  attempts?: ExecutionAttempt[];
   /** Seconds, from `Retry-After`. Only set when the header was present. */
   retryAfter?: number;
 
-  constructor(body: SerenityErrorBody & { attempts?: AgentRunAttempt[] }) {
+  constructor(body: SerenityErrorBody & { attempts?: ExecutionAttempt[] }) {
     super(body.message);
     Object.setPrototypeOf(this, SerenityApiError.prototype);
 
@@ -74,7 +74,7 @@ export class SerenityApiError extends Error {
   }
 
   /** The plain error-body shape, for logging and serialization. */
-  toJSON(): SerenityErrorBody & { attempts?: AgentRunAttempt[] } {
-    return { ...this } as SerenityErrorBody & { attempts?: AgentRunAttempt[] };
+  toJSON(): SerenityErrorBody & { attempts?: ExecutionAttempt[] } {
+    return { ...this } as SerenityErrorBody & { attempts?: ExecutionAttempt[] };
   }
 }

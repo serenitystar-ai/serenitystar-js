@@ -56,9 +56,8 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
   - [Error code reference](#error-code-reference)
   - [Validation errors](#validation-errors)
   - [Not found errors](#not-found-errors)
-  - [Vendor faults vs. vendor validation](#vendor-faults-vs-vendor-validation)
+  - [Failed executions and `attempts[]`](#failed-executions-and-attempts)
   - [Rate limiting](#rate-limiting)
-  - [Failed agent runs and `attempts[]`](#failed-agent-runs-and-attempts)
   - [Streaming vs. buffered errors](#streaming-vs-buffered-errors)
   - [File upload errors](#file-upload-errors)
   - [Realtime sessions](#realtime-sessions)
@@ -667,7 +666,7 @@ console.log(
 ```
 
 > **Errors:** A failing execution rejects with a normalized error body — including
-> `agent_run_failed`, which carries every model attempt in `attempts[]`. See
+> `agent_execution_failed`, which carries every model attempt in `attempts[]`. See
 > [Error handling](#error-handling).
 
 > **Token Provider Auth:** Omit `agentCode`.
@@ -1511,8 +1510,8 @@ Every failing request rejects with a normalized **error body**. The SDK reads it
 everything the server sent.
 
 > **The one rule:** branch on `code`. Not on `message` (localized, server-authored prose that
-> changes without notice), and not on the HTTP status alone (a `429` is either a platform rate
-> limit *or* an upstream provider throttle).
+> changes without notice), and not on the HTTP status alone (a `429` is either the API's own
+> rate limit *or* an execution whose every attempt the AI provider throttled).
 
 ## The error envelope
 
@@ -1521,7 +1520,7 @@ type BaseErrorBody = {
   message: string;              // localized, human-readable. Display it; never branch on it.
   statusCode: number;           // the HTTP status
   code?: SerenityErrorCode;     // stable, machine-readable discriminator
-  documentationUrl?: string;    // server-supplied doc link
+  documentationUrl?: string;    // server-supplied doc link, sent on every coded error
   errors?: { [key: string]: string | string[] }; // field / detail breakdown
 };
 ```
@@ -1538,10 +1537,11 @@ try {
       // The agent, version or conversation does not exist — see `errors` for which.
       break;
     case "rate_limit_exceeded":
-      // Platform throttle. `retryAfter` is set when the server sent `Retry-After`.
+      // The API's own throttle. `retryAfter` is set when the server sent `Retry-After`.
       break;
-    case "vendor_service_error":
-      // The AI provider is down. Safe to retry.
+    case "agent_execution_failed":
+      // Every model attempt failed — see `attempts[]` for why, and
+      // `ErrorHelper.isVendorFault(err)` for whether a retry can help.
       break;
     default:
       showToast(err.message);
@@ -1559,10 +1559,9 @@ without narrowing. Cast to a narrowed type when you want the extra fields typed:
 | --- | --- | --- |
 | `ValidationErrorBody` | — | `errors`, declared required — the legacy 400 shape |
 | `BusinessValidationErrorBody` | `validation_error` | `errors` keyed by [`ValidationErrorKey`](#validation-errors) |
-| `VendorValidationErrorBody` | `vendor_validation_error` | `errors.vendor_error` — the provider's own wording |
 | `NotFoundErrorBody` | `resource_not_found` | `errors` keyed by [`NotFoundErrorKey`](#not-found-errors) |
-| `VendorErrorBody` | one of `VendorFaultCode` | — |
-| `AgentRunFailedErrorBody` | `agent_run_failed` | `attempts[]` |
+| `AgentExecutionFailedErrorBody` | `agent_execution_failed` | `attempts[]` (`ExecutionAttempt`), `retryAfter` on a 429 |
+| `AIServiceExecutionFailedErrorBody` | `aiservice_execution_failed` | `attempts[]` (`ExecutionAttempt`, no `modelType`), `retryAfter` on a 429 |
 | `RateLimitErrorBody` | `rate_limit_exceeded` | `retryAfter` |
 | `SerenityErrorBody` | — | the union of every shape above |
 
@@ -1578,26 +1577,30 @@ Two details that are easy to get wrong:
    [`validation_error`](#validation-errors) key on a **400** (the agent exists but is not usable)
    *and* a [`resource_not_found`](#not-found-errors) key on a **404** (no such agent). Read `code`
    or `statusCode` first, the key second.
-2. **Never detect vendor faults with a `"vendor_"` prefix check.** `vendor_validation_error` is
-   a **400** the caller has to fix — retrying it will fail forever. Use the exported
-   `VENDOR_FAULT_CODES` list, or `ErrorHelper.isVendorFault(error)`.
+2. **Never detect provider faults with a `"vendor_"` prefix check.** `vendor_validation_error`
+   and `vendor_context_length_error` are rejections the caller has to fix — retrying them will
+   fail forever. Use `ErrorHelper.isVendorFault(error)`, or the exported `VENDOR_FAULT_CODES`
+   list it reads.
+
+`vendor_*` codes are never a response's top-level `code`: they only appear on
+[`attempts[].code`](#failed-executions-and-attempts).
 
 ```tsx
 import { ErrorHelper, VENDOR_FAULT_CODES } from "@serenity-star/sdk";
-import type { BaseErrorBody } from "@serenity-star/sdk";
+import type { AgentExecutionFailedErrorBody } from "@serenity-star/sdk";
 
-const err = error as BaseErrorBody;
+const err = error as AgentExecutionFailedErrorBody;
 
-// ✅ the helper…
+// ✅ the helper: true when every attempt failed at the provider
 if (ErrorHelper.isVendorFault(err)) await retryWithBackoff();
 
 // ✅ …or the exported list it reads, when you want the check inline
-if ((VENDOR_FAULT_CODES as readonly string[]).includes(err.code ?? "")) {
-  await retryWithBackoff();
-}
+const allVendor = (err.attempts ?? []).every((a) =>
+  (VENDOR_FAULT_CODES as readonly string[]).includes(a.code ?? "")
+);
 
 // ❌ classifies `vendor_validation_error` (a 400) as retryable
-if (err.code?.startsWith("vendor_")) await retryWithBackoff();
+if (err.attempts?.some((a) => a.code?.startsWith("vendor_"))) await retryWithBackoff();
 ```
 
 A caught value is `unknown` under `strict`, so every example here casts it before reading
@@ -1611,15 +1614,17 @@ import type { SerenityErrorType } from "@serenity-star/sdk";
 
 const { type, error: body } = ErrorHelper.determineErrorType(error);
 // SerenityErrorType:
-// "RateLimitError" | "ValidationError" | "NotFoundError" | "VendorError"
-// | "AgentRunFailedError" | "BaseError" | "UnknownError"
+// "RateLimitError" | "ValidationError" | "NotFoundError"
+// | "AgentExecutionFailedError" | "AIServiceExecutionFailedError"
+// | "BaseError" | "UnknownError"
 ```
 
 Annotate your own handlers with the exported `SerenityErrorType` rather than re-listing the
 members.
 
-> **Upgrading from 2.x:** the returned `type` values changed — a vendor `429` is no longer
-> `"RateLimitError"`, and three members were added. See [Migrating from 2.x](#migrating-from-2x).
+> **Upgrading from 2.x:** the returned `type` values changed — a `429` from the AI provider is no
+> longer `"RateLimitError"`, and three members were added. See
+> [Migrating from 2.x](#migrating-from-2x).
 
 ## Error code reference
 
@@ -1629,28 +1634,27 @@ members.
 | `forbidden` | 403 | Authenticated, but not allowed | Do not retry |
 | `input_validation_error` | 400 | Request binding / shape is wrong | Fix the request. `errors` is keyed by **request field**, values are arrays |
 | `validation_error` | 400 | A business rule rejected the request | Fix the request or the agent state. `errors` may be absent |
-| `vendor_validation_error` | 400 | The AI provider rejected the request (usually context length) | Shorten the input. **Not** a retryable vendor fault |
-| `agent_run_failed` | 400 / 502 | Every model attempt failed. 400 when a client fix is possible, 502 when all attempts failed upstream | Read `attempts[]` |
+| `agent_execution_failed` | 400 / 500 / 429 / 502 | Every model attempt (main plus fallbacks) failed | Read `attempts[]`. See [Failed executions](#failed-executions-and-attempts) |
+| `aiservice_execution_failed` | 400 / 500 / 429 / 502 | An AI service call (embeddings, transcription, speech…) failed at the provider | Read `attempts[]`. See [Failed executions](#failed-executions-and-attempts) |
 | `request_too_large` | 413 | Payload over the limit | Send less |
 | `method_not_allowed` | 405 | Wrong HTTP method | Fix the call |
 | `unsupported_media_type` | 415 | Wrong `Content-Type` | Fix the call |
 | `resource_not_found` | 404 | Agent, version, conversation or model does not exist | Read `errors` for which one |
-| `rate_limit_exceeded` | 429 | **Platform** rate limit | Back off; use `retryAfter` when present |
-| `vendor_rate_limit_error` | 429 | The **AI provider** is throttling us | Back off and retry. No `retryAfter` |
-| `vendor_authentication_error` | 502 | The platform's provider credentials failed | Escalate — the caller cannot fix this |
-| `vendor_service_error` | 503 | The AI provider is unavailable | Retry with backoff |
-| `vendor_timeout_error` | 504 | The AI provider timed out | Retry with backoff |
-| `vendor_error` | 500 | Provider fault with no status to map | Retry once, then escalate |
+| `rate_limit_exceeded` | 429 | The **API's own** rate limit | Back off; use `retryAfter` when present |
 | `server_error` | 500 | Catch-all. Never exposes internal detail | Retry once, then escalate |
+
+The `vendor_*` codes are not in this table because they are never a top-level `code` — see
+[Attempt codes](#attempt-codes).
 
 The `SerenityErrorCode` type keeps an open tail, so a code added server-side is a runtime value
 you can handle rather than a compile error.
 
 ## Validation errors
 
-A **400** is one of three codes: `input_validation_error` (the request shape is wrong),
-`validation_error` (a business rule rejected it) or `vendor_validation_error` (the provider
-rejected it — see [Vendor faults vs. vendor validation](#vendor-faults-vs-vendor-validation)).
+A **400** is usually one of two codes: `input_validation_error` (the request shape is wrong) or
+`validation_error` (a business rule rejected it). A 400 can also be an
+[execution failure](#failed-executions-and-attempts) with a client-fixable attempt — for example
+the provider rejecting a prompt that exceeds the model's context window.
 
 The two validation codes key `errors` differently:
 
@@ -1728,82 +1732,94 @@ try {
 }
 ```
 
-## Vendor faults vs. vendor validation
+## Failed executions and `attempts[]`
 
-Failures inside the upstream AI provider surface as their own statuses. All five carry a
-`vendor_*` code, and all five are worth retrying or escalating:
+A failed call to an AI provider comes back as one of two codes, with every try listed in
+`attempts[]`. The top-level `errors` mirrors only the **last** attempt, so read `attempts[]` for
+the full picture.
 
-| `code` | HTTP |
-| --- | --- |
-| `vendor_rate_limit_error` | 429 |
-| `vendor_authentication_error` | 502 |
-| `vendor_service_error` | 503 |
-| `vendor_timeout_error` | 504 |
-| `vendor_error` | 500 |
-
-`vendor_validation_error` (**400**) is deliberately *not* in that list: the provider rejected the
-request itself, typically because the prompt exceeded the model's context window. Retrying it
-unchanged will always fail. The provider's own wording is in `errors.vendor_error`:
+| `code` | Returned by | `attempts[]` |
+| --- | --- | --- |
+| `agent_execution_failed` | Agent executions and conversation messages | One per model tried (main, then fallbacks). Each has `modelType` |
+| `aiservice_execution_failed` | AI services — audio transcription, embeddings on `volatileKnowledge` uploads, speech generation, vision, image generation | Always at least one. **No** `modelType` |
 
 ```tsx
-const err = error as VendorValidationErrorBody;
+try {
+  await activity.execute();
+} catch (error) {
+  const err = error as AgentExecutionFailedErrorBody;
+  if (err.code !== "agent_execution_failed") throw error;
 
-if (err.code === "vendor_validation_error") {
-  console.log(err.errors?.vendor_error);
-  // "This model's maximum context length is 8192 tokens…"
-  return trimConversationAndRetry();
+  for (const attempt of err.attempts ?? []) {
+    console.log(attempt.index, attempt.modelType, attempt.code, attempt.statusCode);
+    // 1 "main"     "vendor_service_error"    503
+    // 2 "fallback" "vendor_rate_limit_error" 429
+  }
+
+  if (ErrorHelper.isVendorFault(err)) await retryWithBackoff();
 }
 ```
 
-A vendor fault can also carry a per-item `errors` map — for example per-file OCR failures keyed
-by file name.
+Each attempt renders exactly as the same error would on its own — the same `code`, `message`
+and `errors` — so an attempt can also read `resource_not_found` or `server_error`. A provider
+attempt keys its `errors` by `vendor_error`, which holds the provider's raw detail.
+
+`index` is 1-based. `modelType` is `"main"` or `"fallback"` — never a model name. `statusCode` on
+an attempt is the **provider's** raw status (400, 429, 503, 529…) and is informational: it does
+not drive the response status.
+
+### Response status
+
+The status is resolved from every attempt together, in this order:
+
+| Status | When |
+| --- | --- |
+| **400** | Any attempt was client-fixable (`vendor_validation_error`, `vendor_context_length_error`) |
+| **500** | Otherwise, any attempt was a server-side fault — neither yours nor the provider's |
+| **429** | Otherwise, every attempt was a provider rate limit. `retryAfter` is set — see [Rate limiting](#rate-limiting) |
+| **502** | Any other set of provider faults |
+
+A context-length overflow is not retried, so it arrives as a **single** attempt and the run is a
+400.
+
+### Attempt codes
+
+These classify an upstream provider failure. They only ever appear as `attempts[].code`
+(`VendorAttemptCode`).
+
+| `attempts[].code` | Provider status | Counts as |
+| --- | --- | --- |
+| `vendor_validation_error` | 400 / 413 / 415 / 422 | Client-fixable — change the request |
+| `vendor_context_length_error` | none (no `statusCode`) | Client-fixable — shorten the input |
+| `vendor_authentication_error` | 401 / 403 | Provider fault — a configuration problem; escalate |
+| `vendor_rate_limit_error` | 429 | Provider fault — back off |
+| `vendor_service_error` | any other status, or none | Provider fault — retry later |
+| `vendor_timeout_error` | none (`statusCode: 504`) | Provider fault — timed out; retry |
+| `vendor_cancellation_error` | none (`statusCode: 504`) | Provider fault — cancelled; retry |
+| `vendor_error` | — | Reserved. Also the fixed `errors` key for the provider's raw detail |
+
+The provider faults are exported as `VENDOR_FAULT_CODES` (`VendorFaultCode`).
 
 ## Rate limiting
 
-A `429` comes from either the platform or the AI provider, so check `code`:
+A `429` is either the API's own limit or an execution whose every attempt the AI provider
+throttled, so check `code`. Both carry `retryAfter` when the server sent `Retry-After`:
 
 ```tsx
-const err = error as RateLimitErrorBody;
+const err = error as RateLimitErrorBody | AgentExecutionFailedErrorBody;
 
-if (err.code === "rate_limit_exceeded") {
-  // Platform limit. `retryAfter` is in seconds, and is set when the server sent a
-  // `Retry-After` header.
-  await sleep((err.retryAfter ?? 30) * 1000);
-} else if (err.code === "vendor_rate_limit_error") {
-  // The AI provider is throttling. No `Retry-After` — use your own backoff.
-  await retryWithBackoff();
+if (err.statusCode === 429) {
+  // The API's own limit (`rate_limit_exceeded`), or every attempt was rate-limited by the
+  // provider (`agent_execution_failed` / `aiservice_execution_failed`): the longest wait any
+  // attempt reported, or a 30-second default. Cap it — the value can come from the provider.
+  const seconds = Math.min(err.retryAfter ?? 30, 120);
+  await sleep(seconds * 1000);
 }
 ```
 
 > **Upgrading from 2.x:** `retryAfter` is no longer defaulted to `60`, and the `429` message is
 > no longer the hardcoded string `"Rate limit exceeded"`. See
 > [Migrating from 2.x](#migrating-from-2x).
-
-## Failed agent runs and `attempts[]`
-
-When an agent has fallback models configured, a failure reports every attempt. The top-level
-`errors` mirrors only the **last** one, so read `attempts[]` for the full picture:
-
-```tsx
-try {
-  await activity.execute();
-} catch (error) {
-  const err = error as AgentRunFailedErrorBody;
-  if (err.code !== "agent_run_failed") throw error;
-
-  for (const attempt of err.attempts ?? []) {
-    console.log(attempt.index, attempt.modelType, attempt.code, attempt.statusCode);
-    // 0 "main"     "vendor_rate_limit_error" 429
-    // 1 "fallback" "vendor_service_error"    503
-  }
-
-  // 502 means every attempt failed upstream; 400 means at least one is client-fixable.
-  if (err.statusCode === 502) await retryWithBackoff();
-}
-```
-
-`modelType` is always `"main"` or `"fallback"` — never a model name. `statusCode` on an attempt
-is the **provider's** raw status (429, 503, 529…) and is informational.
 
 ## Streaming vs. buffered errors
 
@@ -1818,14 +1834,17 @@ same fields:
 | `message` | always set | optional in the type — the SDK backfills a fallback |
 | `errors` | ✅ | ✅ |
 | `statusCode` | ✅ | **absent** — the transport reported 200 |
-| Attempts | `attempts[]`, camelCase (`modelType`) | `attempts[]`, snake_case (`model_type`) |
+| Documentation link | `documentationUrl` | `documentation_url` (snake_case) |
+| Attempts | `attempts[]`, camelCase (`modelType`, `statusCode`) | `attempts[]`, snake_case (`model_type`, `status_code`) |
+| Retry hint on a rate-limited run | `retryAfter`, from the `Retry-After` header | `retry_after_seconds` — a stream can't set a header |
 | Partial output | — | `agent_result`, `pending_actions`, `generated_json` |
 
 ```tsx
 conversation.on("error", (error) => {
   // error: StreamErrorEvent
-  if (error?.code === "agent_run_failed") {
+  if (error?.code === "agent_execution_failed") {
     error.attempts?.forEach((a) => console.log(a.model_type, a.status_code));
+    if (error.retry_after_seconds !== undefined) scheduleRetry(error.retry_after_seconds);
   }
   showToast(error?.message ?? "Something went wrong");
 });
@@ -1843,7 +1862,7 @@ none (`"Failed to send message"`, `"Failed to resolve tool approvals"`, …), so
 nearly always set but is not necessarily localized — supply your own copy wherever the wording is
 user-facing.
 
-A pre-stream failure — a 404, 429 or 502 raised before the stream opens — rejects with a normal
+A pre-stream failure — a 404 or 429 raised before the stream opens — rejects with a normal
 buffered error body, `statusCode` included. When the connection cannot be initialized at all —
 no HTTP response to read — the rejection is a plain `Error`
 (`"Failed to initialize SSE connection"`) with no `code`.
@@ -1883,6 +1902,11 @@ if (!result.success) {
 **Only `upload(file)` prefixes `message` with the file name** and honours
 `locale.uploadFileErrorMessage`. The prefixed text comes from the `errors` map when the server
 sent one, otherwise from the top-level message.
+
+An upload that generates embeddings can fail with
+[`aiservice_execution_failed`](#failed-executions-and-attempts). Its `errors` holds the
+provider's raw detail, so the prefixed text uses the localized top-level message instead, and
+`error.attempts` / `error.retryAfter` are readable off the `SerenityApiError`.
 
 The `uploadFromFileId` / `uploadFromUrl` / `uploadFromBase64` helpers differ: they report the
 server's message **unprefixed**, they accept **no `locale` option** (their last-resort wording is
@@ -1979,8 +2003,13 @@ Two cases it is **not** for:
   illustrations, not a recommended default.
 - **`attempts[].message` and `attempts[].errors` carry the upstream provider's own wording** and
   inherit the same escaping and logging caveat as the top-level fields.
-- **`documentationUrl` is a server-supplied URL.** Treat it as display text, not a navigation
-  target, unless you validate the origin.
+- **`documentationUrl` / `documentation_url` is a server-supplied URL.** Treat it as display
+  text, not a navigation target, unless you validate the origin.
+- **`retryAfter` / `retry_after_seconds` can come from the AI provider.** On an execution
+  failure it is the longest wait any attempt reported. Cap it before sleeping on it, so one
+  large value cannot stall your client.
+- **An execution failure's top-level `errors` is raw provider detail** (`errors.vendor_error`).
+  Show the localized `message` to end users instead.
 - **`agent_result` on a streamed error frame is diagnostic payload, not UI content.** It carries
   raw tool output and cost/usage. Do not render it verbatim.
 
@@ -1999,8 +2028,8 @@ are the first two rows below.
 | **`errors` is no longer guaranteed on a 400** | **The most likely runtime break.** 2.x set `errors` on every 400, defaulting it to `{}`; a coded 400 now omits it when the server sent none, so `Object.keys(err.errors)` and `err.errors.field` throw. Read it as `err.errors?.…`. Note `ValidationErrorBody` still declares the field **required**, so the type will not catch this for you. Against an API instance that sends no `code`, the legacy `{}` default still applies — the two behave differently |
 | **A `429` message is the server's, not `"Rate limit exceeded"`** | 2.x ignored the body and hardcoded that English string. Any comparison against it now fails. Display `error.message` and branch on `code` |
 | `RateLimitErrorBody.retryAfter` is optional | **Breaking for TypeScript.** 2.x defaulted it to `60` when the header was missing; it is now set only when the server sent `Retry-After`. Use `error.retryAfter ?? yourDefault` |
-| A vendor `429` is no longer a `RateLimitError` | `determineErrorType` returns `"VendorError"` for it. Branch on `code` rather than on the returned type |
-| `determineErrorType` gained `"NotFoundError"`, `"VendorError"` and `"AgentRunFailedError"` | Exhaustive `switch` statements over the returned `type` no longer compile. Add the new branches, or a `default`. The union is now exported as `SerenityErrorType` — annotate with it instead of re-listing the members |
+| A provider `429` is no longer a `RateLimitError` | It arrives as `agent_execution_failed` / `aiservice_execution_failed`, which `determineErrorType` reports as `"AgentExecutionFailedError"` / `"AIServiceExecutionFailedError"`. Branch on `code` rather than on the returned type |
+| `determineErrorType` gained `"NotFoundError"`, `"AgentExecutionFailedError"` and `"AIServiceExecutionFailedError"` | Exhaustive `switch` statements over the returned `type` no longer compile. Add the new branches, or a `default`. The union is now exported as `SerenityErrorType` — annotate with it instead of re-listing the members |
 | The SSE `error` event payload is `StreamErrorEvent` | **Breaking for TypeScript** if you typed the handler as `{ message?: string }`. `message` is still there |
 | The realtime close `reason` for a provider fault is `"VendorException"` | Renamed from `"ValidationException"`. The SDK handles both; update your own comparisons on `reason` |
 
@@ -2012,9 +2041,8 @@ instead is stable across all of them.
 | Change | What to do |
 | --- | --- |
 | A missing agent, version or conversation is a **404** | Was a 400. Add 404 to status-based branching, or move to `code: "resource_not_found"` |
-| Vendor faults use **502 / 503 / 504** | Was 500. Code that only special-cased 500 sees new statuses |
-| A vendor throttle is a **429** with `code: "vendor_rate_limit_error"` | A 429 no longer implies a platform rate limit |
-| `agent_run_failed` is a **400** or a **502** | 400 when a client fix is possible, 502 when every attempt failed upstream |
+| A failed provider call is **400 / 500 / 429 / 502**, resolved from its attempts | Was always 500. See [Response status](#response-status) |
+| A 429 can be a provider throttle | Every attempt rate-limited reads 429 with `code: "agent_execution_failed"` or `"aiservice_execution_failed"`. A 429 no longer implies the API's own rate limit |
 
 ## Additive changes and fixes
 
