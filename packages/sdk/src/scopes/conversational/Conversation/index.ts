@@ -24,6 +24,7 @@ import {
 } from "./types";
 import { SseConnection } from "./SseConnection";
 import { AgentMapper } from "../../../utils/AgentMapper";
+import { AgentTodoParser } from "../../../utils/AgentTodoParser";
 import { InternalErrorHelper } from "../../../utils/ErrorHelper";
 import { VolatileKnowledgeManager } from "../../../utils/VolatileKnowledgeManager";
 import { FileManager } from "../../../utils/FileManager";
@@ -691,10 +692,25 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       });
 
       this.connection.on("task_stop", (data) => {
+        let task: TaskStopEvent;
         try {
-          this.emit("task_stop", JSON.parse(data) as TaskStopEvent);
+          task = JSON.parse(data) as TaskStopEvent;
         } catch {
           // Ignore unparseable task frames.
+          return;
+        }
+
+        try {
+          this.emit("task_stop", task);
+        } catch {
+          // A failing task_stop handler must not keep the TODO snapshot from its listeners.
+        }
+
+        try {
+          const todo = AgentTodoParser.fromTaskStop(task);
+          if (todo) this.emit("agent_todo", todo);
+        } catch {
+          // Ignore failures of the TODO listeners, like those of any task frame.
         }
       });
 
