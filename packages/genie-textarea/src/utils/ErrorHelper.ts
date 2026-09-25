@@ -28,6 +28,9 @@ const QUOTA_ERROR_KEYS = [
   "excluded_bonified_execution_insufficient_balance",
 ];
 
+/** Codes whose body lists every provider attempt under `attempts`. */
+const EXECUTION_FAILED_CODES = ["agent_execution_failed", "aiservice_execution_failed"];
+
 const isRecord = (value: unknown): value is Record<string, any> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -45,6 +48,12 @@ export class ErrorHelper {
 
     const body = await this.#toErrorBody(error);
     if (!body) return fallback;
+
+    // A failed provider call's `errors` mirrors its last attempt: raw provider detail under
+    // `vendor_error`, not something to show a user. The localized `message` is the summary.
+    if (body.code && EXECUTION_FAILED_CODES.includes(body.code)) {
+      return isNonEmptyString(body.message) ? body.message : fallback;
+    }
 
     const errors = body.errors;
     if (isRecord(errors) && Object.keys(errors).length > 0) {

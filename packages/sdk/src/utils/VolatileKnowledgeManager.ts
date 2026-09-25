@@ -98,6 +98,7 @@ export class VolatileKnowledgeManager {
     const failure = (
       statusCode: number,
       body: unknown,
+      retryAfterHeader?: string | null,
     ): VolatileKnowledgeUploadRes => ({
       success: false,
       error: {
@@ -108,6 +109,7 @@ export class VolatileKnowledgeManager {
             file,
             body,
             options.locale?.uploadFileErrorMessage,
+            retryAfterHeader,
           ),
         ),
       },
@@ -152,7 +154,7 @@ export class VolatileKnowledgeManager {
       // that hides the real status.
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        return failure(response.status, data);
+        return failure(response.status, data, response.headers.get("Retry-After"));
       }
       if (data === null) {
         // 2xx with an unreadable body: there is no id to register, so this is a failure.

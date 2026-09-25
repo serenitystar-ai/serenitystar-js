@@ -18,7 +18,7 @@ describe("processStreamError — changes 5 and 6", () => {
 
   it("invents no statusCode — the transport already reported 200", () => {
     const event = InternalErrorHelper.processStreamError({
-      code: "agent_run_failed",
+      code: "agent_execution_failed",
       message: "Failed.",
     });
 
@@ -36,7 +36,7 @@ describe("processStreamError — changes 5 and 6", () => {
 
   it("keeps attempts in their wire-native snake_case", () => {
     const event = InternalErrorHelper.processStreamError({
-      code: "agent_run_failed",
+      code: "agent_execution_failed",
       message: "Every attempt failed.",
       attempts: [
         {
@@ -72,6 +72,47 @@ describe("processStreamError — changes 5 and 6", () => {
     ]);
   });
 
+  it("keeps AI service attempts, which carry no model_type", () => {
+    const event = InternalErrorHelper.processStreamError({
+      type: "error",
+      code: "aiservice_execution_failed",
+      message: "The speech couldn't be generated.",
+      attempts: [
+        { index: 1, code: "vendor_service_error", status_code: 503, message: "Upstream 503." },
+      ],
+    });
+
+    expect(event.attempts).toEqual([
+      { index: 1, code: "vendor_service_error", status_code: 503, message: "Upstream 503." },
+    ]);
+  });
+
+  it("keeps retry_after_seconds and documentation_url in their wire-native snake_case", () => {
+    const event = InternalErrorHelper.processStreamError({
+      code: "agent_execution_failed",
+      message: "Rate limited.",
+      documentation_url:
+        "https://docs.serenitystar.ai/docs/serenity-aihub/dev-tools/api-error-responses#agent_execution_failed",
+      retry_after_seconds: 30,
+    });
+
+    expect(event.retry_after_seconds).toBe(30);
+    expect(event.documentation_url).toBe(
+      "https://docs.serenitystar.ai/docs/serenity-aihub/dev-tools/api-error-responses#agent_execution_failed"
+    );
+  });
+
+  it("omits a null documentation_url and an invalid retry_after_seconds", () => {
+    const event = InternalErrorHelper.processStreamError({
+      code: "server_error",
+      message: "Boom.",
+      documentation_url: null,
+      retry_after_seconds: "soon",
+    });
+
+    expect(event).toEqual({ code: "server_error", message: "Boom." });
+  });
+
   it("accepts camelCase attempt fields and reports them snake_case", () => {
     const event = InternalErrorHelper.processStreamError({
       attempts: [{ modelType: "fallback", statusCode: 503 }],
@@ -99,7 +140,7 @@ describe("processStreamError — changes 5 and 6", () => {
     };
 
     const event = InternalErrorHelper.processStreamError({
-      code: "agent_run_failed",
+      code: "agent_execution_failed",
       message: "Failed.",
       agent_result: agentResult,
       generated_json: '{"partial":true}',

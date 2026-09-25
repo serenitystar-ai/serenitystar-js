@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { InternalErrorHelper } from "../src/utils/ErrorHelper";
 import type {
-  AgentRunFailedErrorBody,
+  AgentExecutionFailedErrorBody,
+  AIServiceExecutionFailedErrorBody,
   NotFoundErrorBody,
   RateLimitErrorBody,
 } from "../src/types";
@@ -59,139 +60,190 @@ describe("process — coded responses (change 1: 400 → 404 re-route)", () => {
   });
 });
 
-describe("process — change 2: vendor faults", () => {
-  it("does not report a vendor 429 as a platform rate limit, and invents no retryAfter", async () => {
-    const body = await InternalErrorHelper.process(
-      jsonResponse(429, {
-        code: "vendor_rate_limit_error",
-        message: "The AI provider is rate limiting requests.",
-      })
-    );
-
-    expect(body.statusCode).toBe(429);
-    expect(body.code).toBe("vendor_rate_limit_error");
-    expect("retryAfter" in body).toBe(false);
-  });
-
-  it.each([
-    [502, "vendor_authentication_error"],
-    [503, "vendor_service_error"],
-    [504, "vendor_timeout_error"],
-    [500, "vendor_error"],
-  ])("carries code through on a %i %s", async (status, code) => {
-    const body = await InternalErrorHelper.process(
-      jsonResponse(status, { code, message: "Upstream failure." })
-    );
-
-    expect(body).toEqual({
-      message: "Upstream failure.",
-      statusCode: status,
-      code,
-    });
-  });
-
-  it("keeps the per-item breakdown a vendor fault can carry", async () => {
-    const body = await InternalErrorHelper.process(
-      jsonResponse(503, {
-        code: "vendor_service_error",
-        message: "OCR failed for some files.",
-        errors: { "file1.pdf": "Timed out", "file2.pdf": "Unsupported" },
-      })
-    );
-
-    expect(body.errors).toEqual({
-      "file1.pdf": "Timed out",
-      "file2.pdf": "Unsupported",
-    });
-  });
-
-  it("treats vendor_validation_error as a client-fixable 400, not an upstream fault", async () => {
-    const body = await InternalErrorHelper.process(
-      jsonResponse(400, {
-        code: "vendor_validation_error",
-        message: "The request was rejected by the AI provider.",
-        errors: { vendor_error: "This model's maximum context length is 8192 tokens." },
-      })
-    );
-
-    expect(body.statusCode).toBe(400);
-    expect(body.code).toBe("vendor_validation_error");
-    expect(body.errors).toEqual({
-      vendor_error: "This model's maximum context length is 8192 tokens.",
-    });
-    expect(InternalErrorHelper.isVendorFaultCode(body.code)).toBe(false);
-  });
-});
-
-describe("process — change 4: agent_run_failed", () => {
+describe("process — agent_execution_failed", () => {
+  // Mirrors the example in the API Error Responses reference.
   const attempts = [
     {
-      index: 0,
-      modelType: "main",
-      code: "vendor_rate_limit_error",
-      statusCode: 429,
-      message: "Rate limited by the provider.",
-    },
-    {
       index: 1,
-      modelType: "fallback",
+      modelType: "main",
       code: "vendor_service_error",
       statusCode: 503,
-      message: "Provider unavailable.",
+      message: "The AI provider returned a server error (HTTP 503) (Code 0086)",
       errors: { vendor_error: "upstream 503" },
+    },
+    {
+      index: 2,
+      modelType: "fallback",
+      code: "vendor_rate_limit_error",
+      statusCode: 429,
+      message: "The AI provider rejected the request due to rate limiting (HTTP 429) (Code 0085)",
+      errors: { vendor_error: "upstream 429" },
     },
   ];
 
-  it("keeps errors and attempts on the 502 (all attempts failed upstream)", async () => {
+  it("keeps errors and attempts on the 502 (every attempt failed at the provider)", async () => {
     const body = (await InternalErrorHelper.process(
       jsonResponse(502, {
-        code: "agent_run_failed",
-        message: "The agent run failed.",
-        errors: { vendor_error: "upstream 503" },
+        code: "agent_execution_failed",
+        message: "All retry attempts with the base and fallback model have failed.",
+        errors: { vendor_error: "upstream 429" },
         attempts,
       })
-    )) as AgentRunFailedErrorBody;
+    )) as AgentExecutionFailedErrorBody;
 
     expect(body.statusCode).toBe(502);
-    expect(body.code).toBe("agent_run_failed");
-    expect(body.errors).toEqual({ vendor_error: "upstream 503" });
+    expect(body.code).toBe("agent_execution_failed");
+    expect(body.errors).toEqual({ vendor_error: "upstream 429" });
     expect(body.attempts).toEqual(attempts);
+    expect("retryAfter" in body).toBe(false);
   });
 
-  it("keeps attempts on the 400 variant too", async () => {
+  it.each([400, 500])("keeps attempts on the %i variant too", async (status) => {
     const body = (await InternalErrorHelper.process(
-      jsonResponse(400, {
-        code: "agent_run_failed",
-        message: "The agent run failed.",
+      jsonResponse(status, {
+        code: "agent_execution_failed",
+        message: "Failed.",
         attempts: [attempts[0]],
       })
-    )) as AgentRunFailedErrorBody;
+    )) as AgentExecutionFailedErrorBody;
 
-    expect(body.statusCode).toBe(400);
+    expect(body.statusCode).toBe(status);
     expect(body.attempts).toHaveLength(1);
     expect(body.attempts?.[0].modelType).toBe("main");
   });
 
-  it("normalizes snake_case attempt fields and fills a missing index", async () => {
+  it("reads Retry-After on the 429 variant (every attempt rate-limited)", async () => {
+    const body = (await InternalErrorHelper.process(
+      jsonResponse(
+        429,
+        {
+          code: "agent_execution_failed",
+          message: "Failed.",
+          attempts: [attempts[1]],
+        },
+        { "Retry-After": "30" }
+      )
+    )) as AgentExecutionFailedErrorBody;
+
+    expect(body.statusCode).toBe(429);
+    expect(body.code).toBe("agent_execution_failed");
+    expect(body.retryAfter).toBe(30);
+    expect(body.attempts).toHaveLength(1);
+  });
+
+  it("keeps a single context-length attempt, which has no statusCode", async () => {
+    const attempt = {
+      index: 1,
+      modelType: "main",
+      code: "vendor_context_length_error",
+      message: "The request exceeded the model's context window.",
+      errors: { vendor_error: "maximum context length is 8192 tokens" },
+    };
+
+    const body = (await InternalErrorHelper.process(
+      jsonResponse(400, {
+        code: "agent_execution_failed",
+        message: "Failed.",
+        attempts: [attempt],
+      })
+    )) as AgentExecutionFailedErrorBody;
+
+    expect(body.statusCode).toBe(400);
+    expect(body.attempts).toEqual([attempt]);
+  });
+
+  it("normalizes snake_case attempt fields and fills a missing index 1-based", async () => {
     const body = (await InternalErrorHelper.process(
       jsonResponse(502, {
-        code: "agent_run_failed",
-        message: "The agent run failed.",
+        code: "agent_execution_failed",
+        message: "Failed.",
         attempts: [{ model_type: "fallback", status_code: 529 }],
       })
-    )) as AgentRunFailedErrorBody;
+    )) as AgentExecutionFailedErrorBody;
 
     expect(body.attempts).toEqual([
-      { index: 0, modelType: "fallback", statusCode: 529 },
+      { index: 1, modelType: "fallback", statusCode: 529 },
     ]);
   });
 
   it("omits attempts entirely when the body has none", async () => {
     const body = await InternalErrorHelper.process(
-      jsonResponse(502, { code: "agent_run_failed", message: "Failed." })
+      jsonResponse(502, { code: "agent_execution_failed", message: "Failed." })
     );
 
     expect("attempts" in body).toBe(false);
+  });
+
+  it("no longer treats the removed agent_run_failed code specially", async () => {
+    const body = await InternalErrorHelper.process(
+      jsonResponse(502, {
+        code: "agent_run_failed",
+        message: "Failed.",
+        attempts: [attempts[0]],
+      })
+    );
+
+    expect("attempts" in body).toBe(false);
+  });
+});
+
+describe("process — aiservice_execution_failed", () => {
+  const attempt = {
+    index: 1,
+    code: "vendor_service_error",
+    statusCode: 503,
+    message: "The AI provider returned a server error (HTTP 503) (Code 0086)",
+    errors: { vendor_error: "upstream 503" },
+  };
+
+  it("keeps attempts, which carry no modelType", async () => {
+    const body = (await InternalErrorHelper.process(
+      jsonResponse(502, {
+        code: "aiservice_execution_failed",
+        message: "The audio couldn't be transcribed. Please try again.",
+        errors: { vendor_error: "upstream 503" },
+        attempts: [attempt],
+      })
+    )) as AIServiceExecutionFailedErrorBody;
+
+    expect(body.code).toBe("aiservice_execution_failed");
+    expect(body.statusCode).toBe(502);
+    expect(body.attempts).toEqual([attempt]);
+    expect("modelType" in body.attempts![0]).toBe(false);
+  });
+
+  it("reads Retry-After on the 429 variant", async () => {
+    const body = (await InternalErrorHelper.process(
+      jsonResponse(
+        429,
+        {
+          code: "aiservice_execution_failed",
+          message: "Failed.",
+          attempts: [{ ...attempt, code: "vendor_rate_limit_error", statusCode: 429 }],
+        },
+        { "Retry-After": "45" }
+      )
+    )) as AIServiceExecutionFailedErrorBody;
+
+    expect(body.retryAfter).toBe(45);
+  });
+
+  it("keeps a timeout attempt's synthetic 504 and a cancellation attempt", async () => {
+    const body = (await InternalErrorHelper.process(
+      jsonResponse(502, {
+        code: "aiservice_execution_failed",
+        message: "Failed.",
+        attempts: [
+          { index: 1, code: "vendor_timeout_error", statusCode: 504, message: "Timed out." },
+          { index: 2, code: "vendor_cancellation_error", statusCode: 504, message: "Cancelled." },
+        ],
+      })
+    )) as AIServiceExecutionFailedErrorBody;
+
+    expect(body.attempts?.map((a) => [a.code, a.statusCode])).toEqual([
+      ["vendor_timeout_error", 504],
+      ["vendor_cancellation_error", 504],
+    ]);
   });
 });
 

@@ -1,17 +1,17 @@
 import { VENDOR_FAULT_CODES } from "../types";
 import type {
-  AgentRunAttempt,
-  AgentRunFailedErrorBody,
+  AgentExecutionFailedErrorBody,
+  AIServiceExecutionFailedErrorBody,
   BaseErrorBody,
   ErrorDetails,
+  ExecutionAttempt,
   NotFoundErrorBody,
   RateLimitErrorBody,
   SerenityErrorBody,
   SerenityErrorCode,
-  StreamAgentRunAttempt,
   StreamErrorEvent,
+  StreamExecutionAttempt,
   ValidationErrorBody,
-  VendorErrorBody,
   VendorFaultCode,
 } from "../types";
 import { AgentMapper } from "./AgentMapper";
@@ -37,6 +37,17 @@ const isRecord = (value: unknown): value is RawBody =>
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
+
+/** The codes whose body lists every provider attempt under `attempts`. */
+const EXECUTION_FAILED_CODES: readonly string[] = [
+  "agent_execution_failed",
+  "aiservice_execution_failed",
+];
+
+const isExecutionFailedCode = (
+  code: unknown
+): code is "agent_execution_failed" | "aiservice_execution_failed" =>
+  typeof code === "string" && EXECUTION_FAILED_CODES.includes(code);
 
 export class InternalErrorHelper {
   /**
@@ -99,10 +110,11 @@ export class InternalErrorHelper {
   /**
    * Map a status + parsed body onto the matching error-body type.
    *
-   * Discriminates on `code` first and status second: a 429 is now either a platform rate
-   * limit or an upstream vendor throttle, and a 404 / 502 carries its specific reason in
-   * `errors`. When `code` is absent the legacy status-based mapping applies, so the SDK
-   * still behaves correctly against an API instance that has not been upgraded.
+   * Discriminates on `code` first and status second: a 429 is either the API's own rate
+   * limit or an execution whose every attempt was rate-limited by the provider, and a 404
+   * carries its specific reason in `errors`. When `code` is absent the legacy status-based
+   * mapping applies, so the SDK still behaves correctly against an API instance that has
+   * not been upgraded.
    */
   static normalize(input: NormalizeInput): SerenityErrorBody {
     const { statusCode, fallbackErrorMessage } = input;
@@ -139,25 +151,26 @@ export class InternalErrorHelper {
       return rateLimit;
     }
 
-    if (this.isVendorFaultCode(code)) {
-      return { ...base, code } as VendorErrorBody;
-    }
-
     if (code === "resource_not_found") {
       return { ...base, code } as NotFoundErrorBody;
     }
 
-    if (code === "agent_run_failed") {
-      const failed: AgentRunFailedErrorBody = { ...base, code: "agent_run_failed" };
+    if (isExecutionFailedCode(code)) {
+      const failed = { ...base, code } as
+        | AgentExecutionFailedErrorBody
+        | AIServiceExecutionFailedErrorBody;
       const attempts = this.#normalizeAttempts(raw?.attempts);
       if (attempts !== undefined) failed.attempts = attempts;
+      // The 429 variant (every attempt rate-limited by the provider) carries `Retry-After`.
+      const retryAfter = this.#parseRetryAfter(input.retryAfterHeader);
+      if (retryAfter !== undefined) failed.retryAfter = retryAfter;
       return failed;
     }
 
-    // `validation_error`, `vendor_validation_error`, `input_validation_error`,
-    // `unauthorized`, `forbidden`, `request_too_large`, `method_not_allowed`,
-    // `unsupported_media_type`, `server_error` and any code added server-side all keep the
-    // envelope as-is: `ValidationErrorBody` when a breakdown came with it, else the base.
+    // `validation_error`, `input_validation_error`, `unauthorized`, `forbidden`,
+    // `request_too_large`, `method_not_allowed`, `unsupported_media_type`, `server_error`
+    // and any code added server-side all keep the envelope as-is: `ValidationErrorBody`
+    // when a breakdown came with it, else the base.
     return base;
   }
 
@@ -207,21 +220,24 @@ export class InternalErrorHelper {
   }
 
   /**
-   * Per-attempt detail of a failed agent run. Accepts either casing so the same mapper
+   * Per-attempt detail of a failed execution. Accepts either casing so the same mapper
    * works on the buffered body and on anything a future server sends.
    */
-  static #normalizeAttempts(raw: unknown): AgentRunAttempt[] | undefined {
+  static #normalizeAttempts(raw: unknown): ExecutionAttempt[] | undefined {
     if (!Array.isArray(raw)) return undefined;
 
     return raw.filter(isRecord).map((entry, position) => {
-      const attempt = {
-        index: typeof entry.index === "number" ? entry.index : position,
-        modelType: (entry.modelType ?? entry.model_type) as
-          | "main"
-          | "fallback",
-      } as AgentRunAttempt;
+      // `index` is 1-based on the wire; fill a missing one to match.
+      const attempt: ExecutionAttempt = {
+        index: typeof entry.index === "number" ? entry.index : position + 1,
+      };
 
+      // AI service attempts have no main/fallback distinction and omit it.
+      const modelType = entry.modelType ?? entry.model_type;
       const statusCode = entry.statusCode ?? entry.status_code;
+      if (isNonEmptyString(modelType)) {
+        attempt.modelType = modelType as "main" | "fallback";
+      }
       if (isNonEmptyString(entry.code)) attempt.code = entry.code;
       if (typeof statusCode === "number") attempt.statusCode = statusCode;
       if (isNonEmptyString(entry.message)) attempt.message = entry.message;
@@ -253,12 +269,19 @@ export class InternalErrorHelper {
     }
     if (!isNonEmptyString(raw?.code)) delete event.code;
     if (!isRecord(raw?.errors)) delete event.errors;
+    // Serialized as `null` when there is no deep link; omit it like the other null fields.
+    if (!isNonEmptyString(raw?.documentation_url)) delete event.documentation_url;
+
+    const retryAfter = raw?.retry_after_seconds;
+    if (!(typeof retryAfter === "number" && Number.isFinite(retryAfter) && retryAfter >= 0)) {
+      delete event.retry_after_seconds;
+    }
 
     if (Array.isArray(raw?.attempts)) {
       event.attempts = raw!.attempts
         .filter(isRecord)
         .map((entry: RawBody) => {
-          const attempt: StreamAgentRunAttempt = {};
+          const attempt: StreamExecutionAttempt = {};
           const modelType = entry.model_type ?? entry.modelType;
           const statusCode = entry.status_code ?? entry.statusCode;
 
@@ -334,16 +357,21 @@ export class InternalErrorHelper {
    * The full normalized envelope for a failed upload, with `message` set to the same
    * file-prefixed string {@link processFile} returns. Lets the upload paths surface `code`
    * and `errors` alongside the human-readable message.
+   *
+   * @param retryAfterHeader - Raw `Retry-After` header, so a rate-limited upload still
+   * reports `retryAfter`.
    */
   static processFileError = (
     statusCode: number,
     file: File,
     responseBody: unknown,
-    fallbackErrorMessage?: string
+    fallbackErrorMessage?: string,
+    retryAfterHeader?: string | null
   ): SerenityErrorBody => {
     const body = InternalErrorHelper.normalize({
       statusCode,
       body: responseBody,
+      retryAfterHeader,
       fallbackErrorMessage: fallbackErrorMessage || GENERIC_FILE_ERROR_MESSAGE,
     });
 
@@ -359,6 +387,13 @@ export class InternalErrorHelper {
    * failure used to be replaced with a generic string.
    */
   static #describeFileError = (body: SerenityErrorBody): string => {
+    // An execution failure's `errors` mirrors the last attempt: raw provider detail under
+    // `vendor_error`, not something to show a user. Its localized `message` is the summary;
+    // the per-attempt detail stays readable on `attempts`.
+    if (isExecutionFailedCode(body.code)) {
+      return body.message;
+    }
+
     const errors = body.errors;
     if (!isRecord(errors) || Object.keys(errors).length === 0) {
       // No breakdown — the reason is in `message`. Never join an empty map: that is how a
@@ -380,7 +415,10 @@ export class InternalErrorHelper {
     return isNonEmptyString(joined) ? joined : body.message;
   };
 
-  /** True for the five upstream-provider fault codes. Never a `"vendor_"` prefix match. */
+  /**
+   * True for the upstream-provider fault codes an attempt can carry. Never a `"vendor_"`
+   * prefix match.
+   */
   static isVendorFaultCode(
     code: string | undefined
   ): code is VendorFaultCode {
@@ -404,8 +442,8 @@ export type SerenityErrorType =
   | "RateLimitError"
   | "ValidationError"
   | "NotFoundError"
-  | "VendorError"
-  | "AgentRunFailedError"
+  | "AgentExecutionFailedError"
+  | "AIServiceExecutionFailedError"
   | "BaseError"
   | "UnknownError";
 
@@ -414,12 +452,13 @@ export class ExternalErrorHelper {
    * Classify a thrown value.
    *
    * @remarks
-   * Discriminates on `code` first, shape second, so a vendor throttle is no longer reported
-   * as a platform rate limit and a streamed error — which has no `statusCode` — is no
-   * longer `"UnknownError"`. The shape-based path is kept for pre-`code` API responses.
+   * Discriminates on `code` first, shape second, so an execution whose attempts were all
+   * rate-limited by the provider (a 429 `agent_execution_failed`) is not reported as the
+   * API's own rate limit, and a streamed error — which has no `statusCode` — is not
+   * `"UnknownError"`. The shape-based path is kept for pre-`code` API responses.
    *
-   * `vendor_validation_error` classifies as `"ValidationError"`, not `"VendorError"`: it is
-   * a 400 the caller can fix, not an upstream fault to retry.
+   * Provider failures never arrive as a top-level code: they are attempts inside an
+   * execution failure. Use {@link isVendorFault} to ask whether one is worth retrying.
    */
   static determineErrorType(error: unknown): {
     type: SerenityErrorType;
@@ -436,16 +475,13 @@ export class ExternalErrorHelper {
           return { type: "RateLimitError", error };
         case "resource_not_found":
           return { type: "NotFoundError", error };
-        case "agent_run_failed":
-          return { type: "AgentRunFailedError", error };
+        case "agent_execution_failed":
+          return { type: "AgentExecutionFailedError", error };
+        case "aiservice_execution_failed":
+          return { type: "AIServiceExecutionFailedError", error };
         case "validation_error":
         case "input_validation_error":
-        case "vendor_validation_error":
           return { type: "ValidationError", error };
-        default:
-          if (InternalErrorHelper.isVendorFaultCode(code)) {
-            return { type: "VendorError", error };
-          }
         // An unrecognised code (added server-side) falls through to the shape checks.
       }
     }
@@ -471,13 +507,24 @@ export class ExternalErrorHelper {
   }
 
   /**
-   * True when the failure came from the upstream AI provider and is worth retrying or
-   * escalating. False for `vendor_validation_error`, which is a request the caller must fix.
+   * True when an execution failed purely at the upstream AI provider and is worth retrying
+   * or escalating: an `agent_execution_failed` / `aiservice_execution_failed` whose every
+   * attempt is a provider fault (the 429 / 502 cases). False when any attempt was
+   * client-fixable (`vendor_validation_error`, `vendor_context_length_error`) or a
+   * server-side fault. Works on buffered and streamed errors alike.
    */
   static isVendorFault(error: unknown): boolean {
-    const code = (error as { code?: unknown } | null)?.code;
-    return InternalErrorHelper.isVendorFaultCode(
-      typeof code === "string" ? code : undefined
+    if (!isRecord(error) || !isExecutionFailedCode(error.code)) return false;
+
+    const attempts = error.attempts;
+    if (!Array.isArray(attempts) || attempts.length === 0) return false;
+
+    return attempts.every(
+      (attempt) =>
+        isRecord(attempt) &&
+        InternalErrorHelper.isVendorFaultCode(
+          typeof attempt.code === "string" ? attempt.code : undefined
+        )
     );
   }
 

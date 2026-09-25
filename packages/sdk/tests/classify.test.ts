@@ -7,14 +7,16 @@ const classify = (error: unknown) =>
   ExternalErrorHelper.determineErrorType(error).type;
 
 describe("determineErrorType — code first", () => {
-  it("no longer reports a vendor throttle as a platform rate limit", () => {
+  it("does not report an all-rate-limited execution as the API's own rate limit", () => {
     expect(
       classify({
-        message: "The AI provider is rate limiting requests.",
+        message: "Failed.",
         statusCode: 429,
-        code: "vendor_rate_limit_error",
+        code: "agent_execution_failed",
+        retryAfter: 30,
+        attempts: [{ index: 1, code: "vendor_rate_limit_error", statusCode: 429 }],
       })
-    ).toBe("VendorError");
+    ).toBe("AgentExecutionFailedError");
   });
 
   it("still reports the platform 429 as a rate limit", () => {
@@ -28,23 +30,6 @@ describe("determineErrorType — code first", () => {
     ).toBe("RateLimitError");
   });
 
-  it.each(VENDOR_FAULT_CODES)("classifies %s as a vendor fault", (code) => {
-    expect(classify({ message: "Upstream.", statusCode: 503, code })).toBe(
-      "VendorError"
-    );
-  });
-
-  it("classifies vendor_validation_error as a validation error, not a vendor fault", () => {
-    expect(
-      classify({
-        message: "Rejected by the provider.",
-        statusCode: 400,
-        code: "vendor_validation_error",
-        errors: { vendor_error: "context length exceeded" },
-      })
-    ).toBe("ValidationError");
-  });
-
   it("classifies a 404 as NotFoundError", () => {
     expect(
       classify({
@@ -55,14 +40,23 @@ describe("determineErrorType — code first", () => {
     ).toBe("NotFoundError");
   });
 
-  it("classifies agent_run_failed on both statuses it uses", () => {
-    expect(
-      classify({ message: "Failed.", statusCode: 400, code: "agent_run_failed" })
-    ).toBe("AgentRunFailedError");
-    expect(
-      classify({ message: "Failed.", statusCode: 502, code: "agent_run_failed" })
-    ).toBe("AgentRunFailedError");
-  });
+  it.each([400, 429, 500, 502])(
+    "classifies agent_execution_failed on a %i",
+    (statusCode) => {
+      expect(
+        classify({ message: "Failed.", statusCode, code: "agent_execution_failed" })
+      ).toBe("AgentExecutionFailedError");
+    }
+  );
+
+  it.each([400, 429, 500, 502])(
+    "classifies aiservice_execution_failed on a %i",
+    (statusCode) => {
+      expect(
+        classify({ message: "Failed.", statusCode, code: "aiservice_execution_failed" })
+      ).toBe("AIServiceExecutionFailedError");
+    }
+  );
 
   it.each(["validation_error", "input_validation_error"])(
     "classifies %s as a validation error even with no errors map",
@@ -96,8 +90,8 @@ describe("determineErrorType — code first", () => {
 
 describe("determineErrorType — streamed errors have no statusCode", () => {
   it("classifies a streamed error by its code", () => {
-    expect(classify({ message: "Failed.", code: "agent_run_failed" })).toBe(
-      "AgentRunFailedError"
+    expect(classify({ message: "Failed.", code: "agent_execution_failed" })).toBe(
+      "AgentExecutionFailedError"
     );
   });
 
@@ -143,26 +137,66 @@ describe("determineErrorType — legacy shapes still work", () => {
 });
 
 describe("isVendorFault / isVendorFaultCode", () => {
-  it.each(VENDOR_FAULT_CODES)("is true for %s", (code) => {
-    expect(ExternalErrorHelper.isVendorFault({ code })).toBe(true);
+  const failed = (code: string, attemptCodes: (string | undefined)[]) => ({
+    message: "Failed.",
+    statusCode: 502,
+    code,
+    attempts: attemptCodes.map((attemptCode, i) => ({ index: i + 1, code: attemptCode })),
+  });
+
+  it.each(VENDOR_FAULT_CODES)("isVendorFaultCode is true for %s", (code) => {
     expect(InternalErrorHelper.isVendorFaultCode(code)).toBe(true);
   });
 
-  it("is false for vendor_validation_error, despite the prefix", () => {
-    expect(
-      ExternalErrorHelper.isVendorFault({ code: "vendor_validation_error" })
-    ).toBe(false);
-    expect(InternalErrorHelper.isVendorFaultCode("vendor_validation_error")).toBe(
-      false
-    );
-  });
-
-  it.each([undefined, null, {}, { code: "rate_limit_exceeded" }])(
-    "is false for %s",
-    (value) => {
-      expect(ExternalErrorHelper.isVendorFault(value)).toBe(false);
+  it.each(["vendor_validation_error", "vendor_context_length_error"])(
+    "isVendorFaultCode is false for the client-fixable %s, despite the prefix",
+    (code) => {
+      expect(InternalErrorHelper.isVendorFaultCode(code)).toBe(false);
     }
   );
+
+  it.each(["agent_execution_failed", "aiservice_execution_failed"])(
+    "is true when every %s attempt is a provider fault",
+    (code) => {
+      expect(
+        ExternalErrorHelper.isVendorFault(
+          failed(code, ["vendor_service_error", "vendor_rate_limit_error"])
+        )
+      ).toBe(true);
+    }
+  );
+
+  it("works on a streamed error, which has no statusCode", () => {
+    expect(
+      ExternalErrorHelper.isVendorFault({
+        code: "aiservice_execution_failed",
+        attempts: [{ index: 1, code: "vendor_timeout_error", status_code: 504 }],
+      })
+    ).toBe(true);
+  });
+
+  it.each([
+    ["a client-fixable attempt", ["vendor_service_error", "vendor_validation_error"]],
+    ["a context-length attempt", ["vendor_context_length_error"]],
+    ["a server-side attempt", ["vendor_service_error", "server_error"]],
+    ["an attempt with no code", ["vendor_service_error", undefined]],
+    ["no attempts", []],
+  ])("is false with %s", (_label, attemptCodes) => {
+    expect(
+      ExternalErrorHelper.isVendorFault(failed("agent_execution_failed", attemptCodes))
+    ).toBe(false);
+  });
+
+  it.each([
+    undefined,
+    null,
+    {},
+    { code: "rate_limit_exceeded" },
+    // A vendor code is never a top-level code any more.
+    { code: "vendor_service_error" },
+  ])("is false for %s", (value) => {
+    expect(ExternalErrorHelper.isVendorFault(value)).toBe(false);
+  });
 });
 
 describe("SerenityApiError", () => {
@@ -209,11 +243,11 @@ describe("SerenityApiError", () => {
     const failed = SerenityApiError.from({
       message: "Failed.",
       statusCode: 502,
-      code: "agent_run_failed",
-      attempts: [{ index: 0, modelType: "main" as const }],
+      code: "agent_execution_failed",
+      attempts: [{ index: 1, modelType: "main" as const }],
     });
 
-    expect(failed.attempts).toEqual([{ index: 0, modelType: "main" }]);
+    expect(failed.attempts).toEqual([{ index: 1, modelType: "main" }]);
   });
 
   it("returns an existing instance unchanged", () => {
