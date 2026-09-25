@@ -308,6 +308,39 @@ export type TaskStopEvent = TaskEventBase & {
 };
 
 /**
+ * State of an item in the agent's TODO list. Normalized to lower case by the SDK; a value
+ * the SDK doesn't recognize is reported as `pending`.
+ */
+export type AgentTodoStatus = "pending" | "completed" | "canceled";
+
+/**
+ * One step of the TODO list an agent plans for itself.
+ */
+export type AgentTodoItem = {
+  /**
+   * What the agent plans to do. Model-generated text: render it as plain text, never as
+   * HTML.
+   */
+  description: string;
+  status: AgentTodoStatus;
+};
+
+/**
+ * Payload of the `agent_todo` event.
+ */
+export type AgentTodoEvent = {
+  /** The whole list as it stands now. Each event replaces the previous one. */
+  items: AgentTodoItem[];
+  /**
+   * `true` when the snapshot comes from the agent's self-iteration loop, i.e. the agent is
+   * starting another pass over its plan.
+   */
+  isIteration: boolean;
+  /** The `task_stop` event the snapshot was read from. */
+  task: TaskStopEvent;
+};
+
+/**
  * One attempt of a failed execution, as it arrives on a **streamed** request.
  *
  * Streaming keeps the wire's snake_case naming (`model_type`, `status_code`) and omits null
@@ -453,6 +486,13 @@ export type SSEStreamEvents = {
    * @param data - The task payload. `task_key` identifies the task.
    */
   task_stop: (data: TaskStopEvent) => void;
+
+  /**
+   * Event triggered when the agent updates the TODO list it plans for itself. Emitted
+   * right after the `task_stop` that carries the list. Only emitted on streamed executions.
+   * @param data - The whole list as it stands now, which replaces any previous one.
+   */
+  agent_todo: (data: AgentTodoEvent) => void;
 };
 
 export type ExecuteBodyParams = Array<{

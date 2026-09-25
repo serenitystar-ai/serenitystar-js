@@ -42,6 +42,7 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
   - [Stop Streaming Response](#stop-streaming-response)
   - [Reasoning (Chain-of-Thought)](#reasoning-chain-of-thought)
   - [Task events](#task-events)
+    - [Agent TODOs](#agent-todos)
   - [Citations](#citations)
     - [Citations on stored messages](#citations-on-stored-messages)
     - [Downloading a cited knowledge file](#downloading-a-cited-knowledge-file)
@@ -1105,6 +1106,33 @@ conversation.on("task_start", (task) => {
   }
 });
 ```
+
+### Agent TODOs
+
+Agents that plan their work keep a TODO list for themselves and report it through task frames. Rather than reading those frames yourself, listen to `agent_todo`: the SDK emits it right after each `task_stop` that carries the list, with the items already normalized.
+
+```tsx
+conversation.on("agent_todo", ({ items, isIteration }) => {
+  const done = items.filter((item) => item.status !== "pending").length;
+  renderPlan(items, `${done}/${items.length}`);
+
+  if (isIteration) {
+    // The agent is starting another pass over its plan.
+  }
+});
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `items` | `AgentTodoItem[]` | The whole list as it stands now. Each event **replaces** the previous one. |
+| `items[].description` | `string` | What the agent plans to do. |
+| `items[].status` | `"pending" \| "completed" \| "canceled"` | Normalized to lower case; values the SDK doesn't recognize are reported as `pending`. |
+| `isIteration` | `boolean` | `true` when the snapshot comes from the agent's self-iteration loop. |
+| `task` | `TaskStopEvent` | The `task_stop` event the snapshot was read from. |
+
+The event only reports snapshots: whether the plan is still running, or was left incomplete by an error or a stopped stream, follows from the `stop` / `error` events and your own `conversation.stop()` calls. The `task_stop` event still fires for these frames, unchanged.
+
+> **Security:** descriptions are model-generated. Render them as plain text, never as HTML.
 
 ## Citations
 

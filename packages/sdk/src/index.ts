@@ -23,6 +23,11 @@ import { SerenityClient, FullSerenityClient, ScopedSerenityClient } from "./Sere
 import type { FullAgents, FullServices, ScopedAgents } from "./SerenityClient";
 import {
   AgentResult,
+  AgentTodoEvent,
+  AgentTodoItem,
+  AgentTodoStatus,
+  TaskStartEvent,
+  TaskStopEvent,
   CitationRes,
   CitationSource,
   BaseErrorBody,
@@ -85,6 +90,11 @@ export {
 };
 export type {
   AgentResult,
+  AgentTodoEvent,
+  AgentTodoItem,
+  AgentTodoStatus,
+  TaskStartEvent,
+  TaskStopEvent,
   CitationRes,
   CitationSource,
   ConversationRes,
