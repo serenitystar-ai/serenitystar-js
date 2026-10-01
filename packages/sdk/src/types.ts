@@ -24,18 +24,47 @@ export type AgentClientCredentials = {
   tokenProvider: TokenProviderFn;
 };
 
+/** The request a per-request {@link CustomHeaders} function is called for. */
+export type CustomHeadersContext = {
+  /** Absolute URL of the request. */
+  url: string;
+  /** HTTP method, upper case. */
+  method: string;
+};
+
+/**
+ * Extra headers sent with every HTTP request: a static map, or a function called per
+ * request that can scope a header to some URLs only.
+ *
+ * @remarks
+ * Names the SDK sets itself (`X-API-KEY`, `Authorization`, `Content-Type`) and names browsers
+ * forbid (`Cookie`, `Host`, `Origin`, `Content-Length`, `Sec-*`, `Proxy-*`, …) are rejected,
+ * case-insensitively. Names must be RFC 9110 tokens and values can't contain line breaks. A
+ * static map is checked when the client is created, a function's result on every request.
+ * Realtime sessions use WebSockets, which can't carry headers, so they never receive these.
+ */
+export type CustomHeaders =
+  | Record<string, string>
+  | ((
+      request: CustomHeadersContext
+    ) => Record<string, string> | Promise<Record<string, string>>);
+
+type SharedClientOptions = {
+  baseUrl?: string;
+  /** Extra headers sent with every HTTP request. See {@link CustomHeaders}. */
+  headers?: CustomHeaders;
+};
+
 /** API Key auth mode — full access */
-export type ApiKeyClientOptions = {
+export type ApiKeyClientOptions = SharedClientOptions & {
   apiKey: string;
   agentClientCredentials?: never;
-  baseUrl?: string;
 };
 
 /** Agent Client Credentials auth mode — scoped to one agent */
-export type AgentClientCredentialsOptions = {
+export type AgentClientCredentialsOptions = SharedClientOptions & {
   apiKey?: never;
   agentClientCredentials: AgentClientCredentials;
-  baseUrl?: string;
 };
 
 /**
@@ -261,7 +290,29 @@ export type AgentResult = {
   user_message_id?: string;
   pending_actions?: PendingAction[];
   citations?: CitationRes[];
+  /**
+   * Streamed executions only: set when `stop()` cancelled the stream. `content` holds what
+   * had streamed so far and `instance_id` the instance announced on `start`, or an empty
+   * string when the stream was cancelled before that. No `stop` event is emitted.
+   */
+  aborted?: boolean;
+  /**
+   * Streamed executions only: set when the server closed the stream without a `stop` or
+   * `error` frame. Like {@link AgentResult.aborted}, only `content` and `instance_id` are set.
+   */
+  incomplete?: boolean;
 }
+
+/**
+ * Payload of the `start` event.
+ */
+export type StreamStartEvent = {
+  /** The instance (conversation, for assistants and copilots) the execution runs in. */
+  instance_id?: string;
+  start_time_utc?: string;
+  /** Additional fields the server may include are preserved. */
+  [key: string]: any;
+};
 
 /**
  * Fields shared by both task lifecycle events emitted while the agent executes internal
@@ -391,6 +442,8 @@ export type StreamErrorEvent = {
    * it before sleeping on it.
    */
   retry_after_seconds?: number;
+  /** The same value as `retry_after_seconds`, under the name buffered errors use. */
+  retryAfter?: number;
   /** Partial result produced before the failure. Diagnostic — do not render verbatim. */
   agent_result?: AgentResult;
   /** Normalized to snake_case by the SDK, like the non-error path. */
@@ -426,8 +479,9 @@ export type StreamErrorEvent = {
 export type SSEStreamEvents = {
   /**
    * Event triggered when the server starts streaming a new response.
+   * @param data - The start frame. `instance_id` identifies the instance the execution runs in.
    */
-  start: () => void;
+  start: (data?: StreamStartEvent) => void;
 
   /**
    * Event triggered when an error occurs.
@@ -435,7 +489,9 @@ export type SSEStreamEvents = {
    * The frame is normalized by the SDK before it is emitted, so it carries the same
    * `code` / `message` / `errors` fields a buffered execution rejects with, and the
    * promise returned by `streamMessage` rejects with this exact object. `statusCode` is
-   * deliberately absent — the stream itself completed with HTTP 200.
+   * deliberately absent — the stream itself completed with HTTP 200. Handle a failure in one
+   * place, the listener or the rejection: both receive the same object, and a stream delivers
+   * at most one `error` or `stop`.
    *
    * @param error - The normalized error frame. Every field is optional: streaming
    * payloads omit null fields.

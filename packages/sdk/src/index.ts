@@ -28,6 +28,9 @@ import {
   AgentTodoStatus,
   TaskStartEvent,
   TaskStopEvent,
+  StreamStartEvent,
+  CustomHeaders,
+  CustomHeadersContext,
   CitationRes,
   CitationSource,
   BaseErrorBody,
@@ -74,7 +77,7 @@ import {
 import { ExternalErrorHelper } from "./utils/ErrorHelper";
 import type { SerenityErrorType } from "./utils/ErrorHelper";
 import { VolatileKnowledgeManager } from "./utils/VolatileKnowledgeManager";
-import { AuthProvider } from "./auth/AuthProvider";
+import { AuthProvider, AuthRequestContext } from "./auth/AuthProvider";
 import { SerenityApiError } from "./errors";
 import { VENDOR_FAULT_CODES } from "./types";
 
@@ -95,6 +98,9 @@ export type {
   AgentTodoStatus,
   TaskStartEvent,
   TaskStopEvent,
+  StreamStartEvent,
+  CustomHeaders,
+  CustomHeadersContext,
   CitationRes,
   CitationSource,
   ConversationRes,
@@ -154,6 +160,7 @@ export type {
   TokenProviderContext,
   AgentClientCredentials,
   AuthProvider,
+  AuthRequestContext,
   FullAgents,
   FullServices,
   ScopedAgents,

@@ -1,13 +1,4 @@
 /**
- * Interface representing the structure of event data.
- */
-interface SseEventData {
-  start_time_utc?: string;
-  stop_time_utc?: string;
-  message?: string;
-}
-
-/**
  * Interface representing the event object with optional event and data properties.
  */
 interface Event {
@@ -21,70 +12,49 @@ interface Event {
 type ConnectionEventListener = (data: string) => void;
 
 /**
+ * How a stream ended: on a `stop` or `error` frame (`completed`), through {@link SseConnection.abort}
+ * (`aborted`), or because the server closed it without either frame (`closed`).
+ */
+export type SseConnectionOutcome = "completed" | "aborted" | "closed";
+
+const TERMINAL_EVENTS = ["stop", "error"];
+
+/**
  * Class representing a server-sent events (SSE) connection.
  */
 export class SseConnection {
-  private eventListeners: Record<string, ConnectionEventListener[]>;
-  private active: boolean;
+  private eventListeners: Record<string, ConnectionEventListener[]> = {};
+  private active = false;
+  private aborted = false;
+  private terminated = false;
   private buffer: string = "";
-  private abortController: AbortController | null;
+  private abortController: AbortController | null = null;
 
   /**
-   * Creates an instance of SseConnection.
-   * @param options - Options for the SSE connection.
-   */
-  constructor() {
-    this.eventListeners = {
-      start: [
-        (_: string) => {
-        },
-      ],
-      stop: [
-        (_: string) => {
-          this.stop();
-        },
-      ],
-      error: [
-        (_: string) => {
-          this.stop();
-        },
-      ],
-    };
-    this.active = false;
-    this.abortController = null; // Internal abort controller management
-  }
-
-  /**
-   * Connects to the SSE server and listens for events.
+   * Connects to the SSE server and listens for events until the stream ends.
    * @param url - The URL to connect to for SSE.
    * @param fetchOptions - Additional fetch options.
-   * @returns A promise that resolves with the response when the connection is active.
-   * @throws Will throw an error if the response is not an event stream.
+   * @returns How the stream ended.
+   * @throws The `Response` when the request fails or doesn't answer with an event stream, or the
+   * error of a transport failure.
    */
   async start(
     url: string,
     fetchOptions: RequestInit
-  ): Promise<Response> {
-    this.active = true;
-    try {
-      // Create a new abort controller for this connection
-      this.abortController = new AbortController();
+  ): Promise<SseConnectionOutcome> {
+    if (this.aborted) return "aborted";
 
-      const finalFetchOptions: RequestInit = {
+    this.active = true;
+    this.abortController = new AbortController();
+
+    try {
+      const response = await fetch(url, {
         ...fetchOptions,
         signal: this.abortController.signal,
-      };
+      });
 
-      const response = await fetch(url, finalFetchOptions);
-
-      if(!response.ok) {
+      if (!response.ok || !SseConnection.isEventStream(response)) {
         throw response;
-      }
-
-      const contentType = response.headers.get("Content-Type");
-
-      if (contentType !== "text/event-stream") {
-        return response;
       }
 
       const reader = response.body!.getReader();
@@ -93,50 +63,78 @@ export class SseConnection {
 
       while (this.active) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          this.buffer += decoder.decode();
+          this.processEvents(true);
+          break;
+        }
 
         this.buffer += decoder.decode(value, { stream: true });
-        this.processEvents();
+        this.processEvents(false);
       }
 
-      return response;
+      if (this.terminated) return "completed";
+      return this.aborted ? "aborted" : "closed";
     } catch (error) {
-      this.active = false;
+      if (this.aborted && !this.terminated) return "aborted";
       throw error;
     } finally {
-      // Clean up the abort controller when the connection is stopped
-      if (this.abortController) {
-        if (this.active) {
-            this.abortController.abort();
-        }
-        this.abortController = null;
-      }
+      this.stop();
     }
+  }
+
+  /** `; charset=utf-8` and other parameters are allowed after the media type. */
+  private static isEventStream(response: Response): boolean {
+    const contentType = response.headers.get("Content-Type") ?? "";
+    return contentType.split(";")[0].trim().toLowerCase() === "text/event-stream";
   }
 
   /**
    * Processes the event data from the buffer.
+   * @param flush - True once the stream has ended, so a last event without its trailing blank
+   * line is still delivered.
    */
-  private processEvents(): void {
-    let eventEnd: number;
-    const lineEnding = this.buffer.includes('\r\n') ? '\r\n' : '\n';
+  private processEvents(flush: boolean): void {
+    const lineEnding = this.buffer.includes("\r\n") ? "\r\n" : "\n";
     const eventDelimiter = lineEnding + lineEnding;
-    while ((eventEnd = this.buffer.indexOf(eventDelimiter)) !== -1) {
-      const eventText = this.buffer.slice(0, eventEnd).trim();
+
+    let eventEnd: number;
+    while (this.active && (eventEnd = this.buffer.indexOf(eventDelimiter)) !== -1) {
+      const eventText = this.buffer.slice(0, eventEnd);
       this.buffer = this.buffer.slice(eventEnd + eventDelimiter.length);
-
-      const lines = eventText.split(lineEnding);
-      const event: Event = {};
-      for (let line of lines) {
-        if (line.startsWith("data:")) {
-          event.data = line.slice("data:".length).trim();
-        } else if (line.startsWith("event:")) {
-          event.event = line.slice("event:".length).trim();
-        }
-      }
-
-      this.trigger(event.event || "message", event.data!);
+      this.dispatch(eventText, lineEnding);
     }
+
+    if (flush && this.active && this.buffer.trim()) {
+      const eventText = this.buffer;
+      this.buffer = "";
+      this.dispatch(eventText, lineEnding);
+    }
+  }
+
+  private dispatch(eventText: string, lineEnding: string): void {
+    const event: Event = {};
+    const dataLines: string[] = [];
+
+    for (const line of eventText.trim().split(lineEnding)) {
+      if (line.startsWith("data:")) {
+        dataLines.push(SseConnection.fieldValue(line, "data:"));
+      } else if (line.startsWith("event:")) {
+        event.event = SseConnection.fieldValue(line, "event:").trim();
+      }
+    }
+
+    if (dataLines.length > 0) {
+      event.data = dataLines.join("\n");
+    }
+
+    this.trigger(event.event || "message", event.data!);
+  }
+
+  /** The SSE spec strips a single space after the colon, and nothing else. */
+  private static fieldValue(line: string, field: string): string {
+    const value = line.slice(field.length);
+    return value.startsWith(" ") ? value.slice(1) : value;
   }
 
   /**
@@ -166,15 +164,34 @@ export class SseConnection {
   }
 
   /**
-   * Triggers an event and calls all registered listeners for that event type.
+   * Triggers an event and calls all registered listeners for that event type. Nothing is
+   * delivered after a `stop` or `error` frame, so a stream settles exactly once.
    * @param eventType - The type of event to trigger.
    * @param data - The data to pass to the event listeners.
    */
   private trigger(eventType: string, data: string): void {
-    const listeners = this.eventListeners[eventType];
-    if (listeners) {
-      listeners.forEach((callback) => callback(data));
+    if (this.terminated) return;
+
+    const isTerminal = TERMINAL_EVENTS.includes(eventType);
+    if (isTerminal) {
+      this.terminated = true;
     }
+
+    try {
+      this.eventListeners[eventType]?.forEach((callback) => callback(data));
+    } finally {
+      if (isTerminal) this.stop();
+    }
+  }
+
+  /**
+   * Cancels the stream on the caller's request, even before {@link start} is called.
+   * {@link start} then resolves with `aborted` instead of throwing the abort error.
+   */
+  abort(): void {
+    if (this.terminated) return;
+    this.aborted = true;
+    this.stop();
   }
 
   /**

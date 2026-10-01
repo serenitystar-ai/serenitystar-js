@@ -170,8 +170,9 @@ export class VolatileKnowledgeManager {
         id: data.id,
         expirationDate: data.expirationDate,
         status: data.status,
-        fileName: data.fileName || file.name,
-        fileSize: data.fileSize ?? file.size,
+        // The caller's own file identity: the server may answer with a generic name.
+        fileName: file.name,
+        fileSize: file.size,
       };
     } catch (error) {
       // A local failure (network fault, unreadable blob). There is no response to

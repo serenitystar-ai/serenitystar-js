@@ -11,6 +11,7 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
 - [Authentication Modes](#authentication-modes)
   - [API Key (Full Access)](#api-key-full-access)
   - [Agent Client Credentials (Token Provider)](#agent-client-credentials-token-provider)
+  - [Custom headers](#custom-headers)
   - [Feature Comparison](#feature-comparison)
 - [Usage](#usage)
 - [Assistants / Copilots](#assistants--copilots)
@@ -134,6 +135,32 @@ const conversation = await client.agents.assistants.createConversation();
 ```
 
 > **Note:** Your `tokenProvider` callback only needs to return a client token from your backend. The SDK handles the token exchange with the Serenity API automatically — calling the exchange endpoint, obtaining a short-lived access token, and refreshing it transparently.
+
+## Custom headers
+
+Both modes accept `headers`: extra headers sent with every HTTP request, including conversation
+info, SSE streams and uploads. Pass a static map, or a function called per request with its
+`url` and `method`, to scope a header to some URLs only:
+
+```tsx
+const client = new SerenityClient({
+  apiKey: '<PLACEHOLDER_KEY>',
+  baseUrl: '/proxy/serenity',
+  // Only same-origin requests carry the anti-forgery token.
+  headers: ({ url }) =>
+    new URL(url, location.href).origin === location.origin
+      ? { RequestVerificationToken: token }
+      : {},
+});
+```
+
+- The SDK's own headers (`X-API-KEY`, `Authorization`, `Content-Type`) always win: naming one
+  is an error, case-insensitively.
+- Names browsers refuse to send (`Cookie`, `Host`, `Origin`, `Content-Length`, `Sec-*`,
+  `Proxy-*`, …) are rejected too.
+- Names must be RFC 9110 tokens, and values can't contain CR or LF.
+- A static map is checked when the client is created; a function's result on every request.
+- Realtime sessions use WebSockets, which can't carry headers, so they never receive them.
 
 ## Feature Comparison
 
@@ -341,6 +368,9 @@ const client = new SerenityClient({
 const conversation = await client.agents.assistants.createConversation("chef-assistant")
 	
 conversation
+	.on("start", (start) => {
+	  console.log(start?.instance_id) // The conversation's instance id, before any content
+	})
 	.on("content", (chunk, citations) => {
 	  console.log(chunk) // Response chunk
 	  // `citations` is an optional array attached to some chunks.
@@ -477,6 +507,9 @@ await conversation.removeFeedback({
   agentMessageId: response.agent_message_id!
 });
 ```
+
+Both methods resolve with `success: false` on a failed request, and `error` holds the normalized
+error body, `statusCode` and `code` included.
 
 ## Connector Status
 
@@ -1005,6 +1038,20 @@ const activity = client.agents.activities.create("translator-activity", {
 
 await activity.stream();
 ```
+
+`stop()` doesn't reject the pending stream promise. It resolves with `aborted: true`, the
+`content` streamed so far and the `instance_id` announced on `start` (an empty string when the
+stream was cancelled before that). No `stop` event is emitted.
+
+```tsx
+const result = await conversation.streamMessage("Tell me a long story about pasta");
+if (result.aborted) {
+  showCancelled(result.content);
+}
+```
+
+A stream the server closes without a `stop` or `error` frame resolves the same way, with
+`incomplete: true` instead of `aborted`.
 
 ## Reasoning (Chain-of-Thought)
 
@@ -1857,14 +1904,14 @@ same fields:
 
 | | Buffered (`sendMessage`, `execute`) | Streamed (`streamMessage`, `stream`) |
 | --- | --- | --- |
-| Delivery | promise rejection | `error` event **and** promise rejection, same object |
+| Delivery | promise rejection | `error` event **and** promise rejection, same object — handle it in one place |
 | `code` | ✅ | ✅ |
 | `message` | always set | optional in the type — the SDK backfills a fallback |
 | `errors` | ✅ | ✅ |
 | `statusCode` | ✅ | **absent** — the transport reported 200 |
 | Documentation link | `documentationUrl` | `documentation_url` (snake_case) |
 | Attempts | `attempts[]`, camelCase (`modelType`, `statusCode`) | `attempts[]`, snake_case (`model_type`, `status_code`) |
-| Retry hint on a rate-limited run | `retryAfter`, from the `Retry-After` header | `retry_after_seconds` — a stream can't set a header |
+| Retry hint on a rate-limited run | `retryAfter`, from the `Retry-After` header (seconds or an HTTP-date) | `retry_after_seconds`, and the same value as `retryAfter` — a stream can't set a header |
 | Partial output | — | `agent_result`, `pending_actions`, `generated_json` |
 
 ```tsx

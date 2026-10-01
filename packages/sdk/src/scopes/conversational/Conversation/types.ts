@@ -1,4 +1,4 @@
-import { CitationResWithoutText, ToolApprovalDecision, UserChoiceAnswer, VolatileKnowledgeUploadRes } from "../../../types";
+import { CitationResWithoutText, SerenityErrorBody, ToolApprovalDecision, UserChoiceAnswer, VolatileKnowledgeUploadRes } from "../../../types";
 
 export type MessageAdditionalInfo = {
   inputParameters?: { [key: string]: any }
@@ -320,6 +320,8 @@ export type SubmitFeedbackResult = {
    * Indicates if the feedback was successfully submitted
    */
   success: boolean;
+  /** Why the request failed, when `success` is false. */
+  error?: SerenityErrorBody;
 };
 
 export type RemoveFeedbackOptions = {
@@ -334,6 +336,8 @@ export type RemoveFeedbackResult = {
    * Indicates if the feedback was successfully removed
    */
   success: boolean;
+  /** Why the request failed, when `success` is false. */
+  error?: SerenityErrorBody;
 };
 
 // -------------------------------------------
