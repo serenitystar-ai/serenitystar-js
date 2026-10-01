@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { InternalErrorHelper } from "../src/utils/ErrorHelper";
 import type {
   AgentExecutionFailedErrorBody,
@@ -273,12 +273,42 @@ describe("process — change 8: rate limiting", () => {
     expect("retryAfter" in body).toBe(false);
   });
 
+  it("reads an HTTP-date Retry-After as the seconds left until that date", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-21T07:27:30Z"));
+    try {
+      const body = (await InternalErrorHelper.process(
+        jsonResponse(
+          429,
+          { code: "rate_limit_exceeded", message: "Too many requests." },
+          { "Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT" }
+        )
+      )) as RateLimitErrorBody;
+
+      expect(body.retryAfter).toBe(30);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reads an HTTP-date already past as no wait", async () => {
+    const body = (await InternalErrorHelper.process(
+      jsonResponse(
+        429,
+        { code: "rate_limit_exceeded", message: "Too many requests." },
+        { "Retry-After": "Wed, 21 Oct 2015 07:28:00 GMT" }
+      )
+    )) as RateLimitErrorBody;
+
+    expect(body.retryAfter).toBe(0);
+  });
+
   it("omits retryAfter for an unparseable Retry-After header", async () => {
     const body = (await InternalErrorHelper.process(
       jsonResponse(
         429,
         { code: "rate_limit_exceeded", message: "Too many requests." },
-        { "Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT" }
+        { "Retry-After": "soon" }
       )
     )) as RateLimitErrorBody;
 

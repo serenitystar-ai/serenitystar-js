@@ -212,11 +212,21 @@ export class InternalErrorHelper {
     }
   }
 
-  /** `Retry-After` in seconds. Returns `undefined` for a missing or unparseable header. */
+  /**
+   * `Retry-After` in seconds, from either form RFC 9110 allows: delay-seconds or an HTTP-date.
+   * Returns `undefined` for a missing or unparseable header.
+   */
   static #parseRetryAfter(header?: string | null): number | undefined {
     if (!isNonEmptyString(header)) return undefined;
-    const seconds = Number.parseInt(header, 10);
-    return Number.isFinite(seconds) && seconds >= 0 ? seconds : undefined;
+    const value = header.trim();
+
+    if (/^\d+$/.test(value)) {
+      return Number.parseInt(value, 10);
+    }
+
+    const date = Date.parse(value);
+    if (Number.isNaN(date)) return undefined;
+    return Math.max(0, Math.ceil((date - Date.now()) / 1000));
   }
 
   /**
@@ -273,8 +283,11 @@ export class InternalErrorHelper {
     if (!isNonEmptyString(raw?.documentation_url)) delete event.documentation_url;
 
     const retryAfter = raw?.retry_after_seconds;
-    if (!(typeof retryAfter === "number" && Number.isFinite(retryAfter) && retryAfter >= 0)) {
+    if (typeof retryAfter === "number" && Number.isFinite(retryAfter) && retryAfter >= 0) {
+      event.retryAfter = retryAfter;
+    } else {
       delete event.retry_after_seconds;
+      delete event.retryAfter;
     }
 
     if (Array.isArray(raw?.attempts)) {

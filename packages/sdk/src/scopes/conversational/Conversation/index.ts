@@ -30,6 +30,7 @@ import { VolatileKnowledgeManager } from "../../../utils/VolatileKnowledgeManage
 import { FileManager } from "../../../utils/FileManager";
 import { AuthProvider } from "../../../auth/AuthProvider";
 import { fetchWithAuth } from "../../../utils/fetchWithAuth";
+import { parseStreamStart } from "./parseStreamStart";
 
 export class Conversation extends EventEmitter<SSEStreamEvents> {
   private agentCode: string;
@@ -306,22 +307,25 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     audio: Blob,
     options?: MessageAdditionalInfo
   ): Promise<AgentResult> {
+    let uploadResult: FileUploadRes;
     try {
-      let uploadResult = await this.fileManager.upload(audio, {
+      uploadResult = await this.fileManager.upload(audio, {
         fileName: `audio_input_${Date.now()}.webm`,
       });
-      uploadResult.downloadUrl = `${this.baseUrl}/file/download/${uploadResult.id}`;
-
-      const bodyOptions: CreateExecuteBodyOptions = {
-        audio: { fileId: uploadResult.id },
-        stream: true,
-        additionalInfo: options,
-        isNewConversation: !this.conversationId,
-      };
-      return await this.#streamRequest(bodyOptions, "Failed to send audio message", uploadResult);
     } catch (error) {
       throw await InternalErrorHelper.process(error, "Failed to upload audio file or stream audio message");
     }
+    uploadResult.downloadUrl = `${this.baseUrl}/file/download/${uploadResult.id}`;
+
+    const bodyOptions: CreateExecuteBodyOptions = {
+      audio: { fileId: uploadResult.id },
+      stream: true,
+      additionalInfo: options,
+      isNewConversation: !this.conversationId,
+    };
+    // Outside the upload's catch: a streamed error frame has no statusCode and would be
+    // flattened into a generic 500.
+    return this.#streamRequest(bodyOptions, "Failed to send audio message", uploadResult);
   }
 
   /**
@@ -348,6 +352,9 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
   /**
    * Stops the current streaming response, aborting the SSE connection.
    * If no stream is active, this method does nothing.
+   *
+   * The pending `streamMessage` (or other stream) promise resolves with `aborted: true`, the
+   * content streamed so far and the instance id announced on `start`. It does not reject.
    * 
    * @example
    * ```typescript
@@ -360,7 +367,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
    */
   stop(): void {
     if (this.connection) {
-      this.connection.stop();
+      this.connection.abort();
       this.connection = null;
     }
   }
@@ -519,6 +526,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     if (response.status !== 200) {
       return {
         success: false,
+        error: await InternalErrorHelper.process(response, "Failed to submit feedback"),
       }
     }
 
@@ -566,6 +574,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     if (response.status !== 200) {
       return {
         success: false,
+        error: await InternalErrorHelper.process(response, "Failed to remove feedback"),
       }
     }
 
@@ -652,19 +661,25 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     const url = this.#getExecuteUrl();
     const body = this.#createExecuteBody(bodyOptions);
 
-    this.connection = new SseConnection();
+    const connection = new SseConnection();
+    this.connection = connection;
 
+    let content = "";
+    let instanceId: string | undefined;
 
-    return new Promise(async (resolve, reject) => {
-      if(!this.connection) {
-        reject(new Error("Failed to initialize SSE connection"));
-        return;
-      }
-      this.connection.on("start", () => {
-        this.emit("start");
+    return new Promise<AgentResult>((resolve, reject) => {
+      connection.on("start", (data) => {
+        const start = parseStreamStart(data);
+        instanceId = start.instance_id;
+        // The server creates the conversation before it streams, so a turn cancelled from
+        // here on still belongs to it.
+        if (instanceId && !this.conversationId) {
+          this.conversationId = instanceId;
+        }
+        this.emit("start", start);
       });
 
-      this.connection.on("error", (data) => {
+      connection.on("error", (data) => {
         // Emit and reject with the same normalized frame, so a streamed failure exposes
         // the same `code` / `message` / `errors` as a buffered one.
         const error = InternalErrorHelper.parseStreamError(data, errorMessage);
@@ -672,18 +687,19 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
         reject(error);
       });
 
-      this.connection.on("content", (data) => {
+      connection.on("content", (data) => {
         const chunk = JSON.parse(data);
+        content += chunk.text ?? "";
         this.emit("content", chunk.text, chunk.citations);
       });
 
-      this.connection.on("reasoning", (data) => {
+      connection.on("reasoning", (data) => {
         const chunk = JSON.parse(data);
         this.emit("reasoning", chunk.text);
       });
 
       // Task events are informational: a malformed frame must never reject the stream.
-      this.connection.on("task_start", (data) => {
+      connection.on("task_start", (data) => {
         try {
           this.emit("task_start", JSON.parse(data) as TaskStartEvent);
         } catch {
@@ -691,7 +707,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
         }
       });
 
-      this.connection.on("task_stop", (data) => {
+      connection.on("task_stop", (data) => {
         let task: TaskStopEvent;
         try {
           task = JSON.parse(data) as TaskStopEvent;
@@ -714,7 +730,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
         }
       });
 
-      this.connection.on("stop", (data) => {
+      connection.on("stop", (data) => {
         const finalMessage = JSON.parse(data) as { result: AgentResult };
 
         if (!this.conversationId) {
@@ -725,27 +741,35 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
         resolve(finalMessage.result);
       });
 
-      const authHeaders = await this.authProvider.getHeaders();
-      const fetchOptions: RequestInit = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeaders,
-        },
-        body: JSON.stringify(body),
+      const run = async () => {
+        const authHeaders = await this.authProvider.getHeaders({ url, method: "POST" });
+        return connection.start(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders,
+          },
+          body: JSON.stringify(body),
+        });
       };
 
-      try {
-        await this.connection.start(url, fetchOptions);
-      } catch (error) {
-        const response = await InternalErrorHelper.process(error, errorMessage);
-        reject(response);
-      } finally {
-        if (this.connection) {
-          this.connection.stop();
-          this.connection = null;
-        }
-      }
+      run()
+        .then((outcome) => {
+          if (outcome === "completed") return;
+          resolve({
+            content,
+            instance_id: instanceId ?? this.conversationId ?? "",
+            ...(outcome === "aborted" ? { aborted: true } : { incomplete: true }),
+          });
+        })
+        .catch(async (error) => {
+          reject(await InternalErrorHelper.process(error, errorMessage));
+        })
+        .finally(() => {
+          if (this.connection === connection) {
+            this.connection = null;
+          }
+        });
     });
   }
 

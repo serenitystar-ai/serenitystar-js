@@ -5,6 +5,7 @@ import { InternalErrorHelper } from "../../utils/ErrorHelper";
 import { VolatileKnowledgeManager } from "../../utils/VolatileKnowledgeManager";
 import { FileManager } from "../../utils/FileManager";
 import { SseConnection } from "../conversational/Conversation/SseConnection";
+import { parseStreamStart } from "../conversational/Conversation/parseStreamStart";
 import { SystemAgentExecutionOptionsMap } from "./../../types";
 import { AuthProvider } from "../../auth/AuthProvider";
 import { fetchWithAuth } from "../../utils/fetchWithAuth";
@@ -43,6 +44,9 @@ export abstract class SystemAgent<
    * Stops the current streaming response, aborting the SSE connection.
    * If no stream is active, this method does nothing.
    *
+   * The pending `stream` promise resolves with `aborted: true` and the content streamed so
+   * far. It does not reject.
+   *
    * @example
    * ```typescript
    * agent.on("content", (chunk) => {
@@ -54,7 +58,7 @@ export abstract class SystemAgent<
    */
   stop(): void {
     if (this.connection) {
-      this.connection.stop();
+      this.connection.abort();
       this.connection = null;
     }
   }
@@ -65,16 +69,19 @@ export abstract class SystemAgent<
   }
 
   async streamWithAudio(audio: Blob): Promise<AgentResult> {
+    let uploadResult: FileUploadRes;
     try {
-      let uploadResult = await this.fileManager.upload(audio, {
+      uploadResult = await this.fileManager.upload(audio, {
         fileName: `audio_input_${Date.now()}.webm`,
       });
-      uploadResult.downloadUrl = `${this.baseUrl}/file/download/${uploadResult.id}`;
-      const body = this.createExecuteBody(true, { fileId: uploadResult.id });
-      return await this.#streamRequest(body, "Failed to send audio message", uploadResult);
     } catch (error) {
       throw await InternalErrorHelper.process(error, "Failed to upload audio file or stream audio message");
     }
+    uploadResult.downloadUrl = `${this.baseUrl}/file/download/${uploadResult.id}`;
+    const body = this.createExecuteBody(true, { fileId: uploadResult.id });
+    // Outside the upload's catch: a streamed error frame has no statusCode and would be
+    // flattened into a generic 500.
+    return this.#streamRequest(body, "Failed to send audio message", uploadResult);
   }
 
   protected async execute(): Promise<AgentResult> {
@@ -186,19 +193,21 @@ export abstract class SystemAgent<
     audioUploadResult?: FileUploadRes
   ): Promise<AgentResult> {
     const url = this.#getExecuteUrl();
-    this.connection = new SseConnection();
 
-    return new Promise(async (resolve, reject) => {
-      if (!this.connection) {
-        reject(new Error("Failed to initialize SSE connection"));
-        return;
-      }
+    const connection = new SseConnection();
+    this.connection = connection;
 
-      this.connection.on("start", () => {
-        this.emit("start");
+    let content = "";
+    let instanceId: string | undefined;
+
+    return new Promise<AgentResult>((resolve, reject) => {
+      connection.on("start", (data) => {
+        const start = parseStreamStart(data);
+        instanceId = start.instance_id;
+        this.emit("start", start);
       });
 
-      this.connection.on("error", (data) => {
+      connection.on("error", (data) => {
         // Emit and reject with the same normalized frame, so a streamed failure exposes
         // the same `code` / `message` / `errors` as a buffered one.
         const error = InternalErrorHelper.parseStreamError(data, errorMessage);
@@ -206,17 +215,18 @@ export abstract class SystemAgent<
         reject(error);
       });
 
-      this.connection.on("content", (data) => {
+      connection.on("content", (data) => {
         const chunk = JSON.parse(data);
+        content += chunk.text ?? "";
         this.emit("content", chunk.text, chunk.citations);
       });
 
-      this.connection.on("reasoning", (data) => {
+      connection.on("reasoning", (data) => {
         const chunk = JSON.parse(data);
         this.emit("reasoning", chunk.text);
       });
 
-      this.connection.on("stop", (data) => {
+      connection.on("stop", (data) => {
         const finalMessage = JSON.parse(data) as { result: AgentResult };
 
         this.volatileKnowledge.clear();
@@ -224,27 +234,35 @@ export abstract class SystemAgent<
         resolve(finalMessage.result);
       });
 
-      const authHeaders = await this.authProvider.getHeaders();
-      const fetchOptions: RequestInit = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeaders,
-        },
-        body: JSON.stringify(body),
+      const run = async () => {
+        const authHeaders = await this.authProvider.getHeaders({ url, method: "POST" });
+        return connection.start(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders,
+          },
+          body: JSON.stringify(body),
+        });
       };
 
-      try {
-        await this.connection.start(url, fetchOptions);
-      } catch (error) {
-        const response = await InternalErrorHelper.process(error, errorMessage);
-        reject(response);
-      } finally {
-        if (this.connection) {
-          this.connection.stop();
-          this.connection = null;
-        }
-      }
+      run()
+        .then((outcome) => {
+          if (outcome === "completed") return;
+          resolve({
+            content,
+            instance_id: instanceId ?? "",
+            ...(outcome === "aborted" ? { aborted: true } : { incomplete: true }),
+          });
+        })
+        .catch(async (error) => {
+          reject(await InternalErrorHelper.process(error, errorMessage));
+        })
+        .finally(() => {
+          if (this.connection === connection) {
+            this.connection = null;
+          }
+        });
     });
   }
 
