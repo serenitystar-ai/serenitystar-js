@@ -21,8 +21,11 @@ import {
   RemoveFeedbackResult,
   GetConnectorStatusOptions,
   ConnectorStatusResult,
+  InterruptOptions,
+  InterruptResult,
 } from "./types";
 import { SseConnection } from "./SseConnection";
+import { DEFAULT_MAX_QUEUED_INTERRUPTIONS, InterruptionQueue } from "./InterruptionQueue";
 import { AgentMapper } from "../../../utils/AgentMapper";
 import { AgentTodoParser } from "../../../utils/AgentTodoParser";
 import { InternalErrorHelper } from "../../../utils/ErrorHelper";
@@ -61,6 +64,15 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
   public readonly volatileKnowledge: VolatileKnowledgeManager;
   private readonly fileManager: FileManager;
   private connection: SseConnection | null = null;
+  readonly #interruptions = new InterruptionQueue({
+    // Normalized, so a `failed` event always carries the SDK's error envelope.
+    send: (message, options) =>
+      this.interrupt(message, options).catch(async (error) => {
+        throw await InternalErrorHelper.process(error, "Failed to send interruption");
+      }),
+    emit: (event) => this.emit("interruption", event),
+    maxQueued: () => this.info?.agent?.maxQueuedInterruptions ?? DEFAULT_MAX_QUEUED_INTERRUPTIONS,
+  });
 
   private constructor(
     agentCode: string,
@@ -372,6 +384,100 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
     }
   }
 
+  /**
+   * Queue a message for the turn that is streaming right now, so the agent takes it into
+   * account without finishing first (User Interruptions).
+   *
+   * The message is held until the turn accepts interruptions, then sent. Messages are sent
+   * one at a time in the order they were queued, and sending pauses while the server holds
+   * `info.agent.maxQueuedInterruptions` of them. Follow each message through the
+   * `interruption` event, using the id this method returns. When `merged` arrives, the
+   * content streamed from then on answers it.
+   *
+   * Nothing is lost: what the turn doesn't take ends `deferred` (send it as a regular
+   * message) or `dropped` (the server discarded it). With no streamed turn running, or when
+   * `info.agent.userInterruptionsEnabled` is `false`, the message is `deferred` right away.
+   *
+   * Only text is supported: attachments and audio need a turn of their own.
+   *
+   * @param message - The text to send.
+   * @param options - Input parameters for the message.
+   * @returns The id the `interruption` events carry for this message.
+   *
+   * @example
+   * ```typescript
+   * conversation.on("interruption", (event) => {
+   *   if (event.status === "merged") startNewResponseBubble();
+   *   if (event.status === "deferred") conversation.streamMessage(event.message);
+   * });
+   *
+   * const id = conversation.queueInterruption("Also include prices, please.");
+   * ```
+   */
+  queueInterruption(message: string, options?: InterruptOptions): string {
+    const text = message?.trim();
+    if (!text) {
+      throw new Error("An interruption needs a non-empty message.");
+    }
+
+    const enabled = this.info?.agent?.userInterruptionsEnabled !== false;
+    return this.#interruptions.enqueue(text, options, enabled);
+  }
+
+  /**
+   * Send a message straight to the turn streaming on this conversation. Prefer
+   * `queueInterruption`, which waits for the turn to accept it, keeps the order of several
+   * messages and handles the limits below.
+   *
+   * The answer streams on the running turn: a `queued` message is announced by a
+   * `task_stop` whose `task_key` is `interruption_merged` and whose
+   * `output.user_message_id` is this result's `userMessageId`.
+   *
+   * Rejects with a `validation_error` whose `errors` key tells why the message was refused:
+   * `interruption_not_accepted` (no turn is accepting messages: send it as a regular one),
+   * `user_interruptions_disabled`, `interruption_queue_full` or
+   * `interruption_input_not_supported`.
+   *
+   * @param message - The text to send.
+   * @param options - Input parameters for the message.
+   */
+  async interrupt(message: string, options?: InterruptOptions): Promise<InterruptResult> {
+    if (!this.conversationId) {
+      throw new Error("Conversation ID is not set. Please send a message first to initialize the conversation.");
+    }
+
+    const body: ExecuteBodyParams = [
+      { Key: "message", Value: message },
+      { Key: "chatId", Value: this.conversationId },
+    ];
+    this.#appendInputParametersIfNeeded(body, {
+      ...(this.inputParameters ?? {}),
+      ...(options?.inputParameters ?? {}),
+    });
+    this.#appendChannelIfNeeded(body);
+
+    const response = await fetchWithAuth(this.authProvider, `${this.baseUrl}/v2/agent/${this.agentCode}/interrupt`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (response.status !== 200 && response.status !== 202) {
+      throw await InternalErrorHelper.process(response, "Failed to send interruption");
+    }
+
+    const data = await response.json();
+    return {
+      status: String(data?.status).toLowerCase() === "blocked" ? "blocked" : "queued",
+      instanceId: data?.instanceId,
+      userMessageId: data?.userMessageId ?? undefined,
+      content: data?.content ?? undefined,
+      violations: data?.violations ?? undefined,
+    };
+  }
+
   async getConversationById(
     id: string,
     options: {
@@ -663,11 +769,22 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
 
     const connection = new SseConnection();
     this.connection = connection;
+    const interruptionRun = this.#interruptions.beginRun();
 
     let content = "";
     let instanceId: string | undefined;
 
-    return new Promise<AgentResult>((resolve, reject) => {
+    return new Promise<AgentResult>((resolvePromise, rejectPromise) => {
+      // Settle the interruptions the turn didn't take first, so their events precede the result.
+      const resolve = (result: AgentResult) => {
+        this.#interruptions.endRun(interruptionRun);
+        resolvePromise(result);
+      };
+      const reject = (error: unknown) => {
+        this.#interruptions.endRun(interruptionRun);
+        rejectPromise(error);
+      };
+
       connection.on("start", (data) => {
         const start = parseStreamStart(data);
         instanceId = start.instance_id;
@@ -700,11 +817,21 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
 
       // Task events are informational: a malformed frame must never reject the stream.
       connection.on("task_start", (data) => {
+        let task: TaskStartEvent;
         try {
-          this.emit("task_start", JSON.parse(data) as TaskStartEvent);
+          task = JSON.parse(data) as TaskStartEvent;
         } catch {
           // Ignore unparseable task frames.
+          return;
         }
+
+        try {
+          this.emit("task_start", task);
+        } catch {
+          // A failing task_start handler must not keep the interruption window closed.
+        }
+
+        this.#interruptions.handleTaskStart(task);
       });
 
       connection.on("task_stop", (data) => {
@@ -728,6 +855,8 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
         } catch {
           // Ignore failures of the TODO listeners, like those of any task frame.
         }
+
+        this.#interruptions.handleTaskStop(task);
       });
 
       connection.on("stop", (data) => {

@@ -392,6 +392,54 @@ export type AgentTodoEvent = {
 };
 
 /**
+ * A guardrail rule an interruption violated. Server-authored, diagnostic only.
+ */
+export type InterruptionGuardrailViolation = {
+  rule?: string | number;
+  score?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Where a message queued with `queueInterruption` stands. Every message ends in exactly one
+ * of `merged`, `blocked`, `deferred`, `dropped` or `failed`; `queued` comes before `merged`
+ * or `dropped`.
+ *
+ * - `queued`: the running turn accepted it and will merge it.
+ * - `merged`: the turn took it in. Content streamed from now on answers it, so this is
+ *   where the response splits.
+ * - `blocked`: input guardrails blocked it. `content` is the guardrails' standard response.
+ * - `deferred`: it never reached the turn (it ended first, or doesn't accept
+ *   interruptions). Send it as a regular message to keep it.
+ * - `dropped`: the turn accepted it but ended (stopped, failed or paused) before merging it.
+ *   The server discarded it.
+ * - `failed`: the request failed for another reason, described by `error`.
+ */
+export type InterruptionStatus = "queued" | "merged" | "blocked" | "deferred" | "dropped" | "failed";
+
+type InterruptionEventBase = {
+  /** The id `queueInterruption` returned. */
+  id: string;
+  /** The text that was queued. User content: render it as plain text. */
+  message: string;
+};
+
+/**
+ * Payload of the `interruption` event.
+ */
+export type InterruptionEvent =
+  | (InterruptionEventBase & { status: "queued" | "merged"; userMessageId?: string })
+  | (InterruptionEventBase & {
+      status: "blocked";
+      userMessageId?: string;
+      /** The guardrails' standard response, to show as the agent's answer. */
+      content?: string;
+      violations?: InterruptionGuardrailViolation[];
+    })
+  | (InterruptionEventBase & { status: "deferred" | "dropped" })
+  | (InterruptionEventBase & { status: "failed"; error: SerenityErrorBody });
+
+/**
  * One attempt of a failed execution, as it arrives on a **streamed** request.
  *
  * Streaming keeps the wire's snake_case naming (`model_type`, `status_code`) and omits null
@@ -549,6 +597,13 @@ export type SSEStreamEvents = {
    * @param data - The whole list as it stands now, which replaces any previous one.
    */
   agent_todo: (data: AgentTodoEvent) => void;
+
+  /**
+   * Event triggered when a message queued with `queueInterruption` changes status. Emitted
+   * on the conversation that queued it, even after its turn ended (`deferred`, `dropped`).
+   * @param data - The message and its new status.
+   */
+  interruption: (data: InterruptionEvent) => void;
 };
 
 export type ExecuteBodyParams = Array<{
@@ -738,6 +793,9 @@ export type ValidationErrorKey =
   | "ai_model_not_allowed" | "invalid_model"
   // Conversation
   | "conversation_closed" | "conversation_context_not_found"
+  // User interruptions (interrupt endpoint)
+  | "user_interruptions_disabled" | "interruption_not_accepted" | "interruption_queue_full"
+  | "interruption_input_not_supported" | "chat_id_empty" | "chat_id_invalid"
   // Response format & reasoning
   | "invalid_response_format_type" | "invalid_response_format_schema"
   | "response_format_not_supported_by_model" | "invalid_reasoning_effort"
