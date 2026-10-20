@@ -28,6 +28,7 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
   - [Connector Status](#connector-status)
   - [Tool approvals](#tool-approvals)
   - [User choices](#user-choices)
+  - [User interruptions](#user-interruptions)
 - [Activities](#activities)
   - [Execute an activity](#execute-an-activity)
   - [Stream responses with SSE](#stream-responses-with-sse)
@@ -231,6 +232,7 @@ console.log(
   agentInfo.agent.version, // 1
   agentInfo.agent.visionEnabled, // true/false
   agentInfo.agent.isRealtime, // true/false
+  agentInfo.agent.userInterruptionsEnabled, // true/false — see User interruptions
   agentInfo.channel, // Optional chat widget configuration
   agentInfo.agent.photoUrl // Agent's profile image URL
 );
@@ -667,6 +669,93 @@ Notes:
   `conversation.conversationId` is not set yet. It is populated as soon as the first execution
   finishes, so a question raised on the very first turn is answerable.
 - A resumed turn can itself raise another question; keep handling `pending_actions` until it is empty.
+
+## User interruptions
+
+When the agent has **User Interruptions** turned on, the user can keep writing while a streamed
+answer is still arriving. Each message is merged into the running turn, and the agent carries on
+answering with it in mind instead of finishing first.
+
+`conversation.info.agent.userInterruptionsEnabled` says whether the agent accepts interruptions, and
+`maxQueuedInterruptions` says how many a turn holds at once. Queue a message with
+`queueInterruption` while `streamMessage` is running, then follow it through the `interruption`
+event:
+
+```tsx
+import SerenityClient from '@serenity-star/sdk';
+
+const client = new SerenityClient({
+  apiKey: '<SERENITY_API_KEY>',
+});
+
+const conversation = await client.agents.assistants.createConversation("chef-assistant");
+const canInterrupt = conversation.info?.agent.userInterruptionsEnabled === true;
+
+conversation.on("interruption", (event) => {
+  switch (event.status) {
+    case "queued":   // the turn accepted it; it will be merged
+      break;
+    case "merged":   // the turn took it in: content streamed from now on answers it
+      startNewResponseBubble();
+      break;
+    case "blocked":  // input guardrails blocked it
+      showBlocked(event.message, event.content); // content = the guardrails' standard response
+      break;
+    case "deferred": // never reached the turn: send it as a regular message
+      resendLater(event.message);
+      break;
+    case "dropped":  // accepted, but the turn ended before merging it (stopped, failed, paused)
+    case "failed":   // the request failed; see event.error
+      markAsNotSent(event.id);
+      break;
+  }
+});
+
+const answer = conversation.streamMessage("Plan dinner for four.");
+
+// Later, while the answer is still streaming:
+const id = conversation.queueInterruption("Make it vegetarian, please.");
+
+await answer;
+```
+
+How the queue behaves:
+
+- A message is held until the turn starts accepting interruptions (its `llm_response` task), then
+  sent. Messages are sent **one at a time, in the order they were queued**, so the agent sees them
+  in that order.
+- Sending pauses while `maxQueuedInterruptions` messages wait to be merged, and resumes on each
+  merge. A server refusal for a full queue (`interruption_queue_full`) is retried the same way.
+- Each message ends in exactly one of `merged`, `blocked`, `deferred`, `dropped` or `failed`.
+  `queued` comes first when the acknowledgement arrives before the merge.
+- What the turn didn't take is reported **before** the `streamMessage` promise settles, so a
+  `deferred` message can be sent as the next turn as soon as it does.
+- With no streamed turn running, or with `userInterruptionsEnabled: false`, the message is
+  `deferred` right away. Older servers don't send the flag; the SDK then tries and defers on
+  refusal.
+- Only text can interrupt. Attachments and audio need a turn of their own.
+- Buffered executions (`sendMessage`) can't be interrupted. Only SSE turns accept messages.
+
+`conversation.interrupt(message)` is the low-level call behind the queue. It posts straight to the
+running turn and resolves `{ status: "queued" | "blocked", userMessageId, content?, violations? }`,
+or rejects with a `validation_error` whose `errors` key says why:
+
+| `errors` key | Meaning |
+| --- | --- |
+| `interruption_not_accepted` | No turn on the conversation is accepting messages (none running, it is finishing, or it reached its limit). Send it as a regular message. |
+| `user_interruptions_disabled` | The agent has User Interruptions turned off. |
+| `interruption_queue_full` | The turn already holds `maxQueuedInterruptions` messages. |
+| `interruption_input_not_supported` | Interruptions carry text only: no volatile knowledge, tool approvals or user choices. |
+
+When the turn merges a `queued` message, its stream carries a `task_stop` whose `task_key` is
+`interruption_merged` and whose `output.user_message_id` is that `userMessageId`.
+
+In stored conversations (`getConversationById`), merged interruptions are regular user messages
+with `is_interruption: true`. They sit between the message that opened their turn and the turn's
+answer.
+
+> **Security:** an interruption is user content. Render `event.message` as plain text. The
+> `content` of a blocked message is server-authored: escape it like any other agent text.
 
 ---
 

@@ -1,4 +1,4 @@
-import { CitationResWithoutText, SerenityErrorBody, ToolApprovalDecision, UserChoiceAnswer, VolatileKnowledgeUploadRes } from "../../../types";
+import { CitationResWithoutText, InterruptionGuardrailViolation, SerenityErrorBody, ToolApprovalDecision, UserChoiceAnswer, VolatileKnowledgeUploadRes } from "../../../types";
 
 export type MessageAdditionalInfo = {
   inputParameters?: { [key: string]: any }
@@ -27,6 +27,13 @@ export type ConversationInfoResult = {
     photoUrl: string;
     version: number;
     visionEnabled: boolean;
+    /**
+     * Whether messages sent while the agent is answering can be merged into the running
+     * turn (see `queueInterruption`). Absent on servers that predate the feature.
+     */
+    userInterruptionsEnabled?: boolean;
+    /** How many interruptions a running turn holds at once. Absent on older servers. */
+    maxQueuedInterruptions?: number;
   }
   conversation: {
     initialMessage: string;
@@ -202,6 +209,8 @@ export type Message = (
     [key: string]: PluginExecutionResult
   }
   citations?: CitationResWithoutText[];
+  /** `true` on a user message sent while the agent was answering and merged into that turn. */
+  is_interruption?: boolean;
 };
 
 type PluginExecutionResult = SpeechGenerationResult
@@ -298,6 +307,26 @@ export type MetaAnalysisRes = { [key: string]: any } & {
 // -------------------------------------------
 // *** Types for Message Feedback ***
 // -------------------------------------------
+
+export type InterruptOptions = {
+  /** Input parameters for this message, merged over the conversation's own. */
+  inputParameters?: { [key: string]: any };
+};
+
+export type InterruptResult = {
+  /**
+   * `queued` when the running turn took the message (its answer streams on that turn), or
+   * `blocked` when input guardrails blocked it.
+   */
+  status: "queued" | "blocked";
+  instanceId: string;
+  /** The saved user message. A `queued` one is announced again when the turn merges it. */
+  userMessageId?: string;
+  /** The guardrails' standard response, when `blocked`. */
+  content?: string;
+  /** The guardrail rules violated, when `blocked`. */
+  violations?: InterruptionGuardrailViolation[];
+};
 
 export type SubmitFeedbackOptions = {
   /**
