@@ -27,13 +27,15 @@ export type ConversationInfoResult = {
     photoUrl: string;
     version: number;
     visionEnabled: boolean;
-    /**
-     * Whether messages sent while the agent is answering can be merged into the running
-     * turn (see `queueInterruption`). Absent on servers that predate the feature.
-     */
-    userInterruptionsEnabled?: boolean;
-    /** How many interruptions a running turn holds at once. Absent on older servers. */
-    maxQueuedInterruptions?: number;
+    /** User Interruptions settings (see `queueInterruption`). Absent on servers that predate the feature. */
+    userInterruptions?: {
+      /** Whether messages sent while the agent is answering can be merged into the running turn. */
+      enabled: boolean;
+      /** How many interruptions a running turn holds at once. */
+      maxQueuedInterruptions: number;
+      /** How many interruptions a running turn takes in total. */
+      maxInterruptionsPerRun: number;
+    };
   }
   conversation: {
     initialMessage: string;

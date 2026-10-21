@@ -10,6 +10,9 @@ const MERGED_TASK_KEY = "interruption_merged";
 /** The server's default `MaxQueuedInterruptions`, for servers that don't report it. */
 export const DEFAULT_MAX_QUEUED_INTERRUPTIONS = 5;
 
+/** The server's default `MaxInterruptionsPerRun`, for servers that don't report it. */
+export const DEFAULT_MAX_INTERRUPTIONS_PER_RUN = 10;
+
 /** Refusals meaning "this turn won't take interruptions": send the message as its own turn. */
 const NOT_ACCEPTED_KEYS = ["interruption_not_accepted", "user_interruptions_disabled"];
 const QUEUE_FULL_KEY = "interruption_queue_full";
@@ -20,6 +23,8 @@ type Run = {
   closed: boolean;
   /** The server's queue is full: wait for a merge before sending more. */
   paused: boolean;
+  /** Messages the server took in (queued or blocked), which count toward its per-run limit. */
+  accepted: number;
 };
 
 type Entry = {
@@ -37,6 +42,7 @@ type InterruptionQueueDeps = {
   send: (message: string, options?: InterruptOptions) => Promise<InterruptResult>;
   emit: (event: InterruptionEvent) => void;
   maxQueued: () => number;
+  maxPerRun: () => number;
 };
 
 /**
@@ -44,8 +50,8 @@ type InterruptionQueueDeps = {
  *
  * Messages are held until the turn's `llm_response` window opens, then sent one at a time,
  * so the server receives them in the order they were written. Sending pauses while the
- * server holds `maxQueued` of them, and resumes on each merge. Whatever the turn didn't take
- * is reported when it ends: `deferred` if it never reached the server, `dropped` if the
+ * server holds `maxQueued` of them, and resumes on each merge. Once the turn took `maxPerRun`
+ * messages, the rest are deferred. Whatever the turn didn't take is reported when it ends: `deferred` if it never reached the server, `dropped` if the
  * server accepted but discarded it.
  */
 export class InterruptionQueue {
@@ -62,6 +68,18 @@ export class InterruptionQueue {
   /** Whether a turn is streaming, i.e. `enqueue` delivers to it rather than deferring. */
   get isRunning(): boolean {
     return this.#run !== null && !this.#run.closed;
+  }
+
+  /**
+   * Whether the running turn took, or is about to take, as many messages as the server allows per
+   * turn. Further messages are deferred.
+   */
+  get isLimitReached(): boolean {
+    const run = this.#run;
+    if (!run) return false;
+
+    const upcoming = this.#entries.filter((e) => e.run === run && (e.state === "held" || e.state === "sending")).length;
+    return run.accepted + upcoming >= this.#deps.maxPerRun();
   }
 
   /** Messages the current turn hasn't settled yet (held, being sent, or queued server-side). */
@@ -88,7 +106,7 @@ export class InterruptionQueue {
   /** Starts tracking a streamed turn. Returns the handle `endRun` takes. */
   beginRun(): object {
     if (this.#run) this.endRun(this.#run);
-    this.#run = { windowOpen: false, closed: false, paused: false };
+    this.#run = { windowOpen: false, closed: false, paused: false, accepted: 0 };
     return this.#run;
   }
 
@@ -159,7 +177,15 @@ export class InterruptionQueue {
     try {
       while (true) {
         const run = this.#run;
-        if (!run || !run.windowOpen || run.closed || run.paused) return;
+        if (!run || run.closed) return;
+
+        // The server stops accepting messages for the turn at this limit too.
+        if (run.accepted >= this.#deps.maxPerRun()) {
+          this.#closeRun(run);
+          return;
+        }
+
+        if (!run.windowOpen || run.paused) return;
 
         const queued = this.#entries.filter((e) => e.run === run && e.state === "queued").length;
         if (queued >= this.#deps.maxQueued()) return;
@@ -185,6 +211,7 @@ export class InterruptionQueue {
     }
 
     const isCurrent = this.#run === entry.run;
+    entry.run.accepted++;
 
     if (result.status === "blocked") {
       this.#remove(entry);
@@ -243,7 +270,7 @@ export class InterruptionQueue {
     this.#emit({ id: entry.id, message: entry.message, status: "failed", error });
   }
 
-  /** Defers everything still held, so later messages can't overtake the refused one. */
+  /** Stops sending to the run and defers everything still held, so later messages keep their order. */
   #closeRun(run: Run): void {
     run.closed = true;
     for (const entry of [...this.#entries]) {

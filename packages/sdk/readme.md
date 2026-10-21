@@ -232,7 +232,7 @@ console.log(
   agentInfo.agent.version, // 1
   agentInfo.agent.visionEnabled, // true/false
   agentInfo.agent.isRealtime, // true/false
-  agentInfo.agent.userInterruptionsEnabled, // true/false — see User interruptions
+  agentInfo.agent.userInterruptions, // { enabled, maxQueuedInterruptions, maxInterruptionsPerRun } — see User interruptions
   agentInfo.channel, // Optional chat widget configuration
   agentInfo.agent.photoUrl // Agent's profile image URL
 );
@@ -676,8 +676,9 @@ When the agent has **User Interruptions** turned on, the user can keep writing w
 answer is still arriving. Each message is merged into the running turn, and the agent carries on
 answering with it in mind instead of finishing first.
 
-`conversation.info.agent.userInterruptionsEnabled` says whether the agent accepts interruptions, and
-`maxQueuedInterruptions` says how many a turn holds at once. Queue a message with
+`conversation.info.agent.userInterruptions` holds the settings: `enabled` says whether the agent
+accepts interruptions, `maxQueuedInterruptions` how many a turn holds at once, and
+`maxInterruptionsPerRun` how many it takes in total. Queue a message with
 `queueInterruption` while `streamMessage` is running, then follow it through the `interruption`
 event:
 
@@ -689,7 +690,7 @@ const client = new SerenityClient({
 });
 
 const conversation = await client.agents.assistants.createConversation("chef-assistant");
-const canInterrupt = conversation.info?.agent.userInterruptionsEnabled === true;
+const canInterrupt = conversation.info?.agent.userInterruptions?.enabled === true;
 
 conversation.on("interruption", (event) => {
   switch (event.status) {
@@ -726,13 +727,16 @@ How the queue behaves:
   in that order.
 - Sending pauses while `maxQueuedInterruptions` messages wait to be merged, and resumes on each
   merge. A server refusal for a full queue (`interruption_queue_full`) is retried the same way.
+- Once the turn took `maxInterruptionsPerRun` messages (blocked ones count too), the rest are
+  `deferred` without being sent. `conversation.isInterruptionLimitReached` turns `true` as soon as
+  the queued messages reach that limit, so a UI can stop offering interruptions until the turn ends.
 - Each message ends in exactly one of `merged`, `blocked`, `deferred`, `dropped` or `failed`.
   `queued` comes first when the acknowledgement arrives before the merge.
 - What the turn didn't take is reported **before** the `streamMessage` promise settles, so a
   `deferred` message can be sent as the next turn as soon as it does.
-- With no streamed turn running, or with `userInterruptionsEnabled: false`, the message is
-  `deferred` right away. Older servers don't send the flag; the SDK then tries and defers on
-  refusal.
+- With no streamed turn running, or with `userInterruptions.enabled: false`, the message is
+  `deferred` right away. Older servers don't send the settings; the SDK then tries, uses the
+  server's default limits, and defers on refusal.
 - Only text can interrupt. Attachments and audio need a turn of their own.
 - Buffered executions (`sendMessage`) can't be interrupted. Only SSE turns accept messages.
 

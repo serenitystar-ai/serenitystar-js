@@ -19,6 +19,10 @@ const queuedRes = (userMessageId: string) =>
 const refusal = (key: string) =>
   jsonResponse(400, { code: "validation_error", message: "Refused", errors: { [key]: "Refused" } });
 
+const interruptionsInfo = (settings: Record<string, unknown> = {}) => ({
+  userInterruptions: { enabled: true, maxQueuedInterruptions: 5, maxInterruptionsPerRun: 10, ...settings },
+});
+
 /** A response the test answers later, to control when an interrupt request settles. */
 function pending() {
   let resolve!: (response: Response) => void;
@@ -32,7 +36,7 @@ type Interrupt = { body: Array<{ Key: string; Value: unknown }>; respond: (respo
  * A conversation with an existing chat, whose execute streams through `stream` and whose
  * interrupt requests wait in `interrupts` until the test answers them.
  */
-async function setup(agentInfo: Record<string, unknown> = { userInterruptionsEnabled: true, maxQueuedInterruptions: 5 }) {
+async function setup(agentInfo: Record<string, unknown> = interruptionsInfo()) {
   const stream = controllableStream();
   const interrupts: Interrupt[] = [];
 
@@ -195,7 +199,7 @@ describe("Conversation.queueInterruption", () => {
   });
 
   it("stops sending at the server's queue limit and resumes on each merge", async () => {
-    const { conversation, stream, interrupts, message } = await setup({ userInterruptionsEnabled: true, maxQueuedInterruptions: 1 });
+    const { conversation, stream, interrupts, message } = await setup(interruptionsInfo({ maxQueuedInterruptions: 1 }));
     const turn = conversation.streamMessage("Plan a trip");
     await flush();
     stream.push(LLM_START);
@@ -323,7 +327,7 @@ describe("Conversation.queueInterruption", () => {
   });
 
   it("defers right away when the agent has interruptions turned off", async () => {
-    const { conversation, stream, statuses, interrupts } = await setup({ userInterruptionsEnabled: false });
+    const { conversation, stream, statuses, interrupts } = await setup(interruptionsInfo({ enabled: false }));
     const turn = conversation.streamMessage("Plan a trip");
     await flush();
     stream.push(LLM_START);
@@ -334,6 +338,111 @@ describe("Conversation.queueInterruption", () => {
 
     expect(statuses()).toEqual(["nope:deferred"]);
     expect(interrupts).toHaveLength(0);
+    stream.push(stopFrame());
+    await turn;
+  });
+
+  it("defers what comes after the turn's limit without sending it", async () => {
+    const { conversation, stream, interrupts, statuses, message } = await setup(interruptionsInfo({ maxInterruptionsPerRun: 2 }));
+    const turn = conversation.streamMessage("Plan a trip");
+    await flush();
+    stream.push(LLM_START);
+    await flush();
+
+    conversation.queueInterruption("one");
+    expect(conversation.isInterruptionLimitReached).toBe(false);
+    conversation.queueInterruption("two");
+    expect(conversation.isInterruptionLimitReached).toBe(true);
+    conversation.queueInterruption("three");
+    await flush();
+    interrupts[0].respond(queuedRes("ID-1"));
+    await flush();
+    interrupts[1].respond(queuedRes("ID-2"));
+    await flush();
+
+    expect(interrupts.map(message)).toEqual(["one", "two"]);
+    expect(statuses()).toEqual(["one:queued", "two:queued", "three:deferred"]);
+
+    conversation.queueInterruption("late");
+    await flush();
+    expect(statuses()).toEqual(["one:queued", "two:queued", "three:deferred", "late:deferred"]);
+    expect(interrupts).toHaveLength(2);
+
+    stream.push(merged("ID-1"));
+    stream.push(merged("ID-2"));
+    stream.push(stopFrame());
+    await turn;
+    expect(conversation.isInterruptionLimitReached).toBe(false);
+  });
+
+  it("counts blocked messages toward the turn's limit", async () => {
+    const { conversation, stream, interrupts, statuses } = await setup(interruptionsInfo({ maxInterruptionsPerRun: 1 }));
+    const turn = conversation.streamMessage("Plan a trip");
+    await flush();
+    stream.push(LLM_START);
+    await flush();
+
+    conversation.queueInterruption("bad words");
+    conversation.queueInterruption("next");
+    await flush();
+    interrupts[0].respond(jsonResponse(200, { instanceId: "i", userMessageId: "B-1", status: "Blocked", content: "No." }));
+    await flush();
+
+    expect(statuses()).toEqual(["bad words:blocked", "next:deferred"]);
+    expect(interrupts).toHaveLength(1);
+    stream.push(stopFrame());
+    await turn;
+  });
+
+  it("doesn't count refused messages toward the turn's limit", async () => {
+    const { conversation, stream, interrupts, statuses, message } = await setup(interruptionsInfo({ maxInterruptionsPerRun: 2 }));
+    const turn = conversation.streamMessage("Plan a trip");
+    await flush();
+    stream.push(LLM_START);
+    await flush();
+
+    conversation.queueInterruption("one");
+    conversation.queueInterruption("two");
+    await flush();
+    interrupts[0].respond(queuedRes("ID-1"));
+    await flush();
+    interrupts[1].respond(refusal("interruption_queue_full"));
+    await flush();
+
+    stream.push(merged("ID-1"));
+    await flush();
+    interrupts[2].respond(queuedRes("ID-2"));
+    await flush();
+
+    expect(interrupts.map(message)).toEqual(["one", "two", "two"]);
+    expect(statuses()).toEqual(["one:queued", "one:merged", "two:queued"]);
+
+    stream.push(merged("ID-2"));
+    stream.push(stopFrame());
+    await turn;
+  });
+
+  it("uses the server's default limit when it isn't reported", async () => {
+    const { conversation, stream, interrupts } = await setup({ userInterruptions: { enabled: true } });
+    const turn = conversation.streamMessage("Plan a trip");
+    await flush();
+    stream.push(LLM_START);
+    await flush();
+
+    for (let i = 1; i <= 10; i++) conversation.queueInterruption(`m${i}`);
+    expect(conversation.isInterruptionLimitReached).toBe(true);
+
+    for (let i = 1; i <= 10; i++) {
+      await flush();
+      interrupts[i - 1].respond(queuedRes(`ID-${i}`));
+      if (i % 5 === 0) {
+        await flush();
+        for (let j = i - 4; j <= i; j++) stream.push(merged(`ID-${j}`));
+      }
+    }
+    await flush();
+    expect(interrupts).toHaveLength(10);
+
     stream.push(stopFrame());
     await turn;
   });
