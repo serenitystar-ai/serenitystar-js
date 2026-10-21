@@ -25,7 +25,7 @@ import {
   InterruptResult,
 } from "./types";
 import { SseConnection } from "./SseConnection";
-import { DEFAULT_MAX_QUEUED_INTERRUPTIONS, InterruptionQueue } from "./InterruptionQueue";
+import { DEFAULT_MAX_INTERRUPTIONS_PER_RUN, DEFAULT_MAX_QUEUED_INTERRUPTIONS, InterruptionQueue } from "./InterruptionQueue";
 import { AgentMapper } from "../../../utils/AgentMapper";
 import { AgentTodoParser } from "../../../utils/AgentTodoParser";
 import { InternalErrorHelper } from "../../../utils/ErrorHelper";
@@ -71,7 +71,8 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
         throw await InternalErrorHelper.process(error, "Failed to send interruption");
       }),
     emit: (event) => this.emit("interruption", event),
-    maxQueued: () => this.info?.agent?.maxQueuedInterruptions ?? DEFAULT_MAX_QUEUED_INTERRUPTIONS,
+    maxQueued: () => this.info?.agent?.userInterruptions?.maxQueuedInterruptions ?? DEFAULT_MAX_QUEUED_INTERRUPTIONS,
+    maxPerRun: () => this.info?.agent?.userInterruptions?.maxInterruptionsPerRun ?? DEFAULT_MAX_INTERRUPTIONS_PER_RUN,
   });
 
   private constructor(
@@ -385,18 +386,28 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
   }
 
   /**
+   * Whether the streaming turn took, or is about to take, `info.agent.userInterruptions.maxInterruptionsPerRun`
+   * messages. Further messages queued with `queueInterruption` are `deferred`, so a UI can stop
+   * offering them until the turn ends. Check it again on each `interruption` event.
+   */
+  get isInterruptionLimitReached(): boolean {
+    return this.#interruptions.isLimitReached;
+  }
+
+  /**
    * Queue a message for the turn that is streaming right now, so the agent takes it into
    * account without finishing first (User Interruptions).
    *
    * The message is held until the turn accepts interruptions, then sent. Messages are sent
    * one at a time in the order they were queued, and sending pauses while the server holds
-   * `info.agent.maxQueuedInterruptions` of them. Follow each message through the
+   * `info.agent.userInterruptions.maxQueuedInterruptions` of them. Once the turn took
+   * `maxInterruptionsPerRun` messages, the rest are deferred (see `isInterruptionLimitReached`). Follow each message through the
    * `interruption` event, using the id this method returns. When `merged` arrives, the
    * content streamed from then on answers it.
    *
    * Nothing is lost: what the turn doesn't take ends `deferred` (send it as a regular
    * message) or `dropped` (the server discarded it). With no streamed turn running, or when
-   * `info.agent.userInterruptionsEnabled` is `false`, the message is `deferred` right away.
+   * `info.agent.userInterruptions.enabled` is `false`, the message is `deferred` right away.
    *
    * Only text is supported: attachments and audio need a turn of their own.
    *
@@ -420,7 +431,7 @@ export class Conversation extends EventEmitter<SSEStreamEvents> {
       throw new Error("An interruption needs a non-empty message.");
     }
 
-    const enabled = this.info?.agent?.userInterruptionsEnabled !== false;
+    const enabled = this.info?.agent?.userInterruptions?.enabled !== false;
     return this.#interruptions.enqueue(text, options, enabled);
   }
 
