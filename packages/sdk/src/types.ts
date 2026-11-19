@@ -24,6 +24,26 @@ export type AgentClientCredentials = {
   tokenProvider: TokenProviderFn;
 };
 
+/** Passed to an {@link AccessTokenProviderFn} on every call. */
+export type AccessTokenContext = {
+  /**
+   * `true` when the API has just rejected a token with a 401: return a newly issued token
+   * rather than a cached one. The request is then retried once.
+   */
+  forceRefresh: boolean;
+};
+
+/**
+ * Returns the bearer token for the next request. It is called before every request and the
+ * SDK keeps no copy, so cache the token on your side and refresh it before it expires.
+ */
+export type AccessTokenProviderFn = (
+  context: AccessTokenContext
+) => string | Promise<string>;
+
+/** A bearer token issued for a signed-in user, or a function that returns the current one. */
+export type AccessToken = string | AccessTokenProviderFn;
+
 /** The request a per-request {@link CustomHeaders} function is called for. */
 export type CustomHeadersContext = {
   /** Absolute URL of the request. */
@@ -59,12 +79,25 @@ type SharedClientOptions = {
 export type ApiKeyClientOptions = SharedClientOptions & {
   apiKey: string;
   agentClientCredentials?: never;
+  accessToken?: never;
 };
 
 /** Agent Client Credentials auth mode — scoped to one agent */
 export type AgentClientCredentialsOptions = SharedClientOptions & {
   apiKey?: never;
   agentClientCredentials: AgentClientCredentials;
+  accessToken?: never;
+};
+
+/** Access Token auth mode — full client, acting as the user the token was issued to */
+export type AccessTokenClientOptions = SharedClientOptions & {
+  apiKey?: never;
+  agentClientCredentials?: never;
+  /**
+   * Sent as `Authorization: Bearer <token>`. A static token is never retried; a function is
+   * called again with `forceRefresh: true` after a 401. See {@link AccessTokenProviderFn}.
+   */
+  accessToken: AccessToken;
 };
 
 /**
@@ -72,7 +105,8 @@ export type AgentClientCredentialsOptions = SharedClientOptions & {
  */
 export type SerenityClientOptions =
   | ApiKeyClientOptions
-  | AgentClientCredentialsOptions;
+  | AgentClientCredentialsOptions
+  | AccessTokenClientOptions;
 
 export type AgentType = 'assistant' | 'copilot' | 'proxy' | 'activity' | 'chat-completion';
 
