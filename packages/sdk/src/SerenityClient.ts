@@ -12,10 +12,15 @@ import {
 import { Activity } from "./scopes/system/Activity";
 import { ChatCompletion } from "./scopes/system/ChatCompletion";
 import { Proxy } from "./scopes/system/Proxy";
-import { ApiKeyClientOptions, AgentClientCredentialsOptions, SerenityClientOptions } from "./types";
+import {
+  ApiKeyClientOptions,
+  AgentClientCredentialsOptions,
+  AccessTokenClientOptions,
+  SerenityClientOptions,
+} from "./types";
 import { createAuthProvider } from "./auth";
 
-// ─── Full client shape (API Key) ───
+// ─── Full client shape (API Key or Access Token) ───
 export type FullAgents = {
   assistants: ConversationalAgentScope<"assistant">;
   copilots: ConversationalAgentScope<"copilot">;
@@ -37,7 +42,7 @@ export type ScopedAgents = {
   proxies: ScopedSystemAgentScope<"proxy", Proxy>;
 };
 
-/** Full-access client returned when using API Key authentication */
+/** Full client returned when using API Key or Access Token authentication */
 export class FullSerenityClient {
   private baseUrl = "https://api.serenitystar.ai/api";
 
@@ -53,7 +58,7 @@ export class FullSerenityClient {
    */
   public readonly services: FullServices;
 
-  constructor(options: ApiKeyClientOptions) {
+  constructor(options: ApiKeyClientOptions | AccessTokenClientOptions) {
     this.baseUrl = options.baseUrl || this.baseUrl;
     const authProvider = createAuthProvider(options);
 
@@ -96,14 +101,19 @@ export class ScopedSerenityClient {
 }
 
 /**
- * Create a Serenity client. Returns a `FullSerenityClient` when using API Key auth,
- * or a `ScopedSerenityClient` when using Agent Client Credentials.
+ * Create a Serenity client. Returns a `FullSerenityClient` when using API Key or Access Token
+ * auth, or a `ScopedSerenityClient` when using Agent Client Credentials.
  *
  * @example
  * // API Key — full access
  * const client = new SerenityClient({ apiKey: "sk_..." });
  * client.agents.assistants.createConversation(agentCode, options);
  * client.services.audio.transcribe(file);
+ *
+ * @example
+ * // Access Token — full client, acting as the signed-in user
+ * const client = new SerenityClient({ accessToken: ({ forceRefresh }) => tokens.get(userId, { forceRefresh }) });
+ * client.agents.assistants.createConversation(agentCode, options);
  *
  * @example
  * // Agent Client Credentials — scoped access
@@ -114,12 +124,16 @@ function _SerenityClientFactory(options: SerenityClientOptions) {
   if ("apiKey" in options && options.apiKey) {
     return new FullSerenityClient(options as ApiKeyClientOptions);
   }
+  if (options.accessToken !== undefined) {
+    return new FullSerenityClient(options as AccessTokenClientOptions);
+  }
   return new ScopedSerenityClient(options as AgentClientCredentialsOptions);
 }
 
 // ─── Type-level overloads for `new SerenityClient(...)` ───
 export interface SerenityClientConstructor {
   new (options: ApiKeyClientOptions): FullSerenityClient;
+  new (options: AccessTokenClientOptions): FullSerenityClient;
   new (options: AgentClientCredentialsOptions): ScopedSerenityClient;
 }
 

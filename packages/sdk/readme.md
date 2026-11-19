@@ -11,6 +11,7 @@ The Serenity Star JS/TS SDK provides a comprehensive interface for interacting w
 - [Authentication Modes](#authentication-modes)
   - [API Key (Full Access)](#api-key-full-access)
   - [Agent Client Credentials (Token Provider)](#agent-client-credentials-token-provider)
+  - [Access Token (Signed-in User)](#access-token-signed-in-user)
   - [Custom headers](#custom-headers)
   - [Feature Comparison](#feature-comparison)
 - [Usage](#usage)
@@ -79,7 +80,7 @@ npm install @serenity-star/sdk
 
 # Authentication Modes
 
-The SDK supports two authentication modes that determine how the client is instantiated and which features are available.
+The SDK supports three authentication modes that determine how the client is instantiated and which features are available.
 
 ## API Key (Full Access)
 
@@ -137,9 +138,74 @@ const conversation = await client.agents.assistants.createConversation();
 
 > **Note:** Your `tokenProvider` callback only needs to return a client token from your backend. The SDK handles the token exchange with the Serenity API automatically — calling the exchange endpoint, obtaining a short-lived access token, and refreshing it transparently.
 
+## Access Token (Signed-in User)
+
+Use an access token when your app, typically your backend, already holds a token Serenity\* Star
+issued for a signed-in user and wants to call the API as that user. The client has the same
+shape as with an API key: `agentCode` is passed to each operation and `services` is available.
+Every HTTP request carries `Authorization: Bearer <token>` and acts with that user's permissions.
+
+Pass the token itself, or a function that returns the current one. The SDK calls the function
+before every request and keeps no copy, so cache the token on your side and refresh it before
+it expires.
+
+```tsx
+const client = new SerenityClient({
+  accessToken: ({ forceRefresh }) => tokens.get(userId, { forceRefresh }),
+});
+
+const conversation = await client.agents.assistants.createConversation("chef-assistant");
+```
+
+- On a 401, the SDK calls the function once with `forceRefresh: true` so you can replace a
+  cached token, then retries the request once. If that call throws, the 401 is returned. A
+  static token is never retried.
+- SSE streams (`streamMessage`, `stream`) aren't retried on a 401, so refresh the token before
+  it expires.
+- Realtime sessions aren't available: WebSockets can't carry a bearer token.
+
+### Refreshing the token
+
+A complete example in plain JavaScript. It keeps the token in memory, gets a new one shortly
+before it expires or when the SDK asks for one after a 401, and shares one refresh between
+requests that start at the same time. `/api/serenity-token` stands for your own endpoint that
+returns the signed-in user's token and its lifetime in seconds.
+
+```js
+import { SerenityClient } from "@serenity-star/sdk";
+
+const REFRESH_EARLY_MS = 60_000;
+
+let cached = null; // { token, expiresAt }
+let refreshing = null;
+
+async function fetchToken() {
+  const response = await fetch("/api/serenity-token", { method: "POST", credentials: "include" });
+  if (!response.ok) throw new Error(`Could not get a token: ${response.status}`);
+  const { token, expiresIn } = await response.json();
+  cached = { token, expiresAt: Date.now() + expiresIn * 1000 };
+  return token;
+}
+
+function getToken({ forceRefresh }) {
+  const fresh = cached && Date.now() < cached.expiresAt - REFRESH_EARLY_MS;
+  if (fresh && !forceRefresh) return cached.token;
+
+  refreshing ??= fetchToken().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
+}
+
+const client = new SerenityClient({ accessToken: getToken });
+```
+
+Refreshing a minute early keeps a stream that starts just before the expiry from failing,
+since streams aren't retried.
+
 ## Custom headers
 
-Both modes accept `headers`: extra headers sent with every HTTP request, including conversation
+Every mode accepts `headers`: extra headers sent with every HTTP request, including conversation
 info, SSE streams and uploads. Pass a static map, or a function called per request with its
 `url` and `method`, to scope a header to some URLs only:
 
@@ -165,18 +231,18 @@ const client = new SerenityClient({
 
 ## Feature Comparison
 
-| Feature | API Key | Agent Client Credentials |
-|---|---|---|
-| `agents.assistants.createConversation(agentCode, options?)` | ✅ | ➡️ `createConversation(options?)` |
-| `agents.assistants.getInfoByCode(agentCode, options?)` | ✅ | ➡️ `getInfo(options?)` |
-| `agents.assistants.getConversationById(agentCode, id, options?)` | ✅ | ➡️ `getConversationById(id, options?)` |
-| `agents.assistants.createRealtimeSession(agentCode, options?)` | ✅ | ❌ Not available |
-| `agents.copilots.*` | ✅ Same as assistants | ➡️ Same scoping as assistants |
-| `agents.activities.execute(agentCode, options?)` | ✅ | ➡️ `execute(options?)` |
-| `agents.activities.create(agentCode, options?)` | ✅ | ➡️ `create(options?)` |
-| `agents.chatCompletions.*` | ✅ Same as activities | ➡️ Same scoping as activities |
-| `agents.proxies.*` | ✅ Same as activities | ➡️ Same scoping as activities |
-| `services.audio.transcribe(...)` | ✅ | ❌ Not available (`services` is undefined) |
+| Feature | API Key | Access Token | Agent Client Credentials |
+|---|---|---|---|
+| `agents.assistants.createConversation(agentCode, options?)` | ✅ | ✅ | ➡️ `createConversation(options?)` |
+| `agents.assistants.getInfoByCode(agentCode, options?)` | ✅ | ✅ | ➡️ `getInfo(options?)` |
+| `agents.assistants.getConversationById(agentCode, id, options?)` | ✅ | ✅ | ➡️ `getConversationById(id, options?)` |
+| `agents.assistants.createRealtimeSession(agentCode, options?)` | ✅ | ❌ `start()` fails | ❌ Not available |
+| `agents.copilots.*` | ✅ Same as assistants | ✅ Same as assistants | ➡️ Same scoping as assistants |
+| `agents.activities.execute(agentCode, options?)` | ✅ | ✅ | ➡️ `execute(options?)` |
+| `agents.activities.create(agentCode, options?)` | ✅ | ✅ | ➡️ `create(options?)` |
+| `agents.chatCompletions.*` | ✅ Same as activities | ✅ Same as activities | ➡️ Same scoping as activities |
+| `agents.proxies.*` | ✅ Same as activities | ✅ Same as activities | ➡️ Same scoping as activities |
+| `services.audio.transcribe(...)` | ✅ | ✅ | ❌ Not available (`services` is undefined) |
 
 # Usage
 

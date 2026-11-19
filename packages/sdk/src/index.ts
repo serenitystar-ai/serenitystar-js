@@ -78,6 +78,9 @@ import {
   TokenProviderFn,
   TokenProviderContext,
   AgentClientCredentials,
+  AccessToken,
+  AccessTokenProviderFn,
+  AccessTokenContext,
 } from "./types";
 import { ExternalErrorHelper } from "./utils/ErrorHelper";
 import type { SerenityErrorType } from "./utils/ErrorHelper";
@@ -169,6 +172,9 @@ export type {
   TokenProviderFn,
   TokenProviderContext,
   AgentClientCredentials,
+  AccessToken,
+  AccessTokenProviderFn,
+  AccessTokenContext,
   AuthProvider,
   AuthRequestContext,
   FullAgents,
